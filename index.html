@@ -194,15 +194,116 @@
   }
   .toast.show { opacity: 1; }
 
-  dialog#scoreDialog {
+  dialog {
     border: none;
     border-radius: 16px;
     padding: 0;
     width: min(480px, 92vw);
+    max-height: 88vh;
   }
-  dialog#scoreDialog::backdrop { background: rgba(0,0,0,.4); }
-  .dialog-inner { padding: 18px; }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  .dialog-inner { padding: 18px; overflow-y: auto; }
   .dialog-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+  /* 골프장/동반자/맛집 목록 카드 */
+  .list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .list-item:last-child { border-bottom: none; }
+  .list-item .name { font-weight: 600; }
+  .list-item .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .list-item .tags { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    display: inline-block;
+    background: #eef2ee;
+    color: var(--green-dark);
+    border-radius: 8px;
+    padding: 2px 8px;
+    font-size: 11px;
+  }
+
+  /* 검색 결과 리스트(카카오 장소 검색) */
+  .search-result {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .search-result:active { background: #f0f4f0; }
+  .search-result .name { font-weight: 600; }
+  .search-result .addr { color: var(--muted); font-size: 12px; }
+
+  /* 칩(참가자 선택 등) */
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: #fff;
+    font-size: 13px;
+  }
+  .chip.selected { background: var(--green); color: #fff; border-color: var(--green); }
+
+  /* 정산 항목 입력 행 */
+  .item-row {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    margin-top: 10px;
+    position: relative;
+  }
+  .item-row .remove-row {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-size: 13px;
+  }
+  .checkbox-row { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 0; }
+  .checkbox-row input { width: auto; }
+
+  .settlement-person-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .settlement-person-row:last-child { border-bottom: none; }
+  .net-positive { color: #1a6b3a; font-weight: 700; }
+  .net-negative { color: var(--danger); font-weight: 700; }
+
+  .kakao-message-box {
+    white-space: pre-wrap;
+    background: #f0f4f0;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 13px;
+    margin-top: 10px;
+  }
+
+  /* 맛집 필터 */
+  .filter-row { display: flex; gap: 8px; margin: 10px 0; }
+  .filter-btn {
+    flex: 1;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 4px;
+    font-size: 13px;
+  }
+  .filter-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
 </style>
 </head>
 <body>
@@ -235,12 +336,33 @@
     </div>
   </section>
 
-  <!-- 예약 (MVP2 예정) -->
+  <!-- 예약: 즐겨찾기 골프장 / 동반자 / 정산 (MVP2) -->
   <section id="tab-booking" class="tab-panel">
-    <div class="card placeholder">
-      <div style="font-size:36px;">📅</div>
-      <p><strong>예약/조인 매칭</strong>은 MVP4에서 추가될 예정입니다.</p>
-      <p class="muted">골프장 즐겨찾기, 동반예약 그룹 비교, 예약확정 메시지 붙여넣기 자동 파싱 기능이 포함됩니다.</p>
+    <div class="card">
+      <p class="muted" style="margin:0;">📌 골프장 조건검색·동반예약 비교·가중치 추천은 MVP4에서 추가됩니다. 지금은 즐겨찾기 골프장/동반자/정산 기능만 제공합니다.</p>
+    </div>
+
+    <div class="card">
+      <h2>⭐ 즐겨찾기 골프장</h2>
+      <button class="btn block" onclick="openCourseDialog()">＋ 골프장 추가</button>
+      <div id="course-list" class="empty" style="margin-top:10px;">등록된 골프장이 없습니다.</div>
+    </div>
+
+    <div class="card">
+      <h2>👥 동반자</h2>
+      <button class="btn block secondary" onclick="openCompanionDialog()">＋ 동반자 추가</button>
+      <div id="companion-list" class="empty" style="margin-top:10px;">등록된 동반자가 없습니다.</div>
+    </div>
+
+    <div class="card">
+      <h2>💰 정산</h2>
+      <button class="btn block" onclick="openSettlementDialog()">정산 계산하기</button>
+      <div id="settlement-result-box" style="display:none; margin-top:12px;">
+        <div id="settlement-person-list"></div>
+        <div id="settlement-transfer-list" style="margin-top:10px;"></div>
+        <div class="kakao-message-box" id="settlement-kakao-message"></div>
+        <button class="btn secondary block" style="margin-top:10px;" onclick="copySettlementMessage()">📋 카카오톡 공유문구 복사</button>
+      </div>
     </div>
   </section>
 
@@ -287,12 +409,22 @@
     </div>
   </section>
 
-  <!-- 맛집 (MVP2 예정) -->
+  <!-- 맛집 -->
   <section id="tab-food" class="tab-panel">
-    <div class="card placeholder">
-      <div style="font-size:36px;">🍚</div>
-      <p><strong>골프장 주변 맛집</strong>은 MVP2에서 추가될 예정입니다.</p>
-      <p class="muted">카카오맵 API 연동 후 라운드 전/후 타이밍 맞춤 맛집 추천이 제공됩니다.</p>
+    <div class="card">
+      <h2>🍚 골프장 주변 맛집</h2>
+      <button class="btn block" onclick="locateAndSearchFood()">📍 내 위치 주변 맛집 찾기</button>
+      <div class="filter-row">
+        <button class="filter-btn active" data-timing="before" onclick="setFoodTiming('before')">🌅 라운딩 전(해장)</button>
+        <button class="filter-btn" data-timing="after" onclick="setFoodTiming('after')">🍖 라운딩 후(한끼)</button>
+        <button class="filter-btn" data-timing="cafe" onclick="setFoodTiming('cafe')">☕ 카페</button>
+      </div>
+      <div id="food-result-list" class="empty">위 버튼으로 검색해주세요.</div>
+    </div>
+
+    <div class="card">
+      <h2>📌 내 맛집 즐겨찾기</h2>
+      <div id="food-favorite-list" class="empty">즐겨찾기한 맛집이 없습니다.</div>
     </div>
   </section>
 </main>
@@ -359,6 +491,103 @@
   </div>
 </dialog>
 
+<dialog id="courseDialog">
+  <div class="dialog-inner">
+    <h2 id="courseDialogTitle" style="margin-top:0;">골프장 추가</h2>
+    <form id="courseForm">
+      <input type="hidden" id="course-id">
+
+      <label>골프장 검색 (카카오맵)</label>
+      <div style="display:flex; gap:6px;">
+        <input type="text" id="course-search-input" placeholder="골프장명 입력">
+        <button type="button" class="btn secondary" onclick="searchCoursePlaces()">검색</button>
+      </div>
+      <div id="course-search-results" style="margin-top:8px;"></div>
+
+      <label>골프장명 *</label>
+      <input type="text" id="course-name" required>
+      <label>주소</label>
+      <input type="text" id="course-address">
+      <label>예약 연락처</label>
+      <input type="text" id="course-phone">
+      <input type="hidden" id="course-lat">
+      <input type="hidden" id="course-lon">
+
+      <label>예약 오픈 규칙</label>
+      <input type="text" id="course-booking-rule" placeholder="예: 라운딩일 30일 전 10시 오픈">
+
+      <label>코스 목록 (콤마로 구분)</label>
+      <input type="text" id="course-list-input" placeholder="예: 레이크코스, 밸리코스">
+
+      <div class="grid-2">
+        <div><label>카트비</label><input type="number" id="course-cart-fee"></div>
+        <div><label>캐디피</label><input type="number" id="course-caddy-fee"></div>
+      </div>
+
+      <label>골프팡 예약 링크</label>
+      <input type="text" id="course-link-golfpang" placeholder="https://...">
+      <label>골프장 홈페이지</label>
+      <input type="text" id="course-link-page" placeholder="https://...">
+
+      <label>메모</label>
+      <textarea id="course-memo" rows="2"></textarea>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary block" onclick="closeCourseDialog()">취소</button>
+        <button type="submit" class="btn block">저장</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="companionDialog">
+  <div class="dialog-inner">
+    <h2 id="companionDialogTitle" style="margin-top:0;">동반자 추가</h2>
+    <form id="companionForm">
+      <input type="hidden" id="companion-id">
+      <label>이름 *</label>
+      <input type="text" id="companion-name" required>
+      <label>연락처</label>
+      <input type="text" id="companion-phone">
+      <label>카카오톡 닉네임</label>
+      <input type="text" id="companion-kakao">
+      <label>메모</label>
+      <textarea id="companion-memo" rows="2"></textarea>
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary block" onclick="closeCompanionDialog()">취소</button>
+        <button type="submit" class="btn block">저장</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="settlementDialog">
+  <div class="dialog-inner">
+    <h2 style="margin-top:0;">정산 계산</h2>
+
+    <label>골프장/라운딩명</label>
+    <input type="text" id="settlement-course-name" placeholder="예: 해솔리아CC">
+    <label>날짜</label>
+    <input type="date" id="settlement-date">
+
+    <label>참가자</label>
+    <div class="chip-group" id="settlement-participant-chips"></div>
+    <div style="display:flex; gap:6px; margin-top:8px;">
+      <input type="text" id="settlement-add-name" placeholder="직접 추가할 이름">
+      <button type="button" class="btn secondary" onclick="addSettlementParticipant()">추가</button>
+    </div>
+
+    <label style="margin-top:16px;">정산 항목</label>
+    <div id="settlement-items"></div>
+    <button type="button" class="btn secondary block" style="margin-top:10px;" onclick="addSettlementItemRow()">＋ 항목 추가</button>
+
+    <div class="dialog-actions">
+      <button type="button" class="btn secondary block" onclick="closeSettlementDialog()">취소</button>
+      <button type="button" class="btn block" onclick="submitSettlement()">계산하기</button>
+    </div>
+  </div>
+</dialog>
+
 <script>
 // ===== 설정: 배포한 Cloudflare Worker 주소로 교체하세요 =====
 const CONFIG = {
@@ -392,6 +621,8 @@ function showTab(name) {
   });
   if (name === 'score') { loadScores(); loadStats(); }
   if (name === 'home') { loadStats(true); }
+  if (name === 'booking') { loadCourses(); loadCompanions(); }
+  if (name === 'food') { loadFavoriteRestaurants(); }
 }
 
 // ===== 날씨 =====
@@ -492,6 +723,16 @@ function renderScoreList(scores) {
 
 function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+/** 동적으로 생성한 onclick="...('${...}')" 안에 사용자 입력 문자열을 안전하게 끼워넣기 위한 이스케이프 */
+function jsAttrEscape(str) {
+  return String(str ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 async function loadStats(homeOnly = false) {
@@ -597,6 +838,529 @@ async function removeScore(id) {
     showToast('삭제했습니다');
     await loadScores();
     await loadStats();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
+
+// ===== 골프장 즐겨찾기 =====
+let courseCache = [];
+let courseSearchResults = [];
+
+async function loadCourses() {
+  try {
+    const { courses } = await api('/api/courses');
+    courseCache = courses;
+    renderCourseList(courses);
+  } catch (e) {
+    showToast('골프장 목록 조회 실패: ' + e.message);
+  }
+}
+
+function renderCourseList(courses) {
+  const el = document.getElementById('course-list');
+  if (!courses.length) {
+    el.innerHTML = '<div class="empty">등록된 골프장이 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = courses.map((c) => `
+    <div class="list-item">
+      <div>
+        <div class="name">${escapeHtml(c.name)}</div>
+        <div class="sub">${escapeHtml(c.address || '')}${c.homeDistanceKm != null ? ' · ' + c.homeDistanceKm + 'km' : ''}</div>
+        <div class="tags">
+          ${(c.courseList || []).map((cn) => `<span class="tag">${escapeHtml(cn)}</span>`).join('')}
+          ${c.cartFee != null ? `<span class="tag">카트비 ${Number(c.cartFee).toLocaleString('ko-KR')}원</span>` : ''}
+          ${c.caddyFee != null ? `<span class="tag">캐디피 ${Number(c.caddyFee).toLocaleString('ko-KR')}원</span>` : ''}
+        </div>
+      </div>
+      <div class="score-actions">
+        <button class="icon-btn" onclick="openCourseDialog('${c.id}')" title="수정">✏️</button>
+        <button class="icon-btn" onclick="removeCourse('${c.id}')" title="삭제">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openCourseDialog(id) {
+  const dialog = document.getElementById('courseDialog');
+  document.getElementById('courseForm').reset();
+  document.getElementById('course-id').value = '';
+  document.getElementById('course-search-results').innerHTML = '';
+  document.getElementById('courseDialogTitle').textContent = id ? '골프장 수정' : '골프장 추가';
+  if (id) {
+    const c = courseCache.find((x) => x.id === id);
+    if (c) {
+      document.getElementById('course-id').value = c.id;
+      document.getElementById('course-name').value = c.name || '';
+      document.getElementById('course-address').value = c.address || '';
+      document.getElementById('course-phone').value = c.bookingPhone || '';
+      document.getElementById('course-lat').value = c.lat ?? '';
+      document.getElementById('course-lon').value = c.lon ?? '';
+      document.getElementById('course-booking-rule').value = c.bookingRule || '';
+      document.getElementById('course-list-input').value = (c.courseList || []).join(', ');
+      document.getElementById('course-cart-fee').value = c.cartFee ?? '';
+      document.getElementById('course-caddy-fee').value = c.caddyFee ?? '';
+      document.getElementById('course-link-golfpang').value = c.bookingLinks?.golfpang || '';
+      document.getElementById('course-link-page').value = c.bookingLinks?.coursePage || '';
+      document.getElementById('course-memo').value = c.memo || '';
+    }
+  }
+  dialog.showModal();
+}
+
+function closeCourseDialog() {
+  document.getElementById('courseDialog').close();
+}
+
+async function searchCoursePlaces() {
+  const q = document.getElementById('course-search-input').value.trim();
+  if (!q) return;
+  try {
+    const { places } = await api('/api/places/search?query=' + encodeURIComponent(q));
+    courseSearchResults = places;
+    const el = document.getElementById('course-search-results');
+    if (!places.length) {
+      el.innerHTML = '<div class="muted">검색 결과가 없습니다</div>';
+      return;
+    }
+    el.innerHTML = places.map((p, i) => `
+      <div class="search-result" onclick="selectSearchedCoursePlace(${i})">
+        <div class="name">${escapeHtml(p.name)}</div>
+        <div class="addr">${escapeHtml(p.address)}${p.phone ? ' · ' + escapeHtml(p.phone) : ''}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    showToast('검색 실패: ' + e.message);
+  }
+}
+
+function selectSearchedCoursePlace(index) {
+  const p = courseSearchResults[index];
+  if (!p) return;
+  document.getElementById('course-name').value = p.name;
+  document.getElementById('course-address').value = p.address;
+  document.getElementById('course-phone').value = p.phone;
+  document.getElementById('course-lat').value = p.lat;
+  document.getElementById('course-lon').value = p.lon;
+  document.getElementById('course-search-results').innerHTML = '';
+  showToast('선택한 정보로 자동 입력했습니다');
+}
+
+document.getElementById('courseForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('course-id').value;
+  const payload = {
+    name: document.getElementById('course-name').value,
+    address: document.getElementById('course-address').value,
+    bookingPhone: document.getElementById('course-phone').value,
+    lat: valOrNull('course-lat'),
+    lon: valOrNull('course-lon'),
+    bookingRule: document.getElementById('course-booking-rule').value,
+    courseList: document.getElementById('course-list-input').value.split(',').map((s) => s.trim()).filter(Boolean),
+    cartFee: valOrNull('course-cart-fee'),
+    caddyFee: valOrNull('course-caddy-fee'),
+    bookingLinks: {
+      golfpang: document.getElementById('course-link-golfpang').value,
+      coursePage: document.getElementById('course-link-page').value,
+    },
+    memo: document.getElementById('course-memo').value,
+  };
+  try {
+    if (id) {
+      await api(`/api/courses/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      showToast('골프장 정보를 수정했습니다');
+    } else {
+      await api('/api/courses', { method: 'POST', body: JSON.stringify(payload) });
+      showToast('골프장을 등록했습니다');
+    }
+    closeCourseDialog();
+    await loadCourses();
+  } catch (err) {
+    showToast('저장 실패: ' + err.message);
+  }
+});
+
+async function removeCourse(id) {
+  if (!confirm('이 골프장을 즐겨찾기에서 삭제할까요?')) return;
+  try {
+    await api(`/api/courses/${id}`, { method: 'DELETE' });
+    showToast('삭제했습니다');
+    await loadCourses();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
+
+// ===== 동반자 =====
+let companionCache = [];
+
+async function loadCompanions() {
+  try {
+    const { companions } = await api('/api/companions');
+    companionCache = companions;
+    renderCompanionList(companions);
+  } catch (e) {
+    showToast('동반자 목록 조회 실패: ' + e.message);
+  }
+}
+
+function renderCompanionList(companions) {
+  const el = document.getElementById('companion-list');
+  if (!companions.length) {
+    el.innerHTML = '<div class="empty">등록된 동반자가 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = companions.map((c) => `
+    <div class="list-item">
+      <div>
+        <div class="name">${escapeHtml(c.name)}</div>
+        <div class="sub">${escapeHtml(c.phone || '')}${c.kakaoNickname ? ' · 카톡: ' + escapeHtml(c.kakaoNickname) : ''}</div>
+      </div>
+      <div class="score-actions">
+        <button class="icon-btn" onclick="openCompanionDialog('${c.id}')" title="수정">✏️</button>
+        <button class="icon-btn" onclick="removeCompanion('${c.id}')" title="삭제">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openCompanionDialog(id) {
+  const dialog = document.getElementById('companionDialog');
+  document.getElementById('companionForm').reset();
+  document.getElementById('companion-id').value = '';
+  document.getElementById('companionDialogTitle').textContent = id ? '동반자 수정' : '동반자 추가';
+  if (id) {
+    const c = companionCache.find((x) => x.id === id);
+    if (c) {
+      document.getElementById('companion-id').value = c.id;
+      document.getElementById('companion-name').value = c.name || '';
+      document.getElementById('companion-phone').value = c.phone || '';
+      document.getElementById('companion-kakao').value = c.kakaoNickname || '';
+      document.getElementById('companion-memo').value = c.memo || '';
+    }
+  }
+  dialog.showModal();
+}
+
+function closeCompanionDialog() {
+  document.getElementById('companionDialog').close();
+}
+
+document.getElementById('companionForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('companion-id').value;
+  const payload = {
+    name: document.getElementById('companion-name').value,
+    phone: document.getElementById('companion-phone').value,
+    kakaoNickname: document.getElementById('companion-kakao').value,
+    memo: document.getElementById('companion-memo').value,
+  };
+  try {
+    if (id) {
+      await api(`/api/companions/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      showToast('동반자 정보를 수정했습니다');
+    } else {
+      await api('/api/companions', { method: 'POST', body: JSON.stringify(payload) });
+      showToast('동반자를 추가했습니다');
+    }
+    closeCompanionDialog();
+    await loadCompanions();
+  } catch (err) {
+    showToast('저장 실패: ' + err.message);
+  }
+});
+
+async function removeCompanion(id) {
+  if (!confirm('이 동반자를 삭제할까요?')) return;
+  try {
+    await api(`/api/companions/${id}`, { method: 'DELETE' });
+    showToast('삭제했습니다');
+    await loadCompanions();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
+
+// ===== 정산 =====
+let settlementParticipants = [];
+let settlementItems = [];
+let lastSettlementMessage = '';
+
+function openSettlementDialog() {
+  settlementParticipants = ['본인'];
+  settlementItems = [];
+  document.getElementById('settlement-course-name').value = '';
+  document.getElementById('settlement-date').value = new Date().toISOString().slice(0, 10);
+  renderSettlementParticipantChips();
+  renderSettlementItems();
+  document.getElementById('settlementDialog').showModal();
+}
+
+function closeSettlementDialog() {
+  document.getElementById('settlementDialog').close();
+}
+
+function renderSettlementParticipantChips() {
+  const container = document.getElementById('settlement-participant-chips');
+  const candidates = Array.from(new Set([...companionCache.map((c) => c.name), ...settlementParticipants]));
+  container.innerHTML = candidates.length
+    ? candidates.map((name) => `
+        <span class="chip ${settlementParticipants.includes(name) ? 'selected' : ''}" onclick="toggleSettlementParticipant('${jsAttrEscape(name)}')">${escapeHtml(name)}</span>
+      `).join('')
+    : '<span class="muted">동반자를 먼저 등록하거나 아래에서 직접 추가하세요</span>';
+}
+
+function toggleSettlementParticipant(name) {
+  if (settlementParticipants.includes(name)) {
+    settlementParticipants = settlementParticipants.filter((n) => n !== name);
+    settlementItems.forEach((it) => {
+      it.selectedNames = it.selectedNames.filter((n) => n !== name);
+      if (it.paidBy === name) it.paidBy = '';
+    });
+  } else {
+    settlementParticipants.push(name);
+  }
+  renderSettlementParticipantChips();
+  renderSettlementItems();
+}
+
+function addSettlementParticipant() {
+  const input = document.getElementById('settlement-add-name');
+  const name = input.value.trim();
+  if (!name) return;
+  if (!settlementParticipants.includes(name)) settlementParticipants.push(name);
+  input.value = '';
+  renderSettlementParticipantChips();
+  renderSettlementItems();
+}
+
+function addSettlementItemRow() {
+  settlementItems.push({
+    id: crypto.randomUUID(),
+    label: '',
+    amount: '',
+    splitType: 'all',
+    selectedNames: [...settlementParticipants],
+    paidBy: settlementParticipants[0] || '',
+  });
+  renderSettlementItems();
+}
+
+function removeSettlementItemRow(id) {
+  settlementItems = settlementItems.filter((it) => it.id !== id);
+  renderSettlementItems();
+}
+
+function updateSettlementItem(id, field, value) {
+  const item = settlementItems.find((it) => it.id === id);
+  if (!item) return;
+  item[field] = value;
+  if (field === 'splitType') renderSettlementItems();
+}
+
+function toggleSettlementItemTarget(id, name) {
+  const item = settlementItems.find((it) => it.id === id);
+  if (!item) return;
+  if (item.selectedNames.includes(name)) item.selectedNames = item.selectedNames.filter((n) => n !== name);
+  else item.selectedNames.push(name);
+  renderSettlementItems();
+}
+
+function renderSettlementItems() {
+  const container = document.getElementById('settlement-items');
+  if (!settlementItems.length) {
+    container.innerHTML = '<div class="empty">항목을 추가해주세요 (그린피/카트비/캐디피/식사 등)</div>';
+    return;
+  }
+  container.innerHTML = settlementItems.map((item) => `
+    <div class="item-row">
+      <button type="button" class="remove-row" onclick="removeSettlementItemRow('${item.id}')">✕</button>
+      <label>항목명</label>
+      <input type="text" value="${escapeHtml(item.label)}" placeholder="예: 캐디피" oninput="updateSettlementItem('${item.id}','label',this.value)">
+      <label>금액</label>
+      <input type="number" value="${item.amount}" oninput="updateSettlementItem('${item.id}','amount',this.value)">
+      <label>정산 방식</label>
+      <select onchange="updateSettlementItem('${item.id}','splitType',this.value)">
+        <option value="individual" ${item.splitType === 'individual' ? 'selected' : ''}>각자 결제 (정산 제외)</option>
+        <option value="all" ${item.splitType === 'all' ? 'selected' : ''}>전원 1/N</option>
+        <option value="selected" ${item.splitType === 'selected' ? 'selected' : ''}>선택 인원만 1/N</option>
+      </select>
+      ${item.splitType === 'selected' ? `
+        <label>분담 인원</label>
+        <div class="chip-group">
+          ${settlementParticipants.map((p) => `<span class="chip ${item.selectedNames.includes(p) ? 'selected' : ''}" onclick="toggleSettlementItemTarget('${item.id}','${jsAttrEscape(p)}')">${escapeHtml(p)}</span>`).join('')}
+        </div>
+      ` : ''}
+      ${item.splitType !== 'individual' ? `
+        <label>결제자</label>
+        <select onchange="updateSettlementItem('${item.id}','paidBy',this.value)">
+          <option value="">선택 안 함</option>
+          ${settlementParticipants.map((p) => `<option value="${escapeHtml(p)}" ${item.paidBy === p ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
+        </select>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+async function submitSettlement() {
+  const payload = {
+    courseName: document.getElementById('settlement-course-name').value,
+    date: document.getElementById('settlement-date').value,
+    participants: settlementParticipants,
+    items: settlementItems
+      .filter((it) => it.label && it.amount)
+      .map((it) => ({
+        label: it.label,
+        amount: Number(it.amount),
+        splitType: it.splitType,
+        selectedNames: it.splitType === 'selected' ? it.selectedNames : undefined,
+        paidBy: it.splitType !== 'individual' ? (it.paidBy || undefined) : undefined,
+      })),
+  };
+  if (!payload.participants.length) { showToast('참가자를 선택해주세요'); return; }
+  if (!payload.items.length) { showToast('정산 항목을 입력해주세요'); return; }
+  try {
+    const result = await api('/api/settlement/calculate', { method: 'POST', body: JSON.stringify(payload) });
+    closeSettlementDialog();
+    renderSettlementResult(result);
+  } catch (e) {
+    showToast('정산 계산 실패: ' + e.message);
+  }
+}
+
+function renderSettlementResult(result) {
+  const box = document.getElementById('settlement-result-box');
+  box.style.display = 'block';
+  document.getElementById('settlement-person-list').innerHTML = result.perPerson.map((p) => `
+    <div class="settlement-person-row">
+      <span>${escapeHtml(p.name)}</span>
+      <span class="${p.net > 0 ? 'net-positive' : p.net < 0 ? 'net-negative' : ''}">${p.net > 0 ? '+' : ''}${p.net.toLocaleString('ko-KR')}원</span>
+    </div>
+  `).join('');
+  document.getElementById('settlement-transfer-list').innerHTML = result.transfers.length
+    ? result.transfers.map((t) => `<div class="stat-row"><span>${escapeHtml(t.from)} → ${escapeHtml(t.to)}</span><span class="v">${t.amount.toLocaleString('ko-KR')}원</span></div>`).join('')
+    : '<div class="muted">정산할 금액이 없습니다</div>';
+  document.getElementById('settlement-kakao-message').textContent = result.kakaoMessage;
+  lastSettlementMessage = result.kakaoMessage;
+}
+
+function copySettlementMessage() {
+  if (!lastSettlementMessage) return;
+  navigator.clipboard.writeText(lastSettlementMessage).then(
+    () => showToast('클립보드에 복사했습니다'),
+    () => showToast('복사 실패 - 직접 선택해서 복사해주세요')
+  );
+}
+
+// ===== 맛집 =====
+let currentFoodTiming = 'before';
+let foodResultCache = [];
+let favoriteRestaurantCache = [];
+let lastFoodCoords = null;
+
+function setFoodTiming(timing) {
+  currentFoodTiming = timing;
+  document.querySelectorAll('.filter-btn').forEach((b) => b.classList.toggle('active', b.dataset.timing === timing));
+  if (lastFoodCoords) searchFood(lastFoodCoords.lat, lastFoodCoords.lon);
+}
+
+function locateAndSearchFood() {
+  if (!navigator.geolocation) {
+    showToast('이 브라우저는 위치 정보를 지원하지 않습니다');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      lastFoodCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      searchFood(lastFoodCoords.lat, lastFoodCoords.lon);
+    },
+    (err) => showToast('위치 확인 실패: ' + err.message),
+    { timeout: 8000 }
+  );
+}
+
+async function searchFood(lat, lon) {
+  try {
+    const { restaurants } = await api(`/api/restaurants/search?lat=${lat}&lon=${lon}&timing=${currentFoodTiming}`);
+    foodResultCache = restaurants;
+    renderFoodResults(restaurants);
+  } catch (e) {
+    showToast('맛집 검색 실패: ' + e.message);
+  }
+}
+
+function renderFoodResults(list) {
+  const el = document.getElementById('food-result-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = list.map((r, i) => `
+    <div class="list-item">
+      <div>
+        <div class="name">${escapeHtml(r.name)}</div>
+        <div class="sub">${escapeHtml(r.address)}${r.distanceMeters ? ' · ' + Math.round(r.distanceMeters) + 'm' : ''}</div>
+      </div>
+      <div class="score-actions">
+        <a class="icon-btn" href="${r.directionsUrl}" target="_blank" rel="noopener" title="길찾기">🧭</a>
+        <button class="icon-btn" onclick="addFoodFavorite(${i})" title="즐겨찾기 추가">⭐</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function addFoodFavorite(index) {
+  const r = foodResultCache[index];
+  if (!r) return;
+  try {
+    await api('/api/restaurants/favorites', {
+      method: 'POST',
+      body: JSON.stringify({ name: r.name, address: r.address, phone: r.phone, lat: r.lat, lon: r.lon, category: r.category }),
+    });
+    showToast('즐겨찾기에 추가했습니다');
+    await loadFavoriteRestaurants();
+  } catch (e) {
+    showToast('추가 실패: ' + e.message);
+  }
+}
+
+async function loadFavoriteRestaurants() {
+  try {
+    const { favorites } = await api('/api/restaurants/favorites');
+    favoriteRestaurantCache = favorites;
+    renderFavoriteRestaurants(favorites);
+  } catch (e) {
+    showToast('즐겨찾기 조회 실패: ' + e.message);
+  }
+}
+
+function renderFavoriteRestaurants(list) {
+  const el = document.getElementById('food-favorite-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">즐겨찾기한 맛집이 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = list.map((r) => `
+    <div class="list-item">
+      <div>
+        <div class="name">${escapeHtml(r.name)}</div>
+        <div class="sub">${escapeHtml(r.address || '')}</div>
+      </div>
+      <div class="score-actions">
+        ${r.lat && r.lon ? `<a class="icon-btn" href="https://map.kakao.com/link/to/${encodeURIComponent(r.name)},${r.lat},${r.lon}" target="_blank" rel="noopener" title="길찾기">🧭</a>` : ''}
+        <button class="icon-btn" onclick="removeFavoriteRestaurant('${r.id}')" title="삭제">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function removeFavoriteRestaurant(id) {
+  if (!confirm('즐겨찾기에서 삭제할까요?')) return;
+  try {
+    await api(`/api/restaurants/favorites/${id}`, { method: 'DELETE' });
+    showToast('삭제했습니다');
+    await loadFavoriteRestaurants();
   } catch (e) {
     showToast('삭제 실패: ' + e.message);
   }
