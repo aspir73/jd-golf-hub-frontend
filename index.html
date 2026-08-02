@@ -334,12 +334,76 @@
         <button class="btn secondary" onclick="showTab('weather')">🌤 날씨 확인</button>
       </div>
     </div>
+
+    <div class="card">
+      <h2>⚙️ 설정</h2>
+      <label>집 주소 (골프장 거리 계산 기준)</label>
+      <div style="display:flex; gap:6px;">
+        <input type="text" id="settings-home-search" placeholder="예: 강남역, 도로명 주소 등">
+        <button type="button" class="btn secondary" onclick="searchHomeAddress()">검색</button>
+      </div>
+      <div id="settings-home-results" style="margin-top:6px;"></div>
+      <div id="settings-home-current" class="muted" style="margin-top:6px;"></div>
+
+      <label style="margin-top:14px;">선호 라운딩 시간대</label>
+      <select id="settings-preferred-timeslot" onchange="updatePreferredTimeSlot()">
+        <option value="dawn">새벽 (~08시)</option>
+        <option value="morning">오전 (08~12시)</option>
+        <option value="afternoon">오후 (12~16시)</option>
+        <option value="evening">저녁 (16시~)</option>
+      </select>
+      <div class="muted" style="margin-top:4px;">동반예약 비교의 "시간대 선호 점수" 계산에 사용됩니다.</div>
+    </div>
   </section>
 
-  <!-- 예약: 즐겨찾기 골프장 / 동반자 / 정산 (MVP2) -->
+  <!-- 예약: 조건검색 / 동반예약 비교 / 즐겨찾기 골프장 / 동반자 / 정산 -->
   <section id="tab-booking" class="tab-panel">
     <div class="card">
-      <p class="muted" style="margin:0;">📌 골프장 조건검색·동반예약 비교·가중치 추천은 MVP4에서 추가됩니다. 지금은 즐겨찾기 골프장/동반자/정산 기능만 제공합니다.</p>
+      <h2>🔍 골프장 조건검색 (골팡)</h2>
+      <div class="grid-2">
+        <div><label>날짜</label><input type="date" id="golfpang-date"></div>
+        <div>
+          <label>시간대</label>
+          <select id="golfpang-ampm">
+            <option value="">전체</option>
+            <option value="am">오전</option>
+            <option value="pm">오후</option>
+            <option value="nt">야간</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label>지역</label>
+          <select id="golfpang-sector">
+            <option value="">전체</option>
+            <option value="5">한강이남</option>
+            <option value="1">강북/경춘</option>
+            <option value="4">충청</option>
+            <option value="16">영호남/제주</option>
+          </select>
+        </div>
+        <div>
+          <label>예약 유형</label>
+          <select id="golfpang-mode">
+            <option value="booking">본인예약(부킹)</option>
+            <option value="join">조인/백업</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn block" onclick="searchGolfpang()">검색하기</button>
+      <div id="golfpang-result-summary" class="muted" style="margin-top:8px;"></div>
+      <div id="golfpang-result-list" style="margin-top:6px;"></div>
+      <button class="btn secondary block" id="golfpang-group-btn" style="display:none; margin-top:10px;" onclick="openCreateGroupFromSelection()">선택한 항목으로 비교 그룹 만들기</button>
+    </div>
+
+    <div class="card">
+      <h2>🆚 동반예약(백업) 비교</h2>
+      <div id="comparison-group-list" class="empty">아직 비교 그룹이 없습니다. 위 조건검색 결과에서 후보를 선택해 만들어보세요.</div>
+    </div>
+
+    <div class="card">
+      <p class="muted" style="margin:0;">📌 예약확정 메시지 붙여넣기 자동 파싱은 MVP5에서 추가됩니다.</p>
     </div>
 
     <div class="card">
@@ -657,8 +721,8 @@ function showTab(name) {
     b.classList.toggle('active', b.dataset.tab === name);
   });
   if (name === 'score') { loadScores(); loadStats(); }
-  if (name === 'home') { loadStats(true); }
-  if (name === 'booking') { loadCourses(); loadCompanions(); }
+  if (name === 'home') { loadStats(true); loadSettings(); }
+  if (name === 'booking') { loadCourses(); loadCompanions(); loadComparisonGroups(); }
   if (name === 'food') { loadFavoriteRestaurants(); }
 }
 
@@ -1533,9 +1597,323 @@ async function removeFavoriteRestaurant(id) {
   }
 }
 
+// ===== 설정 (집 주소 / 선호 시간대) =====
+let settingsCache = { homeAddress: '', homeLat: null, homeLon: null, preferredTimeSlot: 'morning' };
+let homeSearchResults = [];
+
+async function loadSettings() {
+  try {
+    settingsCache = await api('/api/settings');
+    document.getElementById('settings-preferred-timeslot').value = settingsCache.preferredTimeSlot || 'morning';
+    document.getElementById('settings-home-current').textContent = settingsCache.homeAddress
+      ? `현재 설정: ${settingsCache.homeAddress}`
+      : '아직 집 주소가 설정되지 않았습니다 (동반예약 비교의 거리 점수 계산에 필요)';
+  } catch (e) {
+    showToast('설정 조회 실패: ' + e.message);
+  }
+}
+
+async function searchHomeAddress() {
+  const q = document.getElementById('settings-home-search').value.trim();
+  if (!q) return;
+  try {
+    const { places } = await api('/api/places/search?query=' + encodeURIComponent(q));
+    homeSearchResults = places;
+    const el = document.getElementById('settings-home-results');
+    el.innerHTML = places.length
+      ? places.map((p, i) => `
+          <div class="search-result" onclick="selectHomeAddress(${i})">
+            <div class="name">${escapeHtml(p.name)}</div>
+            <div class="addr">${escapeHtml(p.address)}</div>
+          </div>
+        `).join('')
+      : '<div class="muted">검색 결과가 없습니다</div>';
+  } catch (e) {
+    showToast('검색 실패: ' + e.message);
+  }
+}
+
+async function selectHomeAddress(index) {
+  const p = homeSearchResults[index];
+  if (!p) return;
+  try {
+    settingsCache = await api('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ homeAddress: p.address || p.name, homeLat: p.lat, homeLon: p.lon }),
+    });
+    document.getElementById('settings-home-results').innerHTML = '';
+    document.getElementById('settings-home-search').value = '';
+    document.getElementById('settings-home-current').textContent = `현재 설정: ${settingsCache.homeAddress}`;
+    showToast('집 주소를 설정했습니다');
+  } catch (e) {
+    showToast('저장 실패: ' + e.message);
+  }
+}
+
+async function updatePreferredTimeSlot() {
+  const value = document.getElementById('settings-preferred-timeslot').value;
+  try {
+    settingsCache = await api('/api/settings', { method: 'PUT', body: JSON.stringify({ preferredTimeSlot: value }) });
+    showToast('선호 시간대를 저장했습니다');
+  } catch (e) {
+    showToast('저장 실패: ' + e.message);
+  }
+}
+
+// ===== 골프장 조건검색 (골팡) =====
+let golfpangResultCache = [];
+let golfpangSearchMode = 'booking';
+
+async function searchGolfpang() {
+  const date = document.getElementById('golfpang-date').value;
+  if (!date) { showToast('날짜를 선택해주세요'); return; }
+  const ampm = document.getElementById('golfpang-ampm').value;
+  const sector = document.getElementById('golfpang-sector').value;
+  const mode = document.getElementById('golfpang-mode').value;
+  golfpangSearchMode = mode;
+  try {
+    const result = await api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=${mode}`);
+    golfpangResultCache = result.rounds;
+    document.getElementById('golfpang-result-summary').textContent =
+      `총 ${result.totalCount != null ? result.totalCount.toLocaleString('ko-KR') : result.rounds.length}건 중 ${result.rounds.length}건 표시 (골팡 1페이지 기준)`;
+    renderGolfpangResults(result.rounds);
+  } catch (e) {
+    showToast('검색 실패: ' + e.message);
+  }
+}
+
+function renderGolfpangResults(rounds) {
+  const el = document.getElementById('golfpang-result-list');
+  const groupBtn = document.getElementById('golfpang-group-btn');
+  if (!rounds.length) {
+    el.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>';
+    groupBtn.style.display = 'none';
+    return;
+  }
+  el.innerHTML = rounds.map((r, i) => `
+    <div class="list-item">
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <input type="checkbox" class="golfpang-select" data-idx="${i}" style="margin-top:5px;">
+        <div>
+          <div class="name" style="cursor:pointer" onclick="showCourseQuickInfo('${jsAttrEscape(r.courseName)}')">${escapeHtml(r.courseName)} · ${escapeHtml(r.region)}</div>
+          <div class="sub">${escapeHtml(r.date)} ${escapeHtml(r.time)} · ${escapeHtml(r.holes)} · ${r.greenFee != null ? r.greenFee.toLocaleString('ko-KR') + '원' : '-'}</div>
+          <div class="tags">
+            <span class="tag">${escapeHtml(r.caddyType || '-')}</span>
+            <span class="tag">${escapeHtml(r.category || '-')}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  groupBtn.style.display = 'block';
+}
+
+/** 검색 결과에서 골프장명 클릭 시 내 라운딩 이력/즐겨찾기 정보를 간단히 보여줌 (경량 "골프장 상세정보") */
+function showCourseQuickInfo(courseName) {
+  const rounds = scoreCache.filter((s) => s.courseName === courseName);
+  const registered = courseCache.find((c) => c.name === courseName);
+  let msg = courseName;
+  if (rounds.length) {
+    const avgScore = Math.round(rounds.reduce((sum, s) => sum + (s.totalScore || 0), 0) / rounds.length);
+    msg += ` · 내 라운딩 ${rounds.length}회, 평균 ${avgScore}타`;
+  } else {
+    msg += ' · 라운딩 기록 없음';
+  }
+  if (registered) {
+    msg += ` · 즐겨찾기 등록됨${registered.caddyFee != null ? ' (캐디피 ' + registered.caddyFee.toLocaleString('ko-KR') + '원)' : ''}`;
+  }
+  showToast(msg);
+}
+
+function openCreateGroupFromSelection() {
+  const checked = Array.from(document.querySelectorAll('.golfpang-select:checked'));
+  if (!checked.length) { showToast('비교할 항목을 선택해주세요'); return; }
+  const title = prompt('비교 그룹 이름을 입력하세요', `${document.getElementById('golfpang-date').value} 라운딩 비교`);
+  if (!title) return;
+  const candidates = checked.map((cb) => {
+    const r = golfpangResultCache[Number(cb.dataset.idx)];
+    return {
+      source: 'golfpang',
+      mode: golfpangSearchMode,
+      golfpangIdx: r.idx,
+      courseName: r.courseName,
+      region: r.region,
+      date: r.date,
+      time: r.time,
+      holes: r.holes,
+      greenFee: r.greenFee,
+      nickname: r.nickname,
+      caddyType: r.caddyType,
+      category: r.category,
+    };
+  });
+  createComparisonGroup(title, candidates);
+}
+
+async function createComparisonGroup(title, candidates) {
+  try {
+    await api('/api/booking-groups', { method: 'POST', body: JSON.stringify({ title, candidates }) });
+    showToast('비교 그룹을 만들었습니다');
+    document.querySelectorAll('.golfpang-select:checked').forEach((cb) => { cb.checked = false; });
+    await loadComparisonGroups();
+  } catch (e) {
+    showToast('그룹 생성 실패: ' + e.message);
+  }
+}
+
+// ===== 동반예약(백업) 비교 그룹 =====
+let comparisonGroupCache = [];
+let groupComponentsCache = {}; // groupId -> /compare 응답(원시 거리/평가/그린피/시간대)
+let groupWeights = {}; // groupId -> { w1: 거리, w2: 평가, w3: 그린피, w4: 시간대 } (0~100, 합산은 표시용일 뿐)
+
+async function loadComparisonGroups() {
+  try {
+    const { groups } = await api('/api/booking-groups');
+    comparisonGroupCache = groups;
+    renderComparisonGroups();
+  } catch (e) {
+    showToast('비교 그룹 조회 실패: ' + e.message);
+  }
+}
+
+function renderComparisonGroups() {
+  const el = document.getElementById('comparison-group-list');
+  if (!comparisonGroupCache.length) {
+    el.innerHTML = '<div class="empty">아직 비교 그룹이 없습니다. 위 조건검색 결과에서 후보를 선택해 만들어보세요.</div>';
+    return;
+  }
+  el.innerHTML = comparisonGroupCache.map((g) => renderGroupCard(g)).join('');
+  comparisonGroupCache.forEach((g) => {
+    if (groupComponentsCache[g.id]) renderGroupScoreList(g.id);
+  });
+}
+
+function renderGroupCard(g) {
+  const hasComponents = !!groupComponentsCache[g.id];
+  return `
+    <div class="card" style="padding:12px; margin-bottom:10px; background:#fafbfa;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0;">${escapeHtml(g.title)} <span class="muted">(${g.candidates.length}개 후보)</span></h3>
+        <button class="icon-btn" onclick="removeComparisonGroup('${g.id}')" title="그룹 삭제">🗑️</button>
+      </div>
+      <div id="group-body-${g.id}">
+        ${hasComponents
+          ? renderGroupSliders(g.id) + `<div id="group-scorelist-${g.id}" style="margin-top:10px;"></div>`
+          : `<button class="btn secondary block" style="margin-top:8px;" onclick="loadGroupCompare('${g.id}')">점수 비교 보기</button>`}
+      </div>
+    </div>
+  `;
+}
+
+function renderGroupSliders(groupId) {
+  const w = groupWeights[groupId] || { w1: 25, w2: 25, w3: 25, w4: 25 };
+  groupWeights[groupId] = w;
+  const rows = [['w1', '거리'], ['w2', '내 평가'], ['w3', '그린피'], ['w4', '시간대']];
+  return `
+    <div class="grid-2" style="margin-top:8px;">
+      ${rows.map(([key, label]) => `
+        <div>
+          <label>${label} <span id="wlabel-${groupId}-${key}">${w[key]}</span>%</label>
+          <input type="range" min="0" max="100" value="${w[key]}" oninput="updateGroupWeight('${groupId}','${key}',this.value)">
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function updateGroupWeight(groupId, key, value) {
+  const w = groupWeights[groupId] || { w1: 25, w2: 25, w3: 25, w4: 25 };
+  w[key] = Number(value);
+  groupWeights[groupId] = w;
+  const labelEl = document.getElementById(`wlabel-${groupId}-${key}`);
+  if (labelEl) labelEl.textContent = value;
+  renderGroupScoreList(groupId);
+}
+
+function normalizeWeights(w) {
+  const sum = Number(w.w1) + Number(w.w2) + Number(w.w3) + Number(w.w4);
+  if (!sum) return { w1: 0.25, w2: 0.25, w3: 0.25, w4: 0.25 };
+  return { w1: w.w1 / sum, w2: w.w2 / sum, w3: w.w3 / sum, w4: w.w4 / sum };
+}
+
+/** 기획서 3-1 가중치 스코어 알고리즘: 거리·평가·그린피·시간대 각 0~100점을 가중합 */
+function computeWeightedScores(components, weights) {
+  const { candidates, preferredTimeSlot } = components;
+  const fees = candidates.map((c) => c.greenFee).filter((v) => v != null);
+  const minFee = fees.length ? Math.min(...fees) : null;
+  const maxFee = fees.length ? Math.max(...fees) : null;
+
+  return candidates.map((c) => {
+    const distanceScore = c.distanceKm != null ? Math.max(0, Math.min(100, 100 - c.distanceKm * 2)) : 50;
+    const ratingScore = c.courseRatingAvg != null ? (c.courseRatingAvg / 5) * 100 : 50;
+    let feeScore = 50;
+    if (c.greenFee != null && minFee != null && maxFee != null) {
+      feeScore = maxFee === minFee ? 100 : 100 - ((c.greenFee - minFee) / (maxFee - minFee)) * 100;
+    }
+    const timeScore = c.timeSlot && preferredTimeSlot ? (c.timeSlot === preferredTimeSlot ? 100 : 40) : 50;
+    const total = distanceScore * weights.w1 + ratingScore * weights.w2 + feeScore * weights.w3 + timeScore * weights.w4;
+    return { ...c, distanceScore: Math.round(distanceScore), ratingScore: Math.round(ratingScore), feeScore: Math.round(feeScore), timeScore: Math.round(timeScore), total: Math.round(total) };
+  });
+}
+
+function renderGroupScoreList(groupId) {
+  const el = document.getElementById(`group-scorelist-${groupId}`);
+  const components = groupComponentsCache[groupId];
+  if (!el || !components) return;
+  const weights = normalizeWeights(groupWeights[groupId] || { w1: 25, w2: 25, w3: 25, w4: 25 });
+  const scored = computeWeightedScores(components, weights).sort((a, b) => b.total - a.total);
+  el.innerHTML = scored.map((c, i) => `
+    <div class="list-item">
+      <div>
+        <div class="name">${i === 0 ? '⭐ ' : ''}${escapeHtml(c.courseName)}${i === 0 ? ' <span class="tag">추천</span>' : ''}</div>
+        <div class="sub">${escapeHtml(c.date || '')} ${escapeHtml(c.time || '')} · 거리 ${c.distanceKm ?? '-'}km · 평가 ${c.courseRatingAvg ?? '-'} · 그린피 ${c.greenFee != null ? c.greenFee.toLocaleString('ko-KR') : '-'}원</div>
+      </div>
+      <div class="total">${c.total}점</div>
+      <div class="score-actions"><button class="icon-btn" onclick="removeGroupCandidate('${groupId}','${c.candidateId}')" title="삭제">🗑️</button></div>
+    </div>
+  `).join('');
+}
+
+async function loadGroupCompare(groupId) {
+  try {
+    const components = await api(`/api/booking-groups/${groupId}/compare`);
+    groupComponentsCache[groupId] = components;
+    renderComparisonGroups();
+  } catch (e) {
+    showToast('점수 비교 실패: ' + e.message);
+  }
+}
+
+async function removeComparisonGroup(id) {
+  if (!confirm('이 비교 그룹을 삭제할까요?')) return;
+  try {
+    await api(`/api/booking-groups/${id}`, { method: 'DELETE' });
+    delete groupComponentsCache[id];
+    delete groupWeights[id];
+    showToast('삭제했습니다');
+    await loadComparisonGroups();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
+
+async function removeGroupCandidate(groupId, candidateId) {
+  try {
+    const { group } = await api(`/api/booking-groups/${groupId}/candidates/${candidateId}`, { method: 'DELETE' });
+    const idx = comparisonGroupCache.findIndex((g) => g.id === groupId);
+    if (idx !== -1) comparisonGroupCache[idx] = group;
+    delete groupComponentsCache[groupId]; // 후보 구성이 바뀌었으니 재계산 필요
+    showToast('삭제했습니다');
+    renderComparisonGroups();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
+
 // ===== 초기 로드 =====
 window.addEventListener('DOMContentLoaded', () => {
   loadStats(true);
+  loadSettings();
   const lat = localStorage.getItem('jdgh_lat');
   const lon = localStorage.getItem('jdgh_lon');
   if (lat && lon) fetchWeather(lat, lon);
