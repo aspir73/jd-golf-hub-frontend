@@ -322,6 +322,11 @@
       <div class="stat-row"><span>총 라운드 수</span><span class="v" id="home-rounds">-</span></div>
     </div>
 
+    <div class="card" id="home-reminder-card" style="display:none;">
+      <h2>⏰ 취소 마감 임박</h2>
+      <div id="home-reminder-list"></div>
+    </div>
+
     <div class="card">
       <h2>오늘 날씨</h2>
       <div id="home-weather-summary" class="muted">날씨 탭에서 위치를 확인해주세요.</div>
@@ -403,7 +408,19 @@
     </div>
 
     <div class="card">
-      <p class="muted" style="margin:0;">📌 예약확정 메시지 붙여넣기 자동 파싱은 MVP5에서 추가됩니다.</p>
+      <h2>✍️ 예약확정 메시지로 자동 등록</h2>
+      <textarea id="booking-message-input" rows="5" placeholder="골팡/골프장에서 받은 예약확정 카카오톡·문자 내용을 그대로 붙여넣으세요"></textarea>
+      <button class="btn block" style="margin-top:8px;" onclick="parseBookingMessage()">분석하기</button>
+      <div id="booking-message-status" class="muted" style="margin-top:6px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>📋 예약 기록</h2>
+      <div class="grid-2">
+        <button class="btn secondary" onclick="openBookingDialog()">＋ 직접 추가</button>
+        <button class="btn secondary" onclick="copyBookingReport()">📤 현황 리포트 복사</button>
+      </div>
+      <div id="booking-list" class="empty" style="margin-top:10px;">등록된 예약 기록이 없습니다.</div>
     </div>
 
     <div class="card">
@@ -689,6 +706,95 @@
   </div>
 </dialog>
 
+<dialog id="bookingDialog">
+  <div class="dialog-inner">
+    <h2 id="bookingDialogTitle" style="margin-top:0;">예약 기록 추가</h2>
+    <div id="booking-match-notice" class="outfit-box" style="display:none; margin-bottom:10px;"></div>
+    <form id="bookingForm">
+      <input type="hidden" id="booking-id">
+      <input type="hidden" id="booking-matched-id">
+      <input type="hidden" id="booking-group-id">
+
+      <div class="grid-2">
+        <div>
+          <label>유형</label>
+          <select id="booking-type">
+            <option value="본인">본인</option>
+            <option value="조인">조인</option>
+          </select>
+        </div>
+        <div>
+          <label>상태</label>
+          <select id="booking-status">
+            <option value="가예약">가예약</option>
+            <option value="확정">확정</option>
+            <option value="취소예정">취소예정</option>
+            <option value="취소완료">취소완료</option>
+          </select>
+        </div>
+      </div>
+
+      <label>골프장명 *</label>
+      <input type="text" id="booking-course" required>
+      <label>코스명</label>
+      <input type="text" id="booking-subcourse">
+
+      <div class="grid-2">
+        <div><label>라운딩 날짜</label><input type="date" id="booking-date"></div>
+        <div><label>티타임</label><input type="text" id="booking-time" placeholder="예: 07:30"></div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label>취소 가능 여부</label>
+          <select id="booking-cancelable">
+            <option value="unknown">모름</option>
+            <option value="possible">가능</option>
+            <option value="impossible">불가</option>
+          </select>
+        </div>
+        <div><label>취소 가능 마감</label><input type="text" id="booking-cancel-deadline" placeholder="예: 8/18 10:00"></div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label>예약처</label>
+          <select id="booking-source">
+            <option value="골팡">골팡</option>
+            <option value="골프장 홈페이지">골프장 홈페이지</option>
+            <option value="직접입력">직접입력</option>
+          </select>
+        </div>
+        <div><label>예약번호</label><input type="text" id="booking-number"></div>
+      </div>
+
+      <div class="grid-2">
+        <div><label>그린피 금액</label><input type="number" id="booking-fee"></div>
+        <div><label>결제방식</label><input type="text" id="booking-payment" placeholder="예: 현장결제"></div>
+      </div>
+
+      <label>예약자명</label>
+      <input type="text" id="booking-reservation-name">
+
+      <label>동반인원 (한 줄에 한 명: 이름,연락처,성별)</label>
+      <textarea id="booking-companions" rows="2" placeholder="홍길동,010-1234-5678,남"></textarea>
+
+      <div class="grid-2">
+        <div><label>문의 연락처</label><input type="text" id="booking-contact"></div>
+        <div><label>홈페이지 링크</label><input type="text" id="booking-homepage"></div>
+      </div>
+
+      <label>메모</label>
+      <textarea id="booking-memo" rows="2"></textarea>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary block" onclick="closeBookingDialog()">취소</button>
+        <button type="submit" class="btn block">저장</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
 <script>
 // ===== 설정: 배포한 Cloudflare Worker 주소로 교체하세요 =====
 const CONFIG = {
@@ -721,8 +827,8 @@ function showTab(name) {
     b.classList.toggle('active', b.dataset.tab === name);
   });
   if (name === 'score') { loadScores(); loadStats(); }
-  if (name === 'home') { loadStats(true); loadSettings(); }
-  if (name === 'booking') { loadCourses(); loadCompanions(); loadComparisonGroups(); }
+  if (name === 'home') { loadStats(true); loadSettings(); loadBookings(); }
+  if (name === 'booking') { loadCourses(); loadCompanions(); loadComparisonGroups(); loadBookings(); }
   if (name === 'food') { loadFavoriteRestaurants(); }
 }
 
@@ -1910,10 +2016,290 @@ async function removeGroupCandidate(groupId, candidateId) {
   }
 }
 
+// ===== 예약 기록 (MVP5) =====
+let bookingCache = [];
+
+function companionsToText(arr) {
+  return (arr || []).map((c) => [c.name, c.phone, c.gender].filter(Boolean).join(',')).join('\n');
+}
+
+function parseCompanionsText(text) {
+  return text.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+    const [name = '', phone = '', gender = ''] = line.split(',').map((s) => s.trim());
+    return { name, phone, gender };
+  });
+}
+
+/** "YYYY-MM-DD" 또는 "M/D" 형식의 자유서식 취소마감 문자열을 Date로 파싱 시도 (실패 시 null) */
+function parseDeadlineDate(str) {
+  if (!str) return null;
+  let m = str.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  m = str.match(/(\d{1,2})\s*\/\s*(\d{1,2})/);
+  if (m) {
+    const now = new Date();
+    let d = new Date(now.getFullYear(), Number(m[1]) - 1, Number(m[2]));
+    if (d < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+      d = new Date(now.getFullYear() + 1, Number(m[1]) - 1, Number(m[2]));
+    }
+    return d;
+  }
+  return null;
+}
+
+function daysUntil(date) {
+  if (!date) return null;
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((date - startOfToday) / (1000 * 60 * 60 * 24));
+}
+
+async function loadBookings() {
+  try {
+    const { bookings } = await api('/api/bookings');
+    bookingCache = bookings;
+    renderBookingList(bookings);
+    renderHomeReminders(bookings);
+  } catch (e) {
+    showToast('예약 기록 조회 실패: ' + e.message);
+  }
+}
+
+function renderBookingList(bookings) {
+  const el = document.getElementById('booking-list');
+  if (!bookings.length) {
+    el.innerHTML = '<div class="empty">등록된 예약 기록이 없습니다.</div>';
+    return;
+  }
+  const sorted = [...bookings].sort((a, b) => (a.roundDate < b.roundDate ? -1 : 1));
+  el.innerHTML = sorted.map((b) => {
+    const badges = [`<span class="tag">${escapeHtml(b.status)}</span>`];
+    if (b.reviewCancel) badges.push('<span class="tag" style="background:#fdecea;color:#c0392b;">취소 검토 대상</span>');
+    if (b.cancelable?.possible === true && b.cancelable.deadline) {
+      const days = daysUntil(parseDeadlineDate(b.cancelable.deadline));
+      if (days != null) {
+        const urgent = days <= 1;
+        badges.push(`<span class="tag"${urgent ? ' style="background:#fdecea;color:#c0392b;"' : ''}>취소마감 ${days >= 0 ? 'D-' + days : 'D+' + Math.abs(days)}</span>`);
+      }
+    } else if (b.type === '조인' && b.cancelable?.possible === false) {
+      badges.push('<span class="tag" style="background:#fff4e5;color:#8a5a00;">⚠ 취소불가·예약금</span>');
+    }
+    return `
+      <div class="list-item">
+        <div>
+          <div class="name">${escapeHtml(b.courseName)}${b.courseSubName ? ' · ' + escapeHtml(b.courseSubName) : ''}</div>
+          <div class="sub">${escapeHtml(b.roundDate || '-')} ${escapeHtml(b.roundTime || '')} · ${escapeHtml(b.type)} · ${escapeHtml(b.source)}</div>
+          <div class="tags">${badges.join('')}</div>
+        </div>
+        <div class="score-actions">
+          <button class="icon-btn" onclick="openBookingDialog('${b.id}')" title="수정">✏️</button>
+          <button class="icon-btn" onclick="removeBooking('${b.id}')" title="삭제">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderHomeReminders(bookings) {
+  const card = document.getElementById('home-reminder-card');
+  const list = document.getElementById('home-reminder-list');
+  if (!card || !list) return;
+  const urgent = bookings.filter((b) => {
+    if (b.status === '취소완료' || b.status === '취소예정') return false;
+    if (!(b.cancelable?.possible === true && b.cancelable.deadline)) return false;
+    const days = daysUntil(parseDeadlineDate(b.cancelable.deadline));
+    return days != null && days >= 0 && days <= 2;
+  });
+  if (!urgent.length) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  list.innerHTML = urgent.map((b) => {
+    const days = daysUntil(parseDeadlineDate(b.cancelable.deadline));
+    return `<div class="stat-row"><span>${escapeHtml(b.courseName)} (${escapeHtml(b.roundDate || '')})</span><span class="v">취소마감 D-${days}</span></div>`;
+  }).join('');
+}
+
+function applyBookingToForm(b) {
+  document.getElementById('booking-type').value = b.type || '본인';
+  document.getElementById('booking-status').value = b.status || '가예약';
+  document.getElementById('booking-course').value = b.courseName || '';
+  document.getElementById('booking-subcourse').value = b.courseSubName || '';
+  document.getElementById('booking-date').value = b.roundDate || '';
+  document.getElementById('booking-time').value = b.roundTime || '';
+  document.getElementById('booking-cancelable').value = b.cancelable?.possible === true ? 'possible' : b.cancelable?.possible === false ? 'impossible' : 'unknown';
+  document.getElementById('booking-cancel-deadline').value = b.cancelable?.deadline || '';
+  document.getElementById('booking-source').value = b.source || '직접입력';
+  document.getElementById('booking-number').value = b.bookingNumber || '';
+  document.getElementById('booking-fee').value = b.greenFeeAmount ?? '';
+  document.getElementById('booking-payment').value = b.paymentMethod || '';
+  document.getElementById('booking-reservation-name').value = b.reservationName || '';
+  document.getElementById('booking-companions').value = companionsToText(b.companions || []);
+  document.getElementById('booking-contact').value = b.contactPhone || '';
+  document.getElementById('booking-homepage').value = b.homepageUrl || '';
+  document.getElementById('booking-memo').value = b.memo || '';
+}
+
+function applyParsedToForm(parsed) {
+  document.getElementById('booking-type').value = parsed.reservationType || '본인';
+  document.getElementById('booking-status').value = '확정';
+  document.getElementById('booking-course').value = parsed.courseName || '';
+  document.getElementById('booking-subcourse').value = parsed.courseSubName || '';
+  document.getElementById('booking-date').value = parsed.roundDate || '';
+  document.getElementById('booking-time').value = parsed.roundTime || '';
+  document.getElementById('booking-cancelable').value = parsed.cancelable === '가능' ? 'possible' : parsed.cancelable === '불가' ? 'impossible' : 'unknown';
+  document.getElementById('booking-cancel-deadline').value = parsed.cancelDeadline || '';
+  document.getElementById('booking-source').value = '직접입력';
+  document.getElementById('booking-number').value = parsed.bookingNumber || '';
+  document.getElementById('booking-fee').value = parsed.greenFeeAmount ?? '';
+  document.getElementById('booking-payment').value = parsed.paymentMethod || '';
+  document.getElementById('booking-reservation-name').value = parsed.reservationName || '';
+  document.getElementById('booking-companions').value = companionsToText(parsed.companions || []);
+  document.getElementById('booking-contact').value = parsed.contactPhone || '';
+  document.getElementById('booking-homepage').value = parsed.homepageUrl || '';
+  document.getElementById('booking-memo').value = '';
+}
+
+function openBookingDialog(id) {
+  const dialog = document.getElementById('bookingDialog');
+  document.getElementById('bookingForm').reset();
+  document.getElementById('booking-id').value = '';
+  document.getElementById('booking-matched-id').value = '';
+  document.getElementById('booking-group-id').value = '';
+  document.getElementById('booking-match-notice').style.display = 'none';
+  document.getElementById('bookingDialogTitle').textContent = id ? '예약 기록 수정' : '예약 기록 추가';
+  if (id) {
+    const b = bookingCache.find((x) => x.id === id);
+    if (b) {
+      document.getElementById('booking-id').value = b.id;
+      document.getElementById('booking-group-id').value = b.groupId || '';
+      applyBookingToForm(b);
+    }
+  } else {
+    document.getElementById('booking-status').value = '가예약';
+    document.getElementById('booking-source').value = '직접입력';
+  }
+  dialog.showModal();
+}
+
+function closeBookingDialog() {
+  document.getElementById('bookingDialog').close();
+}
+
+function openBookingReviewDialog(parsed, matchedBookingId, matchedBooking) {
+  const dialog = document.getElementById('bookingDialog');
+  document.getElementById('bookingForm').reset();
+  document.getElementById('booking-id').value = '';
+  document.getElementById('booking-matched-id').value = matchedBookingId || '';
+  document.getElementById('booking-group-id').value = matchedBooking?.groupId || '';
+  document.getElementById('bookingDialogTitle').textContent = '예약확정 메시지 검토';
+  applyParsedToForm(parsed);
+  const notice = document.getElementById('booking-match-notice');
+  notice.style.display = 'block';
+  notice.innerHTML = matchedBookingId
+    ? '<strong>기존 가예약 기록과 매칭되었습니다.</strong><br>저장하면 해당 기록이 "확정"으로 바뀌고, 같은 그룹의 나머지 가예약 건은 "취소 검토 대상"으로 자동 표시됩니다. 아래 내용을 확인한 뒤 저장하세요.'
+    : '매칭되는 기존 가예약 기록이 없어 새 예약 기록으로 저장됩니다. 아래 내용을 확인한 뒤 저장하세요.';
+  dialog.showModal();
+}
+
+async function parseBookingMessage() {
+  const text = document.getElementById('booking-message-input').value.trim();
+  if (!text) { showToast('메시지 내용을 입력해주세요'); return; }
+  const statusEl = document.getElementById('booking-message-status');
+  statusEl.textContent = '분석 중...';
+  try {
+    const result = await api('/api/bookings/parse-message', { method: 'POST', body: JSON.stringify({ text }) });
+    statusEl.textContent = '';
+    openBookingReviewDialog(result.parsed, result.matchedBookingId, result.matchedBooking);
+  } catch (e) {
+    statusEl.textContent = '';
+    showToast('분석 실패: ' + e.message);
+  }
+}
+
+document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('booking-id').value;
+  const matchedId = document.getElementById('booking-matched-id').value;
+  const cancelableValue = document.getElementById('booking-cancelable').value;
+  const payload = {
+    type: document.getElementById('booking-type').value,
+    status: document.getElementById('booking-status').value,
+    courseName: document.getElementById('booking-course').value,
+    courseSubName: document.getElementById('booking-subcourse').value,
+    roundDate: document.getElementById('booking-date').value,
+    roundTime: document.getElementById('booking-time').value,
+    cancelable: {
+      possible: cancelableValue === 'possible' ? true : cancelableValue === 'impossible' ? false : null,
+      deadline: document.getElementById('booking-cancel-deadline').value,
+    },
+    source: document.getElementById('booking-source').value,
+    bookingNumber: document.getElementById('booking-number').value,
+    greenFeeAmount: valOrNull('booking-fee'),
+    paymentMethod: document.getElementById('booking-payment').value,
+    reservationName: document.getElementById('booking-reservation-name').value,
+    companions: parseCompanionsText(document.getElementById('booking-companions').value),
+    contactPhone: document.getElementById('booking-contact').value,
+    homepageUrl: document.getElementById('booking-homepage').value,
+    memo: document.getElementById('booking-memo').value,
+    groupId: document.getElementById('booking-group-id').value || null,
+  };
+  try {
+    if (matchedId) {
+      const result = await api(`/api/bookings/${matchedId}/confirm`, { method: 'POST', body: JSON.stringify(payload) });
+      showToast(`확정으로 업데이트했습니다${result.siblingsUpdated ? ` (${result.siblingsUpdated}건 취소 검토 대상으로 표시)` : ''}`);
+      document.getElementById('booking-message-input').value = '';
+    } else if (id) {
+      await api(`/api/bookings/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      showToast('예약 기록을 수정했습니다');
+    } else {
+      await api('/api/bookings', { method: 'POST', body: JSON.stringify(payload) });
+      showToast('예약 기록을 추가했습니다');
+      document.getElementById('booking-message-input').value = '';
+    }
+    closeBookingDialog();
+    await loadBookings();
+  } catch (err) {
+    showToast('저장 실패: ' + err.message);
+  }
+});
+
+async function removeBooking(id) {
+  if (!confirm('이 예약 기록을 삭제할까요?')) return;
+  try {
+    await api(`/api/bookings/${id}`, { method: 'DELETE' });
+    showToast('삭제했습니다');
+    await loadBookings();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
+
+function copyBookingReport() {
+  if (!bookingCache.length) { showToast('예약 기록이 없습니다'); return; }
+  const active = [...bookingCache].filter((b) => b.status !== '취소완료').sort((a, b) => (a.roundDate < b.roundDate ? -1 : 1));
+  if (!active.length) { showToast('공유할 예약 기록이 없습니다'); return; }
+  const lines = ['⛳ 예약 현황', '─────────────'];
+  active.forEach((b) => {
+    let line = `- ${b.courseName}${b.courseSubName ? '(' + b.courseSubName + ')' : ''} ${b.roundDate || ''} ${b.roundTime || ''} [${b.status}]`;
+    if (b.reviewCancel) line += ' ⚠취소검토';
+    if (b.type === '조인' && b.cancelable?.possible === false) line += ' ⚠취소불가·예약금';
+    else if (b.cancelable?.possible === true && b.cancelable.deadline) line += ` (취소마감 ${b.cancelable.deadline})`;
+    lines.push(line);
+  });
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(
+    () => showToast('클립보드에 복사했습니다'),
+    () => showToast('복사 실패 - 직접 선택해서 복사해주세요')
+  );
+}
+
 // ===== 초기 로드 =====
 window.addEventListener('DOMContentLoaded', () => {
   loadStats(true);
   loadSettings();
+  loadBookings();
   const lat = localStorage.getItem('jdgh_lat');
   const lon = localStorage.getItem('jdgh_lon');
   if (lat && lon) fetchWeather(lat, lon);
