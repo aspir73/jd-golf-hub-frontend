@@ -370,6 +370,17 @@
   <section id="tab-score" class="tab-panel">
     <div class="card">
       <h2>통계</h2>
+      <div class="filter-row" style="margin-top:0;">
+        <button class="filter-btn active" data-stat-filter="source" data-value="" onclick="setStatFilter('source','')">전체 출처</button>
+        <button class="filter-btn" data-stat-filter="source" data-value="직접입력" onclick="setStatFilter('source','직접입력')">직접입력</button>
+        <button class="filter-btn" data-stat-filter="source" data-value="보이스캐디" onclick="setStatFilter('source','보이스캐디')">보이스캐디</button>
+        <button class="filter-btn" data-stat-filter="source" data-value="스마트스코어" onclick="setStatFilter('source','스마트스코어')">스마트스코어</button>
+      </div>
+      <div class="filter-row">
+        <button class="filter-btn active" data-stat-filter="roundType" data-value="" onclick="setStatFilter('roundType','')">전체 라운드</button>
+        <button class="filter-btn" data-stat-filter="roundType" data-value="필드" onclick="setStatFilter('roundType','필드')">필드</button>
+        <button class="filter-btn" data-stat-filter="roundType" data-value="스크린" onclick="setStatFilter('roundType','스크린')">스크린골프</button>
+      </div>
       <div class="grid-3">
         <div><div class="muted">최근10 평균</div><div style="font-size:20px;font-weight:700;" id="stat-avg10">-</div></div>
         <div><div class="muted">베스트</div><div style="font-size:20px;font-weight:700;" id="stat-best">-</div></div>
@@ -442,6 +453,16 @@
 <dialog id="scoreDialog">
   <div class="dialog-inner">
     <h2 id="scoreDialogTitle" style="margin-top:0;">스코어 추가</h2>
+
+    <label>사진으로 자동 인식</label>
+    <div class="grid-3">
+      <button type="button" class="btn secondary" onclick="triggerScorePhotoRecognition('scorecard')">📷 스코어카드</button>
+      <button type="button" class="btn secondary" onclick="triggerScorePhotoRecognition('voicecaddie')">📱 보이스캐디</button>
+      <button type="button" class="btn secondary" onclick="triggerScorePhotoRecognition('smartscore')">📱 스마트스코어</button>
+    </div>
+    <input type="file" id="score-photo-input" accept="image/*" capture="environment" style="display:none;">
+    <div id="score-photo-status" class="muted" style="margin-top:6px;"></div>
+
     <form id="scoreForm">
       <input type="hidden" id="score-id">
       <label>날짜 *</label>
@@ -472,13 +493,24 @@
         <option value="1">1 - 별로</option>
       </select>
 
-      <label>기록 출처</label>
-      <select id="score-source">
-        <option value="직접입력">직접입력</option>
-        <option value="보이스캐디">보이스캐디</option>
-        <option value="스마트스코어">스마트스코어</option>
-        <option value="종이스코어카드">종이스코어카드</option>
-      </select>
+      <div class="grid-2">
+        <div>
+          <label>기록 출처</label>
+          <select id="score-source">
+            <option value="직접입력">직접입력</option>
+            <option value="보이스캐디">보이스캐디</option>
+            <option value="스마트스코어">스마트스코어</option>
+            <option value="종이스코어카드">종이스코어카드</option>
+          </select>
+        </div>
+        <div>
+          <label>라운드 종류</label>
+          <select id="score-round-type">
+            <option value="필드">필드</option>
+            <option value="스크린">스크린골프</option>
+          </select>
+        </div>
+      </div>
 
       <label>메모</label>
       <textarea id="score-memo" rows="2" placeholder="특이사항 (선택)"></textarea>
@@ -579,7 +611,12 @@
 
     <label style="margin-top:16px;">정산 항목</label>
     <div id="settlement-items"></div>
-    <button type="button" class="btn secondary block" style="margin-top:10px;" onclick="addSettlementItemRow()">＋ 항목 추가</button>
+    <div class="grid-2" style="margin-top:10px;">
+      <button type="button" class="btn secondary" onclick="addSettlementItemRow()">＋ 항목 추가</button>
+      <button type="button" class="btn secondary" onclick="triggerReceiptRecognition()">🧾 영수증으로 추가</button>
+    </div>
+    <input type="file" id="receipt-photo-input" accept="image/*" capture="environment" style="display:none;">
+    <div id="receipt-photo-status" class="muted" style="margin-top:6px;"></div>
 
     <div class="dialog-actions">
       <button type="button" class="btn secondary block" onclick="closeSettlementDialog()">취소</button>
@@ -710,7 +747,7 @@ function renderScoreList(scores) {
     <div class="score-item">
       <div class="info">
         <div class="course">${escapeHtml(s.courseName)}${s.courseSubName ? ' · ' + escapeHtml(s.courseSubName) : ''}</div>
-        <div class="meta">${s.date} · ${s.source}</div>
+        <div class="meta">${s.date} · ${s.source}${s.roundType === '스크린' ? ' · 🖥️ 스크린골프' : ''}</div>
       </div>
       <div class="total">${s.totalScore ?? '-'}</div>
       <div class="score-actions">
@@ -735,9 +772,27 @@ function jsAttrEscape(str) {
     .replace(/>/g, '&gt;');
 }
 
+let currentStatFilters = { source: '', roundType: '' };
+
+function setStatFilter(type, value) {
+  currentStatFilters[type] = value;
+  document.querySelectorAll(`[data-stat-filter="${type}"]`).forEach((b) => {
+    b.classList.toggle('active', b.dataset.value === value);
+  });
+  loadStats();
+}
+
+function statsQueryString() {
+  const params = new URLSearchParams();
+  if (currentStatFilters.source) params.set('source', currentStatFilters.source);
+  if (currentStatFilters.roundType) params.set('roundType', currentStatFilters.roundType);
+  const qs = params.toString();
+  return qs ? '?' + qs : '';
+}
+
 async function loadStats(homeOnly = false) {
   try {
-    const stats = await api('/api/stats');
+    const stats = await api('/api/stats' + (homeOnly ? '' : statsQueryString()));
     document.getElementById('home-avg10').textContent = stats.recentAvg10 ?? '-';
     document.getElementById('home-best').textContent = stats.bestScore ?? '-';
     document.getElementById('home-rounds').textContent = stats.totalRounds + '회';
@@ -783,11 +838,13 @@ function openScoreDialog(id) {
       document.getElementById('score-putts').value = s.putts ?? '';
       document.getElementById('score-rating').value = s.courseRating ?? '';
       document.getElementById('score-source').value = s.source || '직접입력';
+      document.getElementById('score-round-type').value = s.roundType || '필드';
       document.getElementById('score-memo').value = s.memo || '';
     }
   } else {
     document.getElementById('score-date').value = new Date().toISOString().slice(0, 10);
   }
+  document.getElementById('score-photo-status').textContent = '';
   dialog.showModal();
 }
 
@@ -808,8 +865,15 @@ document.getElementById('scoreForm').addEventListener('submit', async (e) => {
     putts: valOrNull('score-putts'),
     courseRating: valOrNull('score-rating'),
     source: document.getElementById('score-source').value,
+    roundType: document.getElementById('score-round-type').value,
     memo: document.getElementById('score-memo').value,
   };
+  const duplicate = scoreCache.find(
+    (s) => s.id !== id && s.date === payload.date && s.courseName.trim() && s.courseName.trim() === payload.courseName.trim()
+  );
+  if (duplicate && !confirm(`이미 [${duplicate.source}]로 등록된 라운드입니다 (${duplicate.date} ${duplicate.courseName}). 그래도 저장할까요?`)) {
+    return;
+  }
   try {
     if (id) {
       await api(`/api/scores/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -830,6 +894,75 @@ function valOrNull(id) {
   const v = document.getElementById(id).value;
   return v === '' ? null : Number(v);
 }
+
+// ===== 공용 이미지 인식 컴포넌트 (스코어카드/화면캡처/영수증 공통) =====
+// 사진 업로드 → 리사이즈/JPEG 압축 → Worker 경유 Claude Vision 호출 → 구조화 데이터 반환
+function fileToResizedBase64(file, maxDim = 1600, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('파일을 읽지 못했습니다'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('이미지를 불러오지 못했습니다'));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve({ base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' });
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function recognizeImageFile(file, context) {
+  const { base64, mediaType } = await fileToResizedBase64(file);
+  return api('/api/vision/recognize', {
+    method: 'POST',
+    body: JSON.stringify({ imageBase64: base64, mediaType, context }),
+  });
+}
+
+// ---- 스코어 사진 인식 ----
+let scorePhotoContext = null;
+const SCORE_PHOTO_SOURCE_MAP = { scorecard: '종이스코어카드', voicecaddie: '보이스캐디', smartscore: '스마트스코어' };
+
+function triggerScorePhotoRecognition(context) {
+  scorePhotoContext = context;
+  document.getElementById('score-photo-input').click();
+}
+
+document.getElementById('score-photo-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const statusEl = document.getElementById('score-photo-status');
+  statusEl.textContent = '인식 중...';
+  try {
+    const result = await recognizeImageFile(file, scorePhotoContext);
+    if (result.courseName) document.getElementById('score-course').value = result.courseName;
+    if (result.courseSubName) document.getElementById('score-subcourse').value = result.courseSubName;
+    if (result.date) document.getElementById('score-date').value = result.date;
+    if (result.totalScore != null) document.getElementById('score-total').value = result.totalScore;
+    if (result.fir != null) document.getElementById('score-fir').value = result.fir;
+    if (result.gir != null) document.getElementById('score-gir').value = result.gir;
+    if (result.putts != null) document.getElementById('score-putts').value = result.putts;
+    document.getElementById('score-source').value = SCORE_PHOTO_SOURCE_MAP[scorePhotoContext] || '직접입력';
+    statusEl.textContent = `인식 완료 (확신도: ${result.confidence || '-'}) — 내용을 확인한 뒤 저장하세요`;
+  } catch (err) {
+    statusEl.textContent = '';
+    showToast('인식 실패: ' + err.message);
+  }
+});
 
 async function removeScore(id) {
   if (!confirm('이 스코어 기록을 삭제할까요?')) return;
@@ -1151,6 +1284,40 @@ function removeSettlementItemRow(id) {
   settlementItems = settlementItems.filter((it) => it.id !== id);
   renderSettlementItems();
 }
+
+// ---- 영수증 사진 인식으로 정산 항목 추가 ----
+function triggerReceiptRecognition() {
+  document.getElementById('receipt-photo-input').click();
+}
+
+document.getElementById('receipt-photo-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const statusEl = document.getElementById('receipt-photo-status');
+  statusEl.textContent = '인식 중...';
+  try {
+    const result = await recognizeImageFile(file, 'receipt');
+    const items = result.items || [];
+    items.forEach((item) => {
+      settlementItems.push({
+        id: crypto.randomUUID(),
+        label: item.label || '',
+        amount: item.amount != null && item.amount >= 0 ? item.amount : '',
+        splitType: 'all',
+        selectedNames: [...settlementParticipants],
+        paidBy: settlementParticipants[0] || '',
+      });
+    });
+    renderSettlementItems();
+    statusEl.textContent = items.length
+      ? `${result.storeName || '영수증'}에서 항목 ${items.length}개를 추가했습니다 — 금액을 확인해주세요`
+      : '영수증에서 항목을 찾지 못했습니다';
+  } catch (err) {
+    statusEl.textContent = '';
+    showToast('영수증 인식 실패: ' + err.message);
+  }
+});
 
 function updateSettlementItem(id, field, value) {
   const item = settlementItems.find((it) => it.id === id);
