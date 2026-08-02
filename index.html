@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>JD Golf Hub</title>
+<style>
+  :root {
+    --green: #1f7a3d;
+    --green-dark: #16582b;
+    --bg: #f4f6f4;
+    --card: #ffffff;
+    --text: #1c231e;
+    --muted: #6b756d;
+    --border: #e2e6e2;
+    --danger: #c0392b;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 76px;
+    font-size: 16px;
+  }
+  header.app-header {
+    background: var(--green);
+    color: #fff;
+    padding: 18px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header.app-header h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  main { padding: 16px; max-width: 640px; margin: 0 auto; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; animation: fade .15s ease; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .card h2 {
+    font-size: 16px;
+    margin: 0 0 10px;
+    color: var(--green-dark);
+  }
+  .card h3 { font-size: 14px; margin: 0 0 8px; color: var(--muted); }
+  .muted { color: var(--muted); font-size: 13px; }
+  .placeholder {
+    text-align: center;
+    padding: 40px 16px;
+    color: var(--muted);
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .btn {
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-weight: 600;
+  }
+  .btn:active { background: var(--green-dark); }
+  .btn.secondary {
+    background: #fff;
+    color: var(--green);
+    border: 1px solid var(--green);
+  }
+  .btn.danger { background: var(--danger); }
+  .btn.block { width: 100%; }
+
+  input, select, textarea {
+    font-family: inherit;
+    font-size: 15px;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 100%;
+    background: #fff;
+    color: var(--text);
+  }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+  /* 홈 대시보드 */
+  .dday-card { background: linear-gradient(135deg, var(--green), var(--green-dark)); color: #fff; }
+  .dday-card h2 { color: #fff; }
+  .stat-row { display: flex; justify-content: space-between; margin: 6px 0; font-size: 14px; }
+  .stat-row .v { font-weight: 700; }
+
+  /* 날씨 */
+  .hourly-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+  .hour-chip {
+    flex: 0 0 auto;
+    background: #f0f4f0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    text-align: center;
+    min-width: 70px;
+  }
+  .hour-chip .t { font-size: 12px; color: var(--muted); }
+  .hour-chip .temp { font-size: 17px; font-weight: 700; margin: 4px 0; }
+  .hour-chip .sky { font-size: 12px; }
+  .hour-chip .pop { font-size: 11px; color: #2b6cb0; }
+  .outfit-box {
+    background: #eef7ee;
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 10px;
+  }
+  .outfit-box ul { margin: 6px 0 0; padding-left: 18px; }
+  .outfit-box li { margin: 4px 0; font-size: 14px; }
+
+  /* 스코어 목록 */
+  .score-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .score-item:last-child { border-bottom: none; }
+  .score-item .info .course { font-weight: 600; }
+  .score-item .info .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .score-item .total { font-size: 22px; font-weight: 800; color: var(--green-dark); }
+  .score-actions { display: flex; gap: 6px; margin-left: 10px; }
+  .icon-btn {
+    background: none;
+    border: none;
+    font-size: 16px;
+    padding: 4px 6px;
+  }
+
+  .empty { text-align: center; color: var(--muted); padding: 24px 0; font-size: 14px; }
+
+  nav.bottom-tabs {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 20;
+  }
+  nav.bottom-tabs button {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 10px 4px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: var(--muted);
+  }
+  nav.bottom-tabs button .ic { font-size: 20px; }
+  nav.bottom-tabs button .lb { font-size: 11px; }
+  nav.bottom-tabs button.active { color: var(--green); font-weight: 700; }
+
+  .toast {
+    position: fixed;
+    bottom: 84px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #222;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s;
+    z-index: 30;
+    max-width: 85%;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; }
+
+  dialog#scoreDialog {
+    border: none;
+    border-radius: 16px;
+    padding: 0;
+    width: min(480px, 92vw);
+  }
+  dialog#scoreDialog::backdrop { background: rgba(0,0,0,.4); }
+  .dialog-inner { padding: 18px; }
+  .dialog-actions { display: flex; gap: 10px; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>⛳ JD Golf Hub</h1>
+</header>
+
+<main>
+  <!-- 홈 -->
+  <section id="tab-home" class="tab-panel active">
+    <div class="card dday-card">
+      <h2>오늘의 요약</h2>
+      <div class="stat-row"><span>최근 10라운드 평균</span><span class="v" id="home-avg10">-</span></div>
+      <div class="stat-row"><span>베스트 스코어</span><span class="v" id="home-best">-</span></div>
+      <div class="stat-row"><span>총 라운드 수</span><span class="v" id="home-rounds">-</span></div>
+    </div>
+
+    <div class="card">
+      <h2>오늘 날씨</h2>
+      <div id="home-weather-summary" class="muted">날씨 탭에서 위치를 확인해주세요.</div>
+    </div>
+
+    <div class="card">
+      <h2>바로가기</h2>
+      <div class="grid-2">
+        <button class="btn secondary" onclick="showTab('score')">＋ 스코어 입력</button>
+        <button class="btn secondary" onclick="showTab('weather')">🌤 날씨 확인</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 예약 (MVP2 예정) -->
+  <section id="tab-booking" class="tab-panel">
+    <div class="card placeholder">
+      <div style="font-size:36px;">📅</div>
+      <p><strong>예약/조인 매칭</strong>은 MVP4에서 추가될 예정입니다.</p>
+      <p class="muted">골프장 즐겨찾기, 동반예약 그룹 비교, 예약확정 메시지 붙여넣기 자동 파싱 기능이 포함됩니다.</p>
+    </div>
+  </section>
+
+  <!-- 스코어 -->
+  <section id="tab-score" class="tab-panel">
+    <div class="card">
+      <h2>통계</h2>
+      <div class="grid-3">
+        <div><div class="muted">최근10 평균</div><div style="font-size:20px;font-weight:700;" id="stat-avg10">-</div></div>
+        <div><div class="muted">베스트</div><div style="font-size:20px;font-weight:700;" id="stat-best">-</div></div>
+        <div><div class="muted">총 라운드</div><div style="font-size:20px;font-weight:700;" id="stat-rounds">-</div></div>
+      </div>
+      <div class="grid-3" style="margin-top:12px;">
+        <div><div class="muted">평균 FIR</div><div id="stat-fir">-</div></div>
+        <div><div class="muted">평균 GIR</div><div id="stat-gir">-</div></div>
+        <div><div class="muted">평균 퍼트</div><div id="stat-putts">-</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>코스별 평균</h2>
+      <div id="course-breakdown" class="empty">기록이 없습니다.</div>
+    </div>
+
+    <div class="card">
+      <h2>라운드 기록</h2>
+      <button class="btn block" onclick="openScoreDialog()">＋ 스코어 추가</button>
+      <div id="score-list" style="margin-top:10px;" class="empty">아직 기록이 없습니다.</div>
+    </div>
+  </section>
+
+  <!-- 날씨 -->
+  <section id="tab-weather" class="tab-panel">
+    <div class="card">
+      <h2>라운딩 날씨</h2>
+      <button class="btn block" id="btn-locate" onclick="locateAndFetchWeather()">📍 내 위치로 날씨 확인</button>
+      <div class="muted" style="margin-top:8px;">위치 권한을 허용하면 기상청 단기예보를 시간대별로 보여줍니다.</div>
+    </div>
+
+    <div class="card" id="weather-result-card" style="display:none;">
+      <h2>오늘 시간대별 예보</h2>
+      <div class="hourly-scroll" id="hourly-scroll"></div>
+      <div class="outfit-box" id="outfit-box"></div>
+    </div>
+  </section>
+
+  <!-- 맛집 (MVP2 예정) -->
+  <section id="tab-food" class="tab-panel">
+    <div class="card placeholder">
+      <div style="font-size:36px;">🍚</div>
+      <p><strong>골프장 주변 맛집</strong>은 MVP2에서 추가될 예정입니다.</p>
+      <p class="muted">카카오맵 API 연동 후 라운드 전/후 타이밍 맞춤 맛집 추천이 제공됩니다.</p>
+    </div>
+  </section>
+</main>
+
+<nav class="bottom-tabs">
+  <button data-tab="home" class="active" onclick="showTab('home')"><span class="ic">🏠</span><span class="lb">홈</span></button>
+  <button data-tab="booking" onclick="showTab('booking')"><span class="ic">📅</span><span class="lb">예약</span></button>
+  <button data-tab="score" onclick="showTab('score')"><span class="ic">⛳</span><span class="lb">스코어</span></button>
+  <button data-tab="weather" onclick="showTab('weather')"><span class="ic">🌤</span><span class="lb">날씨</span></button>
+  <button data-tab="food" onclick="showTab('food')"><span class="ic">🍚</span><span class="lb">맛집</span></button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<dialog id="scoreDialog">
+  <div class="dialog-inner">
+    <h2 id="scoreDialogTitle" style="margin-top:0;">스코어 추가</h2>
+    <form id="scoreForm">
+      <input type="hidden" id="score-id">
+      <label>날짜 *</label>
+      <input type="date" id="score-date" required>
+
+      <label>골프장명 *</label>
+      <input type="text" id="score-course" placeholder="예: 해솔리아CC" required>
+
+      <label>코스명</label>
+      <input type="text" id="score-subcourse" placeholder="예: 레이크코스">
+
+      <label>총타수 *</label>
+      <input type="number" id="score-total" min="18" max="200" required>
+
+      <div class="grid-3">
+        <div><label>FIR(%)</label><input type="number" id="score-fir" min="0" max="100"></div>
+        <div><label>GIR(%)</label><input type="number" id="score-gir" min="0" max="100"></div>
+        <div><label>퍼트 수</label><input type="number" id="score-putts" min="0" max="60"></div>
+      </div>
+
+      <label>골프장 평점 (1~5)</label>
+      <select id="score-rating">
+        <option value="">선택 안 함</option>
+        <option value="5">5 - 최고</option>
+        <option value="4">4 - 좋음</option>
+        <option value="3">3 - 보통</option>
+        <option value="2">2 - 아쉬움</option>
+        <option value="1">1 - 별로</option>
+      </select>
+
+      <label>기록 출처</label>
+      <select id="score-source">
+        <option value="직접입력">직접입력</option>
+        <option value="보이스캐디">보이스캐디</option>
+        <option value="스마트스코어">스마트스코어</option>
+        <option value="종이스코어카드">종이스코어카드</option>
+      </select>
+
+      <label>메모</label>
+      <textarea id="score-memo" rows="2" placeholder="특이사항 (선택)"></textarea>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary block" onclick="closeScoreDialog()">취소</button>
+        <button type="submit" class="btn block">저장</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<script>
+// ===== 설정: 배포한 Cloudflare Worker 주소로 교체하세요 =====
+const CONFIG = {
+  API_BASE: 'https://jd-golf-hub-backend.YOUR-SUBDOMAIN.workers.dev',
+};
+
+// ===== 공통 유틸 =====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(CONFIG.API_BASE + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `요청 실패 (HTTP ${res.status})`);
+  return data;
+}
+
+// ===== 탭 전환 =====
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach((el) => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelectorAll('nav.bottom-tabs button').forEach((b) => {
+    b.classList.toggle('active', b.dataset.tab === name);
+  });
+  if (name === 'score') { loadScores(); loadStats(); }
+  if (name === 'home') { loadStats(true); }
+}
+
+// ===== 날씨 =====
+function locateAndFetchWeather() {
+  if (!navigator.geolocation) {
+    showToast('이 브라우저는 위치 정보를 지원하지 않습니다');
+    return;
+  }
+  const btn = document.getElementById('btn-locate');
+  btn.disabled = true;
+  btn.textContent = '위치 확인 중...';
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      localStorage.setItem('jdgh_lat', latitude);
+      localStorage.setItem('jdgh_lon', longitude);
+      await fetchWeather(latitude, longitude);
+      btn.disabled = false;
+      btn.textContent = '📍 내 위치로 날씨 확인';
+    },
+    (err) => {
+      showToast('위치 확인 실패: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = '📍 내 위치로 날씨 확인';
+    },
+    { timeout: 8000 }
+  );
+}
+
+async function fetchWeather(lat, lon) {
+  try {
+    const data = await api(`/api/weather?lat=${lat}&lon=${lon}`);
+    renderWeather(data);
+  } catch (e) {
+    showToast('날씨 조회 실패: ' + e.message);
+  }
+}
+
+function renderWeather(data) {
+  const card = document.getElementById('weather-result-card');
+  card.style.display = 'block';
+
+  const scroll = document.getElementById('hourly-scroll');
+  scroll.innerHTML = data.hourly.map((h) => `
+    <div class="hour-chip">
+      <div class="t">${h.time.slice(0,2)}시</div>
+      <div class="temp">${h.temp ?? '-'}°</div>
+      <div class="sky">${h.sky ?? ''}${h.pty && h.pty !== '없음' ? ' · ' + h.pty : ''}</div>
+      <div class="pop">☔ ${h.pop ?? 0}%</div>
+    </div>
+  `).join('');
+
+  const outfitBox = document.getElementById('outfit-box');
+  outfitBox.innerHTML = `
+    <h3>👕 오늘의 복장 추천</h3>
+    <div><strong>${data.outfit.summary}</strong></div>
+    <ul>${data.outfit.items.map((i) => `<li>${i}</li>`).join('')}</ul>
+  `;
+
+  document.getElementById('home-weather-summary').innerHTML =
+    `<strong>${data.outfit.summary}</strong><br><span class="muted">${data.outfit.items[0] || ''}</span>`;
+}
+
+// ===== 스코어 =====
+let scoreCache = [];
+
+async function loadScores() {
+  try {
+    const { scores } = await api('/api/scores');
+    scoreCache = scores;
+    renderScoreList(scores);
+  } catch (e) {
+    showToast('스코어 목록 조회 실패: ' + e.message);
+  }
+}
+
+function renderScoreList(scores) {
+  const el = document.getElementById('score-list');
+  if (!scores.length) {
+    el.innerHTML = '<div class="empty">아직 기록이 없습니다. 위 버튼으로 추가해보세요.</div>';
+    return;
+  }
+  const sorted = [...scores].sort((a, b) => (a.date < b.date ? 1 : -1));
+  el.innerHTML = sorted.map((s) => `
+    <div class="score-item">
+      <div class="info">
+        <div class="course">${escapeHtml(s.courseName)}${s.courseSubName ? ' · ' + escapeHtml(s.courseSubName) : ''}</div>
+        <div class="meta">${s.date} · ${s.source}</div>
+      </div>
+      <div class="total">${s.totalScore ?? '-'}</div>
+      <div class="score-actions">
+        <button class="icon-btn" onclick="openScoreDialog('${s.id}')" title="수정">✏️</button>
+        <button class="icon-btn" onclick="removeScore('${s.id}')" title="삭제">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+async function loadStats(homeOnly = false) {
+  try {
+    const stats = await api('/api/stats');
+    document.getElementById('home-avg10').textContent = stats.recentAvg10 ?? '-';
+    document.getElementById('home-best').textContent = stats.bestScore ?? '-';
+    document.getElementById('home-rounds').textContent = stats.totalRounds + '회';
+    if (homeOnly) return;
+
+    document.getElementById('stat-avg10').textContent = stats.recentAvg10 ?? '-';
+    document.getElementById('stat-best').textContent = stats.bestScore ?? '-';
+    document.getElementById('stat-rounds').textContent = stats.totalRounds + '회';
+    document.getElementById('stat-fir').textContent = stats.avgFIR != null ? stats.avgFIR + '%' : '-';
+    document.getElementById('stat-gir').textContent = stats.avgGIR != null ? stats.avgGIR + '%' : '-';
+    document.getElementById('stat-putts').textContent = stats.avgPutts ?? '-';
+
+    const cb = document.getElementById('course-breakdown');
+    if (!stats.byCourse.length) {
+      cb.innerHTML = '<div class="empty">기록이 없습니다.</div>';
+    } else {
+      cb.innerHTML = stats.byCourse.map((c) => `
+        <div class="stat-row"><span>${escapeHtml(c.course)} (${c.rounds}회)</span><span class="v">${c.avgScore ?? '-'}</span></div>
+      `).join('');
+    }
+  } catch (e) {
+    showToast('통계 조회 실패: ' + e.message);
+  }
+}
+
+function openScoreDialog(id) {
+  const dialog = document.getElementById('scoreDialog');
+  const form = document.getElementById('scoreForm');
+  form.reset();
+  document.getElementById('score-id').value = '';
+  document.getElementById('scoreDialogTitle').textContent = id ? '스코어 수정' : '스코어 추가';
+
+  if (id) {
+    const s = scoreCache.find((x) => x.id === id);
+    if (s) {
+      document.getElementById('score-id').value = s.id;
+      document.getElementById('score-date').value = s.date;
+      document.getElementById('score-course').value = s.courseName || '';
+      document.getElementById('score-subcourse').value = s.courseSubName || '';
+      document.getElementById('score-total').value = s.totalScore ?? '';
+      document.getElementById('score-fir').value = s.fir ?? '';
+      document.getElementById('score-gir').value = s.gir ?? '';
+      document.getElementById('score-putts').value = s.putts ?? '';
+      document.getElementById('score-rating').value = s.courseRating ?? '';
+      document.getElementById('score-source').value = s.source || '직접입력';
+      document.getElementById('score-memo').value = s.memo || '';
+    }
+  } else {
+    document.getElementById('score-date').value = new Date().toISOString().slice(0, 10);
+  }
+  dialog.showModal();
+}
+
+function closeScoreDialog() {
+  document.getElementById('scoreDialog').close();
+}
+
+document.getElementById('scoreForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('score-id').value;
+  const payload = {
+    date: document.getElementById('score-date').value,
+    courseName: document.getElementById('score-course').value,
+    courseSubName: document.getElementById('score-subcourse').value,
+    totalScore: Number(document.getElementById('score-total').value),
+    fir: valOrNull('score-fir'),
+    gir: valOrNull('score-gir'),
+    putts: valOrNull('score-putts'),
+    courseRating: valOrNull('score-rating'),
+    source: document.getElementById('score-source').value,
+    memo: document.getElementById('score-memo').value,
+  };
+  try {
+    if (id) {
+      await api(`/api/scores/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      showToast('스코어를 수정했습니다');
+    } else {
+      await api('/api/scores', { method: 'POST', body: JSON.stringify(payload) });
+      showToast('스코어를 저장했습니다');
+    }
+    closeScoreDialog();
+    await loadScores();
+    await loadStats();
+  } catch (err) {
+    showToast('저장 실패: ' + err.message);
+  }
+});
+
+function valOrNull(id) {
+  const v = document.getElementById(id).value;
+  return v === '' ? null : Number(v);
+}
+
+async function removeScore(id) {
+  if (!confirm('이 스코어 기록을 삭제할까요?')) return;
+  try {
+    await api(`/api/scores/${id}`, { method: 'DELETE' });
+    showToast('삭제했습니다');
+    await loadScores();
+    await loadStats();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
+
+// ===== 초기 로드 =====
+window.addEventListener('DOMContentLoaded', () => {
+  loadStats(true);
+  const lat = localStorage.getItem('jdgh_lat');
+  const lon = localStorage.getItem('jdgh_lon');
+  if (lat && lon) fetchWeather(lat, lon);
+});
+</script>
+</body>
+</html>
