@@ -460,7 +460,7 @@
   <section id="tab-join" class="tab-panel">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-        <h2 style="margin:0;">🔍 신규예약 조건검색 (조인/백업)</h2>
+        <h2 style="margin:0;">🔍 부킹 조건검색 (골팡 본인예약 + 카카오골프예약)</h2>
         <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="openPlatformOptionsModal()">⚙️ 세부검색 옵션</button>
       </div>
       <div class="muted" id="platform-summary" style="margin-top:4px;"></div>
@@ -528,8 +528,8 @@
           <div>
             <label>예약 유형</label>
             <select id="golfpang-mode">
-              <option value="join">조인/백업</option>
               <option value="booking">본인예약(부킹)</option>
+              <option value="join">조인/백업</option>
             </select>
           </div>
           <div>
@@ -2114,7 +2114,7 @@ async function searchRoundsNormalized(date) {
   golfpangSectors.forEach((sector) => {
     golfpangAmpms.forEach((ampm) => {
       golfpangCalls.push(
-        api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=join${caddy.golfpang ? '&caddyType=' + caddy.golfpang : ''}`)
+        api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=booking${caddy.golfpang ? '&caddyType=' + caddy.golfpang : ''}`)
       );
     });
   });
@@ -2145,7 +2145,7 @@ async function searchRoundsNormalized(date) {
 
   return {
     result: kakaogolfResult,
-    sourceLabel: `카카오골프예약 기준 + 골팡 티타임 보강 (골팡 ${golfpangRounds.length}건 참고)`,
+    sourceLabel: `카카오골프예약 기준 + 골팡 본인예약 티타임 보강 (골팡 ${golfpangRounds.length}건 참고)`,
   };
 }
 
