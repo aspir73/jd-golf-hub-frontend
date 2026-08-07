@@ -423,8 +423,7 @@
         <div class="grid-2">
           <div>
             <label>지역</label>
-            <select id="kakaogolf-region">
-              <option value="">서울/경기 (기본값)</option>
+            <select id="kakaogolf-region" onchange="renderKakaoGolfSubRegions()">
               <option value="1">서울/경기</option>
               <option value="12">강원</option>
               <option value="22">충청</option>
@@ -433,9 +432,48 @@
               <option value="46">제주</option>
             </select>
           </div>
-          <div><label>인원수</label><input type="number" id="kakaogolf-visitorcnt" min="0" placeholder="예: 4"></div>
+          <div>
+            <label>내장인원수</label>
+            <select id="kakaogolf-visitorcnt">
+              <option value="">전체</option>
+              <option value="2">2인 이상</option>
+              <option value="3">3인 이상</option>
+              <option value="4">4인 필수</option>
+            </select>
+          </div>
         </div>
-        <div class="muted" style="margin-top:4px;">카카오골프예약은 골프장 단위 요약(최저 그린피·매칭건수)만 표시됩니다.</div>
+
+        <label>세부지역 <span class="muted" style="font-size:11px;">(선택 안 하면 전체)</span></label>
+        <div class="chip-group" id="kakaogolf-subregion-chips"></div>
+
+        <label>티타임대</label>
+        <div class="chip-group" id="kakaogolf-timezone-chips">
+          <span class="chip" onclick="toggleKakaoGolfChip('timeZones','1',this)">새벽(5~7시)</span>
+          <span class="chip" onclick="toggleKakaoGolfChip('timeZones','2',this)">오전(7~12시)</span>
+          <span class="chip" onclick="toggleKakaoGolfChip('timeZones','4',this)">오후(12~4시)</span>
+          <span class="chip" onclick="toggleKakaoGolfChip('timeZones','8',this)">야간(4~9시)</span>
+        </div>
+
+        <label>그린피</label>
+        <div class="chip-group" id="kakaogolf-greenfee-chips">
+          <span class="chip" onclick="toggleKakaoGolfChip('greenFees','1',this)">~9만원</span>
+          <span class="chip" onclick="toggleKakaoGolfChip('greenFees','2',this)">9~15만원</span>
+          <span class="chip" onclick="toggleKakaoGolfChip('greenFees','4',this)">15~20만원</span>
+          <span class="chip" onclick="toggleKakaoGolfChip('greenFees','8',this)">20만원~</span>
+          <span class="chip" onclick="toggleKakaoGolfChip('greenFees','16',this)">홈페이지참조</span>
+        </div>
+
+        <label>이벤트</label>
+        <div class="chip-group" id="kakaogolf-events-chips">
+          <span class="chip" onclick="toggleKakaoGolfChip('events','1',this)">식음료지원</span>
+          <span class="chip" onclick="toggleKakaoGolfChip('events','2',this)">특가</span>
+          <span class="chip" onclick="toggleKakaoGolfChip('events','3',this)">특별이벤트</span>
+          <span class="chip" onclick="toggleKakaoGolfChip('events','4',this)">인터넷회원가입</span>
+          <span class="chip" onclick="toggleKakaoGolfChip('events','5',this)">노캐디</span>
+          <span class="chip" onclick="toggleKakaoGolfChip('events','6',this)">1인 그린피 면제</span>
+        </div>
+
+        <div class="muted" style="margin-top:8px;">카카오골프예약은 골프장 단위 요약(최저 그린피·매칭건수)만 표시됩니다.</div>
       </div>
 
       <button class="btn block" style="margin-top:8px;" onclick="searchRounds()">검색하기</button>
@@ -1816,10 +1854,41 @@ let roundSearchResultCache = [];
 let roundSearchPlatform = 'golfpang';
 let roundSearchMode = 'booking';
 
+// 카카오골프예약 세부지역: 대권역별 목록. 실제 /api/location/area 응답으로 확인한 코드(status:"0" 활성 항목만).
+const KAKAOGOLF_SUB_REGIONS = {
+  1: [{ code: 3, label: '가평권' }, { code: 6, label: '남양주권' }, { code: 10, label: '수원권' }, { code: 9, label: '안성권' }, { code: 11, label: '여주권' }, { code: 8, label: '용인권' }, { code: 7, label: '인천권' }, { code: 4, label: '파주권' }, { code: 5, label: '포천권' }],
+  12: [{ code: 19, label: '동해권' }, { code: 18, label: '속초권' }, { code: 15, label: '원주권' }, { code: 14, label: '춘천권' }, { code: 20, label: '평창권' }],
+  22: [{ code: 28, label: '대전권' }, { code: 27, label: '부여권' }, { code: 29, label: '진천권' }, { code: 26, label: '천안권' }, { code: 30, label: '충주권' }, { code: 24, label: '태안권' }],
+  31: [{ code: 35, label: '경주권' }, { code: 39, label: '남해권' }, { code: 33, label: '대구권' }, { code: 36, label: '부산권' }, { code: 38, label: '안동권' }, { code: 37, label: '양산권' }],
+  41: [{ code: 45, label: '광주권' }, { code: 43, label: '순천권' }, { code: 44, label: '전주권' }],
+  46: [{ code: 48, label: '제주권' }],
+};
+
+// 세부지역/티타임대/그린피/이벤트 다중선택 상태. 값은 전부 문자열로 관리(칩 data-value와 비교 용이하게).
+let kakaoGolfFilters = { subRegions: new Set(), timeZones: new Set(), greenFees: new Set(), events: new Set() };
+
+function renderKakaoGolfSubRegions() {
+  const major = document.getElementById('kakaogolf-region').value;
+  kakaoGolfFilters.subRegions = new Set();
+  const list = KAKAOGOLF_SUB_REGIONS[major] || [];
+  document.getElementById('kakaogolf-subregion-chips').innerHTML = list
+    .map((s) => `<span class="chip" onclick="toggleKakaoGolfChip('subRegions','${s.code}',this)">${escapeHtml(s.label)}</span>`)
+    .join('');
+}
+
+function toggleKakaoGolfChip(group, value, el) {
+  const set = kakaoGolfFilters[group];
+  if (set.has(value)) { set.delete(value); el.classList.remove('selected'); }
+  else { set.add(value); el.classList.add('selected'); }
+}
+
 function onRoundSearchPlatformChange() {
   roundSearchPlatform = document.getElementById('round-search-platform').value;
   document.getElementById('round-fields-golfpang').style.display = roundSearchPlatform === 'golfpang' ? '' : 'none';
   document.getElementById('round-fields-kakaogolf').style.display = roundSearchPlatform === 'kakaogolf' ? '' : 'none';
+  if (roundSearchPlatform === 'kakaogolf' && !document.getElementById('kakaogolf-subregion-chips').children.length) {
+    renderKakaoGolfSubRegions();
+  }
 }
 
 async function searchRounds() {
@@ -1836,10 +1905,19 @@ async function searchRounds() {
       result = await api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=${mode}`);
       sourceLabel = '골팡 1페이지 기준';
     } else {
-      const areas = document.getElementById('kakaogolf-region').value;
+      const majorArea = document.getElementById('kakaogolf-region').value;
+      const areas = kakaoGolfFilters.subRegions.size ? [...kakaoGolfFilters.subRegions] : [majorArea];
       const visitorCnt = document.getElementById('kakaogolf-visitorcnt').value;
+      const timeZones = [...kakaoGolfFilters.timeZones];
+      const greenFees = [...kakaoGolfFilters.greenFees];
+      const events = [...kakaoGolfFilters.events];
       roundSearchMode = 'join';
-      result = await api(`/api/kakaogolf/search?date=${date}&areas=${areas}&visitorCnt=${visitorCnt}`);
+      const qs = new URLSearchParams({ date, areas: areas.join(',') });
+      if (visitorCnt) qs.set('visitorCnt', visitorCnt);
+      if (timeZones.length) qs.set('timeZones', timeZones.join(','));
+      if (greenFees.length) qs.set('greenFees', greenFees.join(','));
+      if (events.length) qs.set('events', events.join(','));
+      result = await api(`/api/kakaogolf/search?${qs.toString()}`);
       sourceLabel = '카카오골프예약, 골프장 단위 요약';
     }
     roundSearchResultCache = result.rounds;
@@ -1883,10 +1961,12 @@ async function loadKakaoGolfTeeTimes(i, btn) {
   const r = roundSearchResultCache[i];
   const date = document.getElementById('round-search-date').value;
   const visitorCnt = document.getElementById('kakaogolf-visitorcnt').value;
+  // 검색에서 고른 티타임대 필터가 있으면 상세 조회에도 그대로 반영(검색 결과와 일관된 시간대만 보여줌)
+  const timeZone = [...kakaoGolfFilters.timeZones].reduce((a, b) => a + Number(b), 0);
   btn.disabled = true;
   btn.textContent = '불러오는 중...';
   try {
-    const result = await api(`/api/kakaogolf/detail?golfInfoSeq=${r.idx}&date=${date}${visitorCnt ? '&visitorCnt=' + visitorCnt : ''}`);
+    const result = await api(`/api/kakaogolf/detail?golfInfoSeq=${r.idx}&date=${date}${visitorCnt ? '&visitorCnt=' + visitorCnt : ''}${timeZone ? '&timeZone=' + timeZone : ''}`);
     const fees = result.teeTimes.map((t) => t.greenFee).filter((f) => f != null);
     const minFee = fees.length ? Math.min(...fees) : null;
     container.innerHTML = result.teeTimes.length
