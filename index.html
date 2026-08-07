@@ -453,13 +453,14 @@
     </div>
   </section>
 
-  <!-- 조인/백업: 예약 탭과 동일한 요구사항(조건검색/동반예약비교/메시지분석/예약기록/즐겨찾기)을
-       "조인" 용도로 구현. 조건검색은 골팡 조인/백업 + 카카오골프예약 정규화 병합 검색(기존 구현 그대로 이전).
-       동반예약(백업) 비교는 개념상 조인 전용 기능이라 예약 탭에서 이 탭으로 옮겼다(중복 대신 이동). -->
+  <!-- 신규예약(메뉴 라벨) — 내부 id/data-tab은 계속 "join"을 쓴다(골팡 조인/백업 + 카카오골프예약 검색이
+       핵심이라). 예약 탭과 동일한 요구사항(조건검색/동반예약비교/메시지분석/예약기록/즐겨찾기)을 구현.
+       조건검색은 골팡 조인/백업 + 카카오골프예약 정규화 병합 검색(기존 구현 그대로 이전).
+       동반예약(백업) 비교는 개념상 이 탭 전용 기능이라 예약 탭에서 이 탭으로 옮겼다(중복 대신 이동). -->
   <section id="tab-join" class="tab-panel">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-        <h2 style="margin:0;">🔍 조인/백업 조건검색</h2>
+        <h2 style="margin:0;">🔍 신규예약 조건검색 (조인/백업)</h2>
         <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="openPlatformOptionsModal()">⚙️ 세부검색 옵션</button>
       </div>
       <div class="muted" id="platform-summary" style="margin-top:4px;"></div>
@@ -732,7 +733,7 @@
 <nav class="bottom-tabs">
   <button data-tab="home" class="active" onclick="showTab('home')"><span class="ic">🏠</span><span class="lb">홈</span></button>
   <button data-tab="booking" onclick="showTab('booking')"><span class="ic">📅</span><span class="lb">예약</span></button>
-  <button data-tab="join" onclick="showTab('join')"><span class="ic">🤝</span><span class="lb">조인</span></button>
+  <button data-tab="join" onclick="showTab('join')"><span class="ic">🆕</span><span class="lb">신규예약</span></button>
   <button data-tab="score" onclick="showTab('score')"><span class="ic">⛳</span><span class="lb">스코어</span></button>
   <button data-tab="weather" onclick="showTab('weather')"><span class="ic">🌤</span><span class="lb">날씨</span></button>
   <button data-tab="food" onclick="showTab('food')"><span class="ic">🍚</span><span class="lb">맛집</span></button>
