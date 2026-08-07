@@ -14,6 +14,7 @@
     --muted: #6b756d;
     --border: #e2e6e2;
     --danger: #c0392b;
+    --accent: #b8720b;
     --radius: 14px;
   }
   * { box-sizing: border-box; }
@@ -221,6 +222,7 @@
   .list-item .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 12px; margin-top: 6px; }
   .list-item .field-grid .f { font-size: 12px; }
   .list-item .field-grid .f .k { color: var(--muted); margin-right: 4px; }
+  .list-item .field-grid .f.accent { color: var(--accent); font-weight: 600; }
   .tag {
     display: inline-block;
     background: #eef2ee;
@@ -1845,6 +1847,24 @@ async function searchRounds() {
   }
 }
 
+/** 캐디유무: 정보가 없으면 기본값 "일반 캐디", "노캐디"가 확인되면 강조색으로 표시 */
+function formatCaddyInfo(caddyType) {
+  if (!caddyType) return { text: '일반 캐디', accent: false };
+  if (caddyType.includes('노캐디')) return { text: caddyType, accent: true };
+  return { text: caddyType, accent: false };
+}
+
+/** 내장인원수: 정보가 없으면 기본값 "4인 필수", 2~3인 조인 가능 정보가 확인되면 강조색으로 표시
+ * (골팡 "구분" 칼럼 등 자유 텍스트에서 "2명/2인", "3명/3인" 패턴만 인식 — 그 외/정보 없음은 4인 기준) */
+function formatPartySize(category) {
+  const text = category || '';
+  if (/[23][명인]/.test(text)) {
+    const n = text.match(/([23])[명인]/)[1];
+    return { text: `${n}인 이상`, accent: true };
+  }
+  return { text: '4인 필수', accent: false };
+}
+
 function renderRoundSearchResults(rounds) {
   const el = document.getElementById('golfpang-result-list');
   const groupBtn = document.getElementById('golfpang-group-btn');
@@ -1853,7 +1873,10 @@ function renderRoundSearchResults(rounds) {
     groupBtn.style.display = 'none';
     return;
   }
-  el.innerHTML = rounds.map((r, i) => `
+  el.innerHTML = rounds.map((r, i) => {
+    const caddy = formatCaddyInfo(r.caddyType);
+    const party = formatPartySize(r.category);
+    return `
     <div class="list-item">
       <div style="display:flex; gap:8px; align-items:flex-start; width:100%;">
         <input type="checkbox" class="round-search-select" data-idx="${i}" style="margin-top:5px;">
@@ -1864,13 +1887,14 @@ function renderRoundSearchResults(rounds) {
             <div class="f"><span class="k">티타임</span>${escapeHtml(r.time || '-')}</div>
             <div class="f"><span class="k">지역</span>${escapeHtml(r.region || '-')}</div>
             <div class="f"><span class="k">그린피</span>${r.greenFee != null ? r.greenFee.toLocaleString('ko-KR') + '원' : '-'}</div>
-            <div class="f"><span class="k">내장인원수</span>${escapeHtml(r.category || '-')}</div>
-            <div class="f"><span class="k">캐디유무</span>${escapeHtml(r.caddyType || '-')}</div>
+            <div class="f${party.accent ? ' accent' : ''}"><span class="k">내장인원수</span>${escapeHtml(party.text)}</div>
+            <div class="f${caddy.accent ? ' accent' : ''}"><span class="k">캐디유무</span>${escapeHtml(caddy.text)}</div>
           </div>
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
   groupBtn.style.display = 'block';
 }
 
