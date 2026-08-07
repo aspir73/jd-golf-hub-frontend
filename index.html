@@ -1952,13 +1952,14 @@ function formatPartySize(category) {
  * 서브리퀘스트 한도 초과 위험이 있어 온디맨드로 처리). */
 async function loadKakaoGolfTeeTimes(i, btn) {
   const container = document.getElementById(`tee-times-${i}`);
+  const r = roundSearchResultCache[i];
+  const countLabel = `(${r.matchCount ?? 0}건)`;
   if (container.dataset.loaded) {
     const hidden = container.style.display === 'none';
     container.style.display = hidden ? '' : 'none';
-    btn.textContent = hidden ? '티타임 접기' : '티타임 보기';
+    btn.textContent = hidden ? `티타임 접기 ${countLabel}` : `티타임 보기 ${countLabel}`;
     return;
   }
-  const r = roundSearchResultCache[i];
   const date = document.getElementById('round-search-date').value;
   const visitorCnt = document.getElementById('kakaogolf-visitorcnt').value;
   // 검색에서 고른 티타임대 필터가 있으면 상세 조회에도 그대로 반영(검색 결과와 일관된 시간대만 보여줌)
@@ -1981,10 +1982,10 @@ async function loadKakaoGolfTeeTimes(i, btn) {
         }).join('')
       : '<div class="muted" style="margin-top:6px;">예약 가능한 티타임이 없습니다.</div>';
     container.dataset.loaded = '1';
-    btn.textContent = '티타임 접기';
+    btn.textContent = `티타임 접기 ${countLabel}`;
   } catch (e) {
     showToast('티타임 조회 실패: ' + e.message);
-    btn.textContent = '티타임 보기';
+    btn.textContent = `티타임 보기 ${countLabel}`;
   } finally {
     btn.disabled = false;
   }
@@ -2016,7 +2017,7 @@ function renderRoundSearchResults(rounds) {
             <div class="f${caddy.accent ? ' accent' : ''}"><span class="k">캐디유무</span>${escapeHtml(caddy.text)}</div>
           </div>
           ${roundSearchPlatform === 'kakaogolf' ? `
-          <button class="btn secondary" style="margin-top:8px; padding:5px 10px; font-size:12px;" onclick="loadKakaoGolfTeeTimes(${i}, this)">티타임 보기</button>
+          <button class="btn secondary" style="margin-top:8px; padding:5px 10px; font-size:12px;" onclick="loadKakaoGolfTeeTimes(${i}, this)">티타임 보기 (${r.matchCount ?? 0}건)</button>
           <div class="tee-times" id="tee-times-${i}"></div>
           ` : ''}
         </div>
