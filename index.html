@@ -1925,6 +1925,8 @@ async function searchRounds() {
       sourceLabel = '카카오골프예약, 골프장 단위 요약';
     }
     roundSearchResultCache = result.rounds;
+    kakaoGolfTeeTimesCache = {};
+    kakaoGolfSelectedTeeTimes.clear();
     document.getElementById('golfpang-result-summary').textContent =
       `총 ${result.totalCount != null ? result.totalCount.toLocaleString('ko-KR') : result.rounds.length}건 중 ${result.rounds.length}건 표시 (${sourceLabel})`;
     renderRoundSearchResults(result.rounds);
@@ -1951,6 +1953,19 @@ function formatPartySize(category) {
   return { text: '4인 필수', accent: false };
 }
 
+// 카카오골프예약: 골프장별로 불러온 개별 티타임 캐시(i -> teeTimes[])와, 그중 비교 그룹에 담기로 선택한
+// 슬롯의 키("i:ti") 집합. 골프장 자체(체크박스)가 아니라 특정 티타임+가격을 비교 후보로 고를 수 있게 한다.
+let kakaoGolfTeeTimesCache = {};
+let kakaoGolfSelectedTeeTimes = new Set();
+
+function toggleKakaoGolfTeeTimeSelect(i, ti, el) {
+  const key = `${i}:${ti}`;
+  // 네이티브 체크박스 클릭이 el.checked를 먼저 바꾼 뒤 이 핸들러가 불리므로, 그 값을 그대로 반영한다
+  // (여기서 다시 뒤집으면 클릭해도 체크 표시가 안 바뀌는 버그가 생김).
+  if (el.checked) kakaoGolfSelectedTeeTimes.add(key);
+  else kakaoGolfSelectedTeeTimes.delete(key);
+}
+
 /** 카카오골프예약 검색 결과는 골프장 단위 요약이라 개별 티타임이 없음 — 클릭한 골프장 한 곳만
  * /api/kakaogolf/detail로 실제 예약 가능 시간대(시간/인원/가격)를 불러온다(전체 자동조회 시 Worker
  * 서브리퀘스트 한도 초과 위험이 있어 온디맨드로 처리). */
@@ -1972,16 +1987,21 @@ async function loadKakaoGolfTeeTimes(i, btn) {
   btn.textContent = '불러오는 중...';
   try {
     const result = await api(`/api/kakaogolf/detail?golfInfoSeq=${r.idx}&date=${date}${visitorCnt ? '&visitorCnt=' + visitorCnt : ''}${timeZone ? '&timeZone=' + timeZone : ''}`);
+    kakaoGolfTeeTimesCache[i] = result.teeTimes;
     const fees = result.teeTimes.map((t) => t.greenFee).filter((f) => f != null);
     const minFee = fees.length ? Math.min(...fees) : null;
     container.innerHTML = result.teeTimes.length
-      ? result.teeTimes.map((t) => {
+      ? `<div class="muted" style="font-size:11px; margin-top:6px;">비교 그룹에 담을 티타임을 골라보세요</div>` +
+        result.teeTimes.map((t, ti) => {
           const isMin = minFee != null && t.greenFee === minFee;
           return `
-          <div class="tt-row${isMin ? ' min-fee' : ''}">
-            <span>${escapeHtml(t.time)}${t.holes ? ' · ' + escapeHtml(t.holes) : ''}</span>
+          <label class="tt-row${isMin ? ' min-fee' : ''}" style="cursor:pointer;">
+            <span style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" onclick="toggleKakaoGolfTeeTimeSelect(${i},${ti},this)">
+              ${escapeHtml(t.time)}${t.holes ? ' · ' + escapeHtml(t.holes) : ''}
+            </span>
             <span>${t.visitorCnt != null ? t.visitorCnt + '/' + (t.maxVisitorCnt ?? '-') + '인' : ''} · ${t.greenFee != null ? t.greenFee.toLocaleString('ko-KR') + '원' : '-'}${isMin ? ' <span class="min-fee-badge">최저가</span>' : ''}</span>
-          </div>
+          </label>
         `;
         }).join('')
       : '<div class="muted" style="margin-top:6px;">예약 가능한 티타임이 없습니다.</div>';
@@ -2051,7 +2071,8 @@ function showCourseQuickInfo(courseName) {
 
 function openCreateGroupFromSelection() {
   const checked = Array.from(document.querySelectorAll('.round-search-select:checked'));
-  if (!checked.length) { showToast('비교할 항목을 선택해주세요'); return; }
+  const teeTimeKeys = Array.from(kakaoGolfSelectedTeeTimes);
+  if (!checked.length && !teeTimeKeys.length) { showToast('비교할 항목을 선택해주세요'); return; }
   const title = prompt('비교 그룹 이름을 입력하세요', `${document.getElementById('round-search-date').value} 라운딩 비교`);
   if (!title) return;
   const candidates = checked.map((cb) => {
@@ -2071,6 +2092,28 @@ function openCreateGroupFromSelection() {
       category: r.category,
     };
   });
+  // 카카오골프예약: 골프장 단위 요약이 아니라 "티타임 보기"에서 실제로 고른 개별 시간대+가격을 후보로 담는다
+  // (골프장 단위 최저가가 아니라 사용자가 예약을 고려 중인 그 시간·가격이 비교에 필요하므로).
+  teeTimeKeys.forEach((key) => {
+    const [i, ti] = key.split(':').map(Number);
+    const r = roundSearchResultCache[i];
+    const t = kakaoGolfTeeTimesCache[i]?.[ti];
+    if (!r || !t) return;
+    candidates.push({
+      source: 'kakaogolf',
+      mode: 'join',
+      externalId: `${r.idx}-${t.time}`,
+      courseName: r.courseName,
+      region: r.region,
+      date: r.date,
+      time: t.time,
+      holes: t.holes || r.holes,
+      greenFee: t.greenFee,
+      nickname: '',
+      caddyType: r.caddyType,
+      category: t.visitorCnt != null ? `${t.visitorCnt}/${t.maxVisitorCnt ?? '-'}인` : r.category,
+    });
+  });
   createComparisonGroup(title, candidates);
 }
 
@@ -2079,6 +2122,8 @@ async function createComparisonGroup(title, candidates) {
     await api('/api/booking-groups', { method: 'POST', body: JSON.stringify({ title, candidates }) });
     showToast('비교 그룹을 만들었습니다');
     document.querySelectorAll('.round-search-select:checked').forEach((cb) => { cb.checked = false; });
+    kakaoGolfSelectedTeeTimes.clear();
+    document.querySelectorAll('.tee-times input[type="checkbox"]:checked').forEach((cb) => { cb.checked = false; });
     await loadComparisonGroups();
   } catch (e) {
     showToast('그룹 생성 실패: ' + e.message);
