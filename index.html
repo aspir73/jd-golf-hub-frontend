@@ -437,7 +437,10 @@
 
     <div class="card">
       <h2>⭐ 즐겨찾기 골프장</h2>
-      <button class="btn block" onclick="openCourseDialog()">＋ 골프장 추가</button>
+      <div style="display:flex; gap:6px;">
+        <button class="btn block" onclick="openCourseDialog()">＋ 골프장 추가</button>
+        <button class="btn secondary block" onclick="openGolfDbBrowse()">🔍 전국 골프장 찾아보기</button>
+      </div>
       <div id="course-list" class="empty" style="margin-top:10px;">등록된 골프장이 없습니다.</div>
     </div>
 
@@ -650,7 +653,10 @@
 
     <div class="card">
       <h2>⭐ 즐겨찾기 골프장</h2>
-      <button class="btn block" onclick="openCourseDialog()">＋ 골프장 추가</button>
+      <div style="display:flex; gap:6px;">
+        <button class="btn block" onclick="openCourseDialog()">＋ 골프장 추가</button>
+        <button class="btn secondary block" onclick="openGolfDbBrowse()">🔍 전국 골프장 찾아보기</button>
+      </div>
       <div id="join-course-list" class="empty" style="margin-top:10px;">등록된 골프장이 없습니다.</div>
     </div>
   </section>
@@ -871,6 +877,35 @@
     <div id="course-weather-result" style="margin-top:10px;"></div>
     <div class="dialog-actions">
       <button type="button" class="btn secondary block" onclick="document.getElementById('courseWeatherDialog').close()">닫기</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="golfDbBrowseDialog">
+  <div class="dialog-inner">
+    <h2 style="margin-top:0;">🔍 전국 골프장 찾아보기</h2>
+    <div class="muted" style="font-size:11px; margin-bottom:6px;">문화체육관광부 전국 골프장 현황(2024-12-31 기준) 데이터입니다.</div>
+
+    <label>이름 검색</label>
+    <input type="text" id="golfdb-search-input" placeholder="골프장명 입력" oninput="searchGolfDbBrowse()">
+
+    <label>지역</label>
+    <select id="golfdb-region-select" onchange="searchGolfDbBrowse()">
+      <option value="">전체</option>
+    </select>
+
+    <label>구분</label>
+    <div class="chip-group" id="golfdb-type-chips">
+      <span class="chip selected" onclick="selectGolfDbType('',this)">전체</span>
+      <span class="chip" onclick="selectGolfDbType('회원제',this)">회원제</span>
+      <span class="chip" onclick="selectGolfDbType('대중제',this)">대중제</span>
+      <span class="chip" onclick="selectGolfDbType('비회원제',this)">비회원제</span>
+    </div>
+
+    <div id="golfdb-browse-result" style="margin-top:10px;"></div>
+
+    <div class="dialog-actions">
+      <button type="button" class="btn secondary block" onclick="document.getElementById('golfDbBrowseDialog').close()">닫기</button>
     </div>
   </div>
 </dialog>
@@ -1372,6 +1407,7 @@ async function removeScore(id) {
 // ===== 골프장 즐겨찾기 =====
 let courseCache = [];
 let courseSearchResults = [];
+let courseSearchDbResults = [];
 
 async function loadCourses() {
   try {
@@ -1500,6 +1536,94 @@ async function loadCourseWeather() {
   }
 }
 
+// ===== 전국 골프장 DB(문체부) 탐색·필터 =====
+let golfDbBrowseType = '';
+let golfDbBrowseResults = [];
+let golfDbRegionsLoaded = false;
+
+async function openGolfDbBrowse() {
+  if (!golfDbRegionsLoaded) {
+    try {
+      const { regions } = await api('/api/golf-db/regions');
+      const sel = document.getElementById('golfdb-region-select');
+      regions.forEach((r) => {
+        const opt = document.createElement('option');
+        opt.value = r.region;
+        opt.textContent = `${r.region} (${r.count})`;
+        sel.appendChild(opt);
+      });
+      golfDbRegionsLoaded = true;
+    } catch (e) {
+      showToast('지역 목록 조회 실패: ' + e.message);
+    }
+  }
+  document.getElementById('golfDbBrowseDialog').showModal();
+  searchGolfDbBrowse();
+}
+
+function selectGolfDbType(type, el) {
+  golfDbBrowseType = type;
+  document.querySelectorAll('#golfdb-type-chips .chip').forEach((c) => c.classList.remove('selected'));
+  el.classList.add('selected');
+  searchGolfDbBrowse();
+}
+
+async function searchGolfDbBrowse() {
+  const query = document.getElementById('golfdb-search-input').value.trim();
+  const region = document.getElementById('golfdb-region-select').value;
+  const el = document.getElementById('golfdb-browse-result');
+  try {
+    const params = new URLSearchParams();
+    if (region) params.set('region', region);
+    if (golfDbBrowseType) params.set('type', golfDbBrowseType);
+    let courses;
+    if (query) {
+      params.set('query', query);
+      ({ courses } = await api('/api/golf-db/search?' + params.toString()));
+    } else {
+      ({ courses } = await api('/api/golf-db?' + params.toString()));
+    }
+    golfDbBrowseResults = courses;
+    if (!courses.length) {
+      el.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>';
+      return;
+    }
+    const capped = courses.slice(0, 100);
+    el.innerHTML =
+      (courses.length > 100 ? `<div class="muted" style="margin-bottom:6px;">${courses.length}건 중 100건만 표시 - 검색어나 필터로 좁혀보세요.</div>` : '') +
+      capped.map((c, i) => `
+        <div class="list-item">
+          <div>
+            <div class="name">${escapeHtml(c.name)}</div>
+            <div class="sub">${escapeHtml(c.region)} · ${escapeHtml(c.address)}</div>
+            <div class="tags">
+              <span class="tag">${c.holes ?? '-'}홀</span>
+              <span class="tag">${escapeHtml(c.type)}</span>
+            </div>
+          </div>
+          <div class="score-actions">
+            <button class="icon-btn" onclick="addGolfDbCourseToFavorites(${i})" title="즐겨찾기에 추가">＋</button>
+          </div>
+        </div>
+      `).join('');
+  } catch (e) {
+    el.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function addGolfDbCourseToFavorites(index) {
+  const c = golfDbBrowseResults[index];
+  if (!c) return;
+  document.getElementById('golfDbBrowseDialog').close();
+  openCourseDialog();
+  document.getElementById('course-name').value = c.name;
+  document.getElementById('course-address').value = c.address;
+  document.getElementById('course-memo').value = `${c.holes ?? '-'}홀 · ${c.type}`;
+  // 공식DB엔 좌표가 없어서, 다이얼로그를 연 채로 카카오 검색까지 자동으로 한 번 걸어준다.
+  document.getElementById('course-search-input').value = c.name;
+  searchCoursePlaces();
+}
+
 function openCourseDialog(id) {
   const dialog = document.getElementById('courseDialog');
   document.getElementById('courseForm').reset();
@@ -1534,23 +1658,66 @@ function closeCourseDialog() {
 async function searchCoursePlaces() {
   const q = document.getElementById('course-search-input').value.trim();
   if (!q) return;
+  const el = document.getElementById('course-search-results');
+  el.innerHTML = '<div class="muted">검색 중...</div>';
   try {
-    const { places } = await api('/api/places/search?query=' + encodeURIComponent(q));
+    // 문체부 공식 골프장 DB(정확한 명칭·홀수·회원제구분)와 카카오맵(좌표·연락처)을 함께 검색해서 보여준다.
+    // 공식DB 결과를 고르면 이름/주소를 채운 뒤 좌표 확보를 위해 자동으로 카카오 검색을 한 번 더 시도한다.
+    const [dbResult, placesResult] = await Promise.allSettled([
+      api('/api/golf-db/search?query=' + encodeURIComponent(q)),
+      api('/api/places/search?query=' + encodeURIComponent(q)),
+    ]);
+    const dbCourses = dbResult.status === 'fulfilled' ? dbResult.value.courses : [];
+    const places = placesResult.status === 'fulfilled' ? placesResult.value.places : [];
     courseSearchResults = places;
-    const el = document.getElementById('course-search-results');
-    if (!places.length) {
+    courseSearchDbResults = dbCourses;
+
+    if (!dbCourses.length && !places.length) {
       el.innerHTML = '<div class="muted">검색 결과가 없습니다</div>';
       return;
     }
-    el.innerHTML = places.map((p, i) => `
-      <div class="search-result" onclick="selectSearchedCoursePlace(${i})">
-        <div class="name">${escapeHtml(p.name)}</div>
-        <div class="addr">${escapeHtml(p.address)}${p.phone ? ' · ' + escapeHtml(p.phone) : ''}</div>
-      </div>
-    `).join('');
+    el.innerHTML =
+      dbCourses.map((c, i) => `
+        <div class="search-result" onclick="selectSearchedCourseDb(${i})">
+          <div class="name">🏌 ${escapeHtml(c.name)} <span class="tag">공식DB</span></div>
+          <div class="addr">${escapeHtml(c.address)} · ${c.holes ?? '-'}홀 · ${escapeHtml(c.type)}</div>
+        </div>
+      `).join('') +
+      places.map((p, i) => `
+        <div class="search-result" onclick="selectSearchedCoursePlace(${i})">
+          <div class="name">${escapeHtml(p.name)}</div>
+          <div class="addr">${escapeHtml(p.address)}${p.phone ? ' · ' + escapeHtml(p.phone) : ''}</div>
+        </div>
+      `).join('');
   } catch (e) {
     showToast('검색 실패: ' + e.message);
   }
+}
+
+async function selectSearchedCourseDb(index) {
+  const c = courseSearchDbResults[index];
+  if (!c) return;
+  document.getElementById('course-name').value = c.name;
+  document.getElementById('course-address').value = c.address;
+  const memoEl = document.getElementById('course-memo');
+  if (!memoEl.value.trim()) memoEl.value = `${c.holes ?? '-'}홀 · ${c.type}`;
+  document.getElementById('course-search-results').innerHTML = '<div class="muted">좌표 확인 중...</div>';
+  // 공식DB엔 좌표가 없어서, 이름으로 카카오 검색을 한 번 더 걸어 좌표/연락처를 최대한 자동으로 채운다.
+  try {
+    const { places } = await api('/api/places/search?query=' + encodeURIComponent(c.name));
+    const best = places[0];
+    if (best) {
+      document.getElementById('course-lat').value = best.lat;
+      document.getElementById('course-lon').value = best.lon;
+      if (best.phone) document.getElementById('course-phone').value = best.phone;
+      showToast('공식DB 정보로 채우고, 좌표는 카카오맵에서 자동으로 찾았습니다');
+    } else {
+      showToast('공식DB 정보로 채웠습니다 (좌표는 못 찾아서 직접 검색해서 선택해주세요)');
+    }
+  } catch {
+    showToast('공식DB 정보로 채웠습니다 (좌표 자동조회 실패, 직접 검색해서 선택해주세요)');
+  }
+  document.getElementById('course-search-results').innerHTML = '';
 }
 
 function selectSearchedCoursePlace(index) {
@@ -2321,7 +2488,7 @@ let bookingSelectedTeeTimes = new Set();
 function groupBookingRounds(rounds) {
   const map = new Map();
   rounds.forEach((r) => {
-    const key = normalizeCourseName(r.courseName) || r.courseName;
+    const key = r.officialName || normalizeCourseName(r.courseName) || r.courseName;
     if (!map.has(key)) map.set(key, { courseName: r.courseName, region: r.region, postings: new Map() });
     const group = map.get(key);
     // 여러 조인 매니저가 같은 골프장·같은 시간을 각자 올려서 중복이 생긴다 — 같은 시간이면 하나만 남기되,
@@ -2529,12 +2696,16 @@ function golfpangTeeTimeEntry(g) {
 /** 카카오골프예약 티타임 목록에 골팡의 같은 골프장 매물을 보강한다.
  * 규칙: 같은 시간대면 더 저렴한 쪽 하나만 남긴다(동률이면 카카오 유지) — 둘 다 보여주지 않는다.
  * 카카오에 아예 없는 시간대는 골팡 걸 그대로 추가. 모든 항목에 "출처" 표시. */
-function mergeGolfpangTeeTimes(kakaoTeeTimes, courseName) {
+function mergeGolfpangTeeTimes(kakaoTeeTimes, courseName, officialName) {
   const merged = kakaoTeeTimes.map((t) => ({ ...t, source: '카카오' }));
   if (!roundSearchMergedGolfpang) return merged;
   const norm = normalizeCourseName(courseName);
   if (!norm) return merged;
-  const matches = roundSearchGolfpangCache.filter((g) => normalizeCourseName(g.courseName) === norm);
+  // 문체부 공식 골프장 DB로 양쪽이 같은 골프장에 매칭됐으면 그걸 우선으로 삼는다 - "코리아CC"(골팡)와
+  // "코리아컨트리클럽"(카카오)처럼 표기가 달라 정규화 규칙만으로는 어긋날 수 있는 경우를 잡아준다.
+  const matches = roundSearchGolfpangCache.filter(
+    (g) => (officialName && g.officialName && g.officialName === officialName) || normalizeCourseName(g.courseName) === norm
+  );
   matches.forEach((g) => {
     const sameTimeIdx = merged.findIndex((t) => t.time === g.time);
     if (sameTimeIdx === -1) {
@@ -2583,7 +2754,7 @@ async function loadKakaoGolfTeeTimes(i, btn) {
   btn.textContent = '불러오는 중...';
   try {
     const result = await api(`/api/kakaogolf/detail?golfInfoSeq=${r.idx}&date=${date}${visitorCnt ? '&visitorCnt=' + visitorCnt : ''}${timeZone ? '&timeZone=' + timeZone : ''}`);
-    const merged = mergeGolfpangTeeTimes(result.teeTimes, r.courseName);
+    const merged = mergeGolfpangTeeTimes(result.teeTimes, r.courseName, r.officialName);
     kakaoGolfTeeTimesCache[i] = merged;
     const fees = merged.map((t) => t.greenFee).filter((f) => f != null);
     const minFee = fees.length ? Math.min(...fees) : null;
