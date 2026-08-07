@@ -402,7 +402,7 @@
 
       <label>캐디</label>
       <div class="chip-group" id="booking-caddy-chips">
-        <span class="chip selected" onclick="selectBookingCaddy('',this)">일반캐디</span>
+        <span class="chip selected" onclick="selectBookingCaddy('general',this)">일반캐디</span>
         <span class="chip" onclick="selectBookingCaddy('drive',this)">운전캐디</span>
         <span class="chip" onclick="selectBookingCaddy('intern',this)">인턴캐디</span>
         <span class="chip" onclick="selectBookingCaddy('none',this)">노캐디</span>
@@ -492,7 +492,7 @@
 
         <label>캐디</label>
         <div class="chip-group" id="normalized-caddy-chips">
-          <span class="chip selected" onclick="selectNormalizedCaddy('',this)">일반캐디</span>
+          <span class="chip selected" onclick="selectNormalizedCaddy('general',this)">일반캐디</span>
           <span class="chip" onclick="selectNormalizedCaddy('drive',this)">운전캐디</span>
           <span class="chip" onclick="selectNormalizedCaddy('intern',this)">인턴캐디</span>
           <span class="chip" onclick="selectNormalizedCaddy('none',this)">노캐디</span>
@@ -2074,14 +2074,16 @@ const NORMALIZED_TIME_OF_DAY = {
 };
 
 // 표준화된 캐디 → 골팡 caddyType / 카카오골프예약 이벤트값. 운전·인턴캐디는 카카오 쪽 대응 옵션이 없다.
+// "일반캐디"도 골팡 caddyType=0으로 실제 필터링한다(이전엔 "필터 없음" 취급이라 노캐디/운전캐디/인턴캐디까지
+// 다 섞여 나왔음). 카카오골프예약은 "일반캐디만" 걸러내는 이벤트 코드가 없어 그쪽은 그대로 둔다(무필터).
 const NORMALIZED_CADDY = {
-  '': { golfpang: '', kakaoEvent: null },
+  general: { golfpang: '0', kakaoEvent: null },
   drive: { golfpang: '1', kakaoEvent: null },
   intern: { golfpang: '3', kakaoEvent: null },
   none: { golfpang: '2', kakaoEvent: 5 },
 };
 
-let normalizedFilters = { timeOfDay: new Set(), regions: new Set(), caddy: '' };
+let normalizedFilters = { timeOfDay: new Set(), regions: new Set(), caddy: 'general' };
 
 function toggleNormalizedChip(group, value, el) {
   const set = normalizedFilters[group];
@@ -2101,7 +2103,7 @@ function selectNormalizedCaddy(value, el) {
 async function searchRoundsNormalized(date) {
   const regions = [...normalizedFilters.regions];
   const times = [...normalizedFilters.timeOfDay];
-  const caddy = NORMALIZED_CADDY[normalizedFilters.caddy] || NORMALIZED_CADDY[''];
+  const caddy = NORMALIZED_CADDY[normalizedFilters.caddy] || NORMALIZED_CADDY.general;
 
   const golfpangSectors = regions.length ? regions.map((r) => NORMALIZED_REGIONS[r].golfpang) : [''];
   const golfpangAmpms = times.length ? times.map((t) => NORMALIZED_TIME_OF_DAY[t].golfpangAmpm) : [''];
@@ -2148,7 +2150,7 @@ async function searchRoundsNormalized(date) {
 // 골팡 단독, "조인/백업" 모드 고정. 카카오골프예약은 명시적으로 제외(이 탭의 요구사항).
 // 골프락은 로그인해야 조인정보 조회가 가능한 구조라 아직 연동 못 함 — 추후 검토.
 // "부킹" 탭(data-tab="join")의 표준화 옵션(NORMALIZED_REGIONS/TIME_OF_DAY/CADDY)을 재사용한다.
-let bookingSearchFilters = { timeOfDay: new Set(), regions: new Set(), caddy: '' };
+let bookingSearchFilters = { timeOfDay: new Set(), regions: new Set(), caddy: 'general' };
 let bookingSearchResultCache = [];
 
 function toggleBookingChip(group, value, el) {
@@ -2168,7 +2170,7 @@ async function searchBookingRounds() {
   if (!date) { showToast('날짜를 선택해주세요'); return; }
   const regions = [...bookingSearchFilters.regions];
   const times = [...bookingSearchFilters.timeOfDay];
-  const caddy = NORMALIZED_CADDY[bookingSearchFilters.caddy] || NORMALIZED_CADDY[''];
+  const caddy = NORMALIZED_CADDY[bookingSearchFilters.caddy] || NORMALIZED_CADDY.general;
   const sectors = regions.length ? regions.map((r) => NORMALIZED_REGIONS[r].golfpang) : [''];
   const ampms = times.length ? times.map((t) => NORMALIZED_TIME_OF_DAY[t].golfpangAmpm) : [''];
   try {
