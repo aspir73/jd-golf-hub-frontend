@@ -2199,27 +2199,69 @@ async function searchBookingRounds() {
   }
 }
 
+// 부킹 탭(카카오골프예약 스타일)과 동일한 UX: 같은 골프장의 매물을 골프장카드 하나로 모으고,
+// "티타임 보기"로 접었다 펼친다. 골팡 조인/백업 결과는 이미 통째로 다 받아온 상태라(온디맨드 상세조회가
+// 필요한 카카오골프예약과 달리) 그룹화·펼치기 모두 클라이언트에서 바로 처리한다(추가 API 호출 없음).
+let bookingSearchGroups = [];
+
+function groupBookingRounds(rounds) {
+  const map = new Map();
+  rounds.forEach((r) => {
+    const key = normalizeCourseName(r.courseName) || r.courseName;
+    if (!map.has(key)) map.set(key, { courseName: r.courseName, region: r.region, postings: [] });
+    map.get(key).postings.push(r);
+  });
+  return [...map.values()];
+}
+
 function renderBookingSearchResults(rounds) {
   const el = document.getElementById('booking-result-list');
-  if (!rounds.length) {
+  bookingSearchGroups = groupBookingRounds(rounds);
+  if (!bookingSearchGroups.length) {
     el.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>';
     return;
   }
-  el.innerHTML = rounds.map((r) => `
+  el.innerHTML = bookingSearchGroups.map((g, i) => {
+    const fees = g.postings.map((p) => p.greenFee).filter((f) => f != null);
+    const minFee = fees.length ? Math.min(...fees) : null;
+    return `
     <div class="list-item">
       <div style="flex:1;">
-        <div class="name" style="cursor:pointer" onclick="showCourseQuickInfo('${jsAttrEscape(r.courseName)}')">${escapeHtml(r.courseName)}</div>
+        <div class="name" style="cursor:pointer" onclick="showCourseQuickInfo('${jsAttrEscape(g.courseName)}')">${escapeHtml(g.courseName)}</div>
         <div class="field-grid">
-          <div class="f"><span class="k">날짜</span>${escapeHtml(r.date || '-')}</div>
-          <div class="f"><span class="k">티타임</span>${escapeHtml(r.time || '-')}</div>
-          <div class="f"><span class="k">지역</span>${escapeHtml(r.region || '-')}</div>
-          <div class="f"><span class="k">홀수</span>${escapeHtml(r.holes || '-')}</div>
-          <div class="f"><span class="k">그린피</span>${r.greenFee != null ? r.greenFee.toLocaleString('ko-KR') + '원' : '-'}</div>
-          <div class="f"><span class="k">캐디유무</span>${escapeHtml(r.caddyType || '-')}</div>
+          <div class="f"><span class="k">날짜</span>${escapeHtml(g.postings[0]?.date || '-')}</div>
+          <div class="f"><span class="k">지역</span>${escapeHtml(g.region || '-')}</div>
+          <div class="f"><span class="k">최저 그린피</span>${minFee != null ? minFee.toLocaleString('ko-KR') + '원' : '-'}</div>
         </div>
+        <button class="btn secondary" style="margin-top:8px; padding:5px 10px; font-size:12px;" onclick="toggleBookingGroupTeeTimes(${i}, this)">티타임 보기 (${g.postings.length}건)</button>
+        <div class="tee-times" id="booking-group-times-${i}" style="display:none;"></div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
+}
+
+function toggleBookingGroupTeeTimes(i, btn) {
+  const g = bookingSearchGroups[i];
+  const container = document.getElementById(`booking-group-times-${i}`);
+  if (!container.dataset.rendered) {
+    const fees = g.postings.map((p) => p.greenFee).filter((f) => f != null);
+    const minFee = fees.length ? Math.min(...fees) : null;
+    const sorted = [...g.postings].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    container.innerHTML = sorted.map((p) => {
+      const isMin = minFee != null && p.greenFee === minFee;
+      return `
+        <div class="tt-row${isMin ? ' min-fee' : ''}">
+          <span>${escapeHtml(p.time || '-')}${p.holes ? ' · ' + escapeHtml(p.holes) : ''}</span>
+          <span>${escapeHtml(p.caddyType || '-')}${p.category ? ' · ' + escapeHtml(p.category) : ''} · ${p.greenFee != null ? p.greenFee.toLocaleString('ko-KR') + '원' : '-'}${isMin ? ' <span class="min-fee-badge">최저가</span>' : ''}</span>
+        </div>
+      `;
+    }).join('');
+    container.dataset.rendered = '1';
+  }
+  const hidden = container.style.display === 'none';
+  container.style.display = hidden ? '' : 'none';
+  btn.textContent = hidden ? `티타임 접기 (${g.postings.length}건)` : `티타임 보기 (${g.postings.length}건)`;
 }
 
 async function searchRounds() {
