@@ -862,6 +862,19 @@
   </div>
 </dialog>
 
+<dialog id="courseWeatherDialog">
+  <div class="dialog-inner">
+    <h2 id="courseWeatherTitle" style="margin-top:0;">골프장 날씨</h2>
+    <label>라운딩 날짜</label>
+    <input type="date" id="course-weather-date" onchange="loadCourseWeather()">
+    <div class="muted" style="margin-top:4px; font-size:11px;">기상청 단기예보 특성상 오늘부터 모레(최대 2일 뒤)까지만 조회됩니다.</div>
+    <div id="course-weather-result" style="margin-top:10px;"></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn secondary block" onclick="document.getElementById('courseWeatherDialog').close()">닫기</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="companionDialog">
   <div class="dialog-inner">
     <h2 id="companionDialogTitle" style="margin-top:0;">동반자 추가</h2>
@@ -1386,6 +1399,7 @@ function renderCourseList(courses) {
         </div>
       </div>
       <div class="score-actions">
+        <button class="icon-btn" onclick="openCourseWeather('${c.id}')" title="날씨">🌤</button>
         <button class="icon-btn" onclick="openCourseDialog('${c.id}')" title="수정">✏️</button>
         <button class="icon-btn" onclick="removeCourse('${c.id}')" title="삭제">🗑️</button>
       </div>
@@ -1395,6 +1409,64 @@ function renderCourseList(courses) {
     const el = document.getElementById(id);
     if (el) el.innerHTML = html;
   });
+}
+
+// ===== 즐겨찾기 골프장별 날씨(라운딩 예정일 기준) =====
+let courseWeatherTarget = null; // { lat, lon, name }
+
+function openCourseWeather(id) {
+  const c = courseCache.find((x) => x.id === id);
+  if (!c) return;
+  if (c.lat == null || c.lon == null) {
+    showToast('이 골프장은 좌표 정보가 없어 날씨를 조회할 수 없습니다 (카카오맵 검색으로 등록한 골프장만 가능해요)');
+    return;
+  }
+  courseWeatherTarget = { lat: c.lat, lon: c.lon };
+  document.getElementById('courseWeatherTitle').textContent = `🌤 ${c.name} 날씨`;
+
+  const today = new Date();
+  const toDateStr = (d) => d.toISOString().slice(0, 10);
+  const dateInput = document.getElementById('course-weather-date');
+  dateInput.value = toDateStr(today);
+  dateInput.min = toDateStr(today);
+  dateInput.max = toDateStr(new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000));
+
+  document.getElementById('course-weather-result').innerHTML = '';
+  document.getElementById('courseWeatherDialog').showModal();
+  loadCourseWeather();
+}
+
+async function loadCourseWeather() {
+  if (!courseWeatherTarget) return;
+  const date = document.getElementById('course-weather-date').value;
+  const el = document.getElementById('course-weather-result');
+  el.innerHTML = '<div class="muted">예보 조회 중...</div>';
+  try {
+    const data = await api(`/api/weather?lat=${courseWeatherTarget.lat}&lon=${courseWeatherTarget.lon}&date=${date}`);
+    if (!data.hourly.length) {
+      el.innerHTML = '<div class="empty">해당 날짜의 예보 데이터가 없습니다.</div>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="hourly-scroll">
+        ${data.hourly.map((h) => `
+          <div class="hour-chip">
+            <div class="t">${h.time.slice(0, 2)}시</div>
+            <div class="temp">${h.temp ?? '-'}°</div>
+            <div class="sky">${escapeHtml(h.sky || '')}${h.pty && h.pty !== '없음' ? ' · ' + escapeHtml(h.pty) : ''}</div>
+            <div class="pop">☔ ${h.pop ?? 0}%</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="outfit-box">
+        <h3>👕 예상 복장 추천</h3>
+        <div><strong>${escapeHtml(data.outfit.summary)}</strong></div>
+        <ul>${data.outfit.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
+      </div>
+    `;
+  } catch (e) {
+    el.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`;
+  }
 }
 
 function openCourseDialog(id) {
