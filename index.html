@@ -526,13 +526,6 @@
         </div>
         <div class="grid-2">
           <div>
-            <label>예약 유형</label>
-            <select id="golfpang-mode">
-              <option value="booking">본인예약(부킹)</option>
-              <option value="join">조인/백업</option>
-            </select>
-          </div>
-          <div>
             <label>캐디유무</label>
             <select id="golfpang-caddytype">
               <option value="">전체</option>
@@ -2240,16 +2233,17 @@ async function searchRounds() {
     if (platforms.length > 1) {
       ({ result, sourceLabel } = await searchRoundsNormalized(date));
     } else if (platforms.includes('golfpang')) {
+      // 이 탭(부킹)은 항상 본인예약 기준이라 예약 유형 선택 자체를 없앴다 — mode 고정.
       const ampm = document.getElementById('golfpang-ampm').value;
       const sector = document.getElementById('golfpang-sector').value;
-      const mode = document.getElementById('golfpang-mode').value;
+      const mode = 'booking';
       const caddyType = document.getElementById('golfpang-caddytype').value;
       roundSearchGolfpangCache = [];
       roundSearchMergedGolfpang = false;
       roundSearchPlatform = 'golfpang';
       roundSearchMode = mode;
       result = await api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=${mode}${caddyType ? '&caddyType=' + caddyType : ''}`);
-      sourceLabel = '골팡 1페이지 기준';
+      sourceLabel = '골팡 본인예약(부킹) 1페이지 기준';
     } else {
       const majorArea = document.getElementById('kakaogolf-region').value;
       const areas = kakaoGolfFilters.subRegions.size ? [...kakaoGolfFilters.subRegions] : [majorArea];
