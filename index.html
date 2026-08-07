@@ -223,6 +223,8 @@
   .list-item .field-grid .f { font-size: 12px; }
   .list-item .field-grid .f .k { color: var(--muted); margin-right: 4px; }
   .list-item .field-grid .f.accent { color: var(--accent); font-weight: 600; }
+  .tee-times .tt-row { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 0; border-top: 1px solid var(--border); }
+  .tee-times .tt-row:first-child { border-top: none; margin-top: 6px; }
   .tag {
     display: inline-block;
     background: #eef2ee;
@@ -1865,6 +1867,42 @@ function formatPartySize(category) {
   return { text: '4인 필수', accent: false };
 }
 
+/** 카카오골프예약 검색 결과는 골프장 단위 요약이라 개별 티타임이 없음 — 클릭한 골프장 한 곳만
+ * /api/kakaogolf/detail로 실제 예약 가능 시간대(시간/인원/가격)를 불러온다(전체 자동조회 시 Worker
+ * 서브리퀘스트 한도 초과 위험이 있어 온디맨드로 처리). */
+async function loadKakaoGolfTeeTimes(i, btn) {
+  const container = document.getElementById(`tee-times-${i}`);
+  if (container.dataset.loaded) {
+    const hidden = container.style.display === 'none';
+    container.style.display = hidden ? '' : 'none';
+    btn.textContent = hidden ? '티타임 접기' : '티타임 보기';
+    return;
+  }
+  const r = roundSearchResultCache[i];
+  const date = document.getElementById('round-search-date').value;
+  const visitorCnt = document.getElementById('kakaogolf-visitorcnt').value;
+  btn.disabled = true;
+  btn.textContent = '불러오는 중...';
+  try {
+    const result = await api(`/api/kakaogolf/detail?golfInfoSeq=${r.idx}&date=${date}${visitorCnt ? '&visitorCnt=' + visitorCnt : ''}`);
+    container.innerHTML = result.teeTimes.length
+      ? result.teeTimes.map((t) => `
+          <div class="tt-row">
+            <span>${escapeHtml(t.time)}${t.holes ? ' · ' + escapeHtml(t.holes) : ''}</span>
+            <span>${t.visitorCnt != null ? t.visitorCnt + '/' + (t.maxVisitorCnt ?? '-') + '인' : ''} · ${t.greenFee != null ? t.greenFee.toLocaleString('ko-KR') + '원' : '-'}</span>
+          </div>
+        `).join('')
+      : '<div class="muted" style="margin-top:6px;">예약 가능한 티타임이 없습니다.</div>';
+    container.dataset.loaded = '1';
+    btn.textContent = '티타임 접기';
+  } catch (e) {
+    showToast('티타임 조회 실패: ' + e.message);
+    btn.textContent = '티타임 보기';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function renderRoundSearchResults(rounds) {
   const el = document.getElementById('golfpang-result-list');
   const groupBtn = document.getElementById('golfpang-group-btn');
@@ -1890,6 +1928,10 @@ function renderRoundSearchResults(rounds) {
             <div class="f${party.accent ? ' accent' : ''}"><span class="k">내장인원수</span>${escapeHtml(party.text)}</div>
             <div class="f${caddy.accent ? ' accent' : ''}"><span class="k">캐디유무</span>${escapeHtml(caddy.text)}</div>
           </div>
+          ${roundSearchPlatform === 'kakaogolf' ? `
+          <button class="btn secondary" style="margin-top:8px; padding:5px 10px; font-size:12px;" onclick="loadKakaoGolfTeeTimes(${i}, this)">티타임 보기</button>
+          <div class="tee-times" id="tee-times-${i}"></div>
+          ` : ''}
         </div>
       </div>
     </div>
