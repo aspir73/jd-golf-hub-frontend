@@ -370,7 +370,6 @@
           <label>플랫폼</label>
           <select id="round-search-platform" onchange="onRoundSearchPlatformChange()">
             <option value="golfpang">골팡</option>
-            <option value="golfmon">골프몬</option>
             <option value="kakaogolf">카카오골프예약</option>
           </select>
         </div>
@@ -408,36 +407,6 @@
             </select>
           </div>
         </div>
-      </div>
-
-      <div id="round-fields-golfmon" style="display:none;">
-        <div class="grid-2">
-          <div>
-            <label>지역</label>
-            <select id="golfmon-region">
-              <option value="">전체</option>
-              <option value="1">경기북부</option>
-              <option value="2">경기남부</option>
-              <option value="8">경기동부</option>
-              <option value="9">인천경인</option>
-              <option value="3">충청</option>
-              <option value="4">강원</option>
-              <option value="5">전라</option>
-              <option value="6">경상</option>
-              <option value="7">제주</option>
-            </select>
-          </div>
-          <div>
-            <label>시간대</label>
-            <select id="golfmon-teeoff">
-              <option value="">전체</option>
-              <option value="1">1부 (새벽~09:59)</option>
-              <option value="2">2부 (10:00~15:59)</option>
-              <option value="3">3부 (16:00~야간)</option>
-            </select>
-          </div>
-        </div>
-        <div class="muted" style="margin-top:4px;">골프몬은 현재 "양도/조인" 검색만 지원합니다.</div>
       </div>
 
       <div id="round-fields-kakaogolf" style="display:none;">
@@ -1829,7 +1798,10 @@ async function updatePreferredTimeSlot() {
   }
 }
 
-// ===== 골프장 조건검색 (골팡 / 골프몬 / 카카오골프예약) =====
+// ===== 골프장 조건검색 (골팡 / 카카오골프예약) =====
+// 골프몬(golfmon.net)은 Cloudflare 자체 IP 대역을 차단하고 있어 현재 Worker에서 접근 불가 —
+// 백엔드(src/golfmon.js, /api/golfmon/search)는 남겨두고 플랫폼 선택에서만 제외해둔다.
+// NAS 경유 등으로 우회 경로가 마련되면 옵션/필드를 다시 추가하면 된다.
 let roundSearchResultCache = [];
 let roundSearchPlatform = 'golfpang';
 let roundSearchMode = 'booking';
@@ -1837,7 +1809,6 @@ let roundSearchMode = 'booking';
 function onRoundSearchPlatformChange() {
   roundSearchPlatform = document.getElementById('round-search-platform').value;
   document.getElementById('round-fields-golfpang').style.display = roundSearchPlatform === 'golfpang' ? '' : 'none';
-  document.getElementById('round-fields-golfmon').style.display = roundSearchPlatform === 'golfmon' ? '' : 'none';
   document.getElementById('round-fields-kakaogolf').style.display = roundSearchPlatform === 'kakaogolf' ? '' : 'none';
 }
 
@@ -1854,12 +1825,6 @@ async function searchRounds() {
       roundSearchMode = mode;
       result = await api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=${mode}`);
       sourceLabel = '골팡 1페이지 기준';
-    } else if (roundSearchPlatform === 'golfmon') {
-      const locationFk = document.getElementById('golfmon-region').value;
-      const teeOffBuckets = document.getElementById('golfmon-teeoff').value;
-      roundSearchMode = 'join';
-      result = await api(`/api/golfmon/search?date=${date}&locationFk=${locationFk}&teeOffBuckets=${teeOffBuckets}`);
-      sourceLabel = '골프몬 양도/조인, 1페이지 기준';
     } else {
       const areas = document.getElementById('kakaogolf-region').value;
       const visitorCnt = document.getElementById('kakaogolf-visitorcnt').value;
