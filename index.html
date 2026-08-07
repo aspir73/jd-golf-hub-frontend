@@ -376,8 +376,8 @@
   <!-- 예약: 조건검색 / 동반예약 비교 / 즐겨찾기 골프장 / 동반자 / 정산 -->
   <section id="tab-booking" class="tab-panel">
     <div class="card">
-      <h2>🔍 골프장 예약(본인예약) 조건검색</h2>
-      <div class="muted" style="margin-top:2px;">골팡 "본인예약(부킹)" 기준 검색입니다. 동반예약(백업)·조인 검색은 하단 "조인" 탭을 이용하세요.</div>
+      <h2>🔍 조인/백업 조건검색</h2>
+      <div class="muted" style="margin-top:2px;">골팡 "조인/백업" 기준 검색입니다(카카오골프예약 제외). 골프락은 로그인이 있어야 조인정보를 조회할 수 있는 구조라 아직 연동 전입니다.</div>
 
       <label style="margin-top:10px;">날짜</label>
       <input type="date" id="booking-search-date">
@@ -2149,9 +2149,10 @@ async function searchRoundsNormalized(date) {
   };
 }
 
-// ===== 예약(본인예약) 탭 조건검색 — 골팡 단독, "본인예약(부킹)" 모드 고정 =====
-// 조인 탭의 표준화 옵션(NORMALIZED_REGIONS/TIME_OF_DAY/CADDY)을 그대로 재사용하되, 카카오골프예약은
-// 조인형 데이터라 여기서는 아예 호출하지 않는다.
+// ===== "조인" 탭(data-tab="booking", 함수/변수명은 예전 이름 그대로 남아있음) 조건검색 =====
+// 골팡 단독, "조인/백업" 모드 고정. 카카오골프예약은 명시적으로 제외(이 탭의 요구사항).
+// 골프락은 로그인해야 조인정보 조회가 가능한 구조라 아직 연동 못 함 — 추후 검토.
+// "부킹" 탭(data-tab="join")의 표준화 옵션(NORMALIZED_REGIONS/TIME_OF_DAY/CADDY)을 재사용한다.
 let bookingSearchFilters = { timeOfDay: new Set(), regions: new Set(), caddy: '' };
 let bookingSearchResultCache = [];
 
@@ -2180,7 +2181,7 @@ async function searchBookingRounds() {
     sectors.forEach((sector) => {
       ampms.forEach((ampm) => {
         calls.push(
-          api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=booking${caddy.golfpang ? '&caddyType=' + caddy.golfpang : ''}`)
+          api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=join${caddy.golfpang ? '&caddyType=' + caddy.golfpang : ''}`)
         );
       });
     });
@@ -2198,7 +2199,7 @@ async function searchBookingRounds() {
     });
     bookingSearchResultCache = rounds;
     document.getElementById('booking-result-summary').textContent =
-      `총 ${total.toLocaleString('ko-KR')}건 중 ${rounds.length}건 표시 (골팡 본인예약(부킹) 기준)`;
+      `총 ${total.toLocaleString('ko-KR')}건 중 ${rounds.length}건 표시 (골팡 조인/백업 기준)`;
     renderBookingSearchResults(rounds);
   } catch (e) {
     showToast('검색 실패: ' + e.message);
