@@ -2031,11 +2031,12 @@ function renderRoundSearchResults(rounds) {
       <div style="display:flex; gap:8px; align-items:flex-start; width:100%;">
         <input type="checkbox" class="round-search-select" data-idx="${i}" style="margin-top:5px;">
         <div style="flex:1;">
-          <div class="name" style="cursor:pointer" onclick="showCourseQuickInfo('${jsAttrEscape(r.courseName)}')">${escapeHtml(r.courseName)}${r.holes && roundSearchPlatform !== 'kakaogolf' ? ' · ' + escapeHtml(r.holes) : ''}</div>
+          <div class="name" style="cursor:pointer" onclick="showCourseQuickInfo('${jsAttrEscape(r.courseName)}')">${escapeHtml(r.courseName)}</div>
           <div class="field-grid">
             <div class="f"><span class="k">날짜</span>${escapeHtml(r.date || '-')}</div>
             ${roundSearchPlatform !== 'kakaogolf' ? `<div class="f"><span class="k">티타임</span>${escapeHtml(r.time || '-')}</div>` : ''}
             <div class="f"><span class="k">지역</span>${escapeHtml(r.region || '-')}</div>
+            ${roundSearchPlatform !== 'kakaogolf' && r.holes ? `<div class="f"><span class="k">홀수</span>${escapeHtml(r.holes)}</div>` : ''}
             <div class="f"><span class="k">그린피</span>${r.greenFee != null ? r.greenFee.toLocaleString('ko-KR') + '원' : '-'}</div>
             <div class="f${party.accent ? ' accent' : ''}"><span class="k">내장인원수</span>${escapeHtml(party.text)}</div>
             <div class="f${caddy.accent ? ' accent' : ''}"><span class="k">캐디유무</span>${escapeHtml(caddy.text)}</div>
