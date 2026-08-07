@@ -2213,11 +2213,20 @@ function groupBookingRounds(rounds) {
   const map = new Map();
   rounds.forEach((r) => {
     const key = normalizeCourseName(r.courseName) || r.courseName;
-    if (!map.has(key)) map.set(key, { courseName: r.courseName, region: r.region, postings: [] });
-    map.get(key).postings.push(r);
+    if (!map.has(key)) map.set(key, { courseName: r.courseName, region: r.region, postings: new Map() });
+    const group = map.get(key);
+    // 여러 조인 매니저가 같은 골프장·같은 시간을 각자 올려서 중복이 생긴다 — 같은 시간이면 하나만 남기되,
+    // 그린피가 더 저렴한 매물이 있으면 그걸로 교체한다(동일하면 먼저 온 것 유지).
+    const existing = group.postings.get(r.time);
+    if (!existing || (r.greenFee != null && (existing.greenFee == null || r.greenFee < existing.greenFee))) {
+      group.postings.set(r.time, r);
+    }
   });
   // 그룹 안 postings를 미리 시간순 정렬해둬야, 요약 카운트/펼치기/체크박스 인덱스가 전부 같은 순서를 가리킨다.
-  return [...map.values()].map((g) => ({ ...g, postings: [...g.postings].sort((a, b) => (a.time || '').localeCompare(b.time || '')) }));
+  return [...map.values()].map((g) => ({
+    ...g,
+    postings: [...g.postings.values()].sort((a, b) => (a.time || '').localeCompare(b.time || '')),
+  }));
 }
 
 function renderBookingSearchResults(rounds) {
