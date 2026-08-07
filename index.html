@@ -376,24 +376,47 @@
   <!-- 예약: 조건검색 / 동반예약 비교 / 즐겨찾기 골프장 / 동반자 / 정산 -->
   <section id="tab-booking" class="tab-panel">
     <div class="card">
-      <h2>🔍 골프장 조건검색</h2>
-      <div class="grid-2">
-        <div>
-          <label>플랫폼</label>
-          <div class="chip-group" style="margin-top:6px;">
-            <label class="chip selected" id="platform-chip-golfpang" style="cursor:pointer;">
-              <input type="checkbox" id="platform-golfpang" checked onchange="onRoundSearchPlatformChange()" style="margin:0;">골팡
-            </label>
-            <label class="chip selected" id="platform-chip-kakaogolf" style="cursor:pointer;">
-              <input type="checkbox" id="platform-kakaogolf" checked onchange="onRoundSearchPlatformChange()" style="margin:0;">카카오골프예약
-            </label>
-          </div>
-        </div>
-        <div><label>날짜</label><input type="date" id="round-search-date"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <h2 style="margin:0;">🔍 골프장 조건검색</h2>
+        <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="openPlatformOptionsModal()">⚙️ 세부검색 옵션</button>
       </div>
-      <div class="muted" id="platform-merge-hint" style="margin-top:4px;">두 플랫폼을 모두 선택하면 카카오골프예약 결과를 기본으로, 거기 없는 티타임만 골팡에서 채워서 함께 보여줍니다(골프장명은 자동으로 매칭 — 표기 방식 차이로 일부 안 맞을 수 있어요).</div>
+      <div class="muted" id="platform-summary" style="margin-top:4px;"></div>
 
-      <div id="round-fields-golfpang">
+      <label style="margin-top:10px;">날짜</label>
+      <input type="date" id="round-search-date">
+
+      <!-- 골팡+카카오골프예약 둘 다 선택했을 때(기본값)만 보이는 표준화된 옵션 -->
+      <div id="round-fields-normalized">
+        <label>티타임</label>
+        <div class="chip-group" id="normalized-timeofday-chips">
+          <span class="chip" onclick="toggleNormalizedChip('timeOfDay','am',this)">오전</span>
+          <span class="chip" onclick="toggleNormalizedChip('timeOfDay','pm',this)">오후</span>
+          <span class="chip" onclick="toggleNormalizedChip('timeOfDay','nt',this)">야간</span>
+        </div>
+
+        <label>지역</label>
+        <div class="chip-group" id="normalized-region-chips">
+          <span class="chip" onclick="toggleNormalizedChip('regions','hangang',this)">한강이남</span>
+          <span class="chip" onclick="toggleNormalizedChip('regions','gangbuk',this)">강북/경춘</span>
+          <span class="chip" onclick="toggleNormalizedChip('regions','gangwon',this)">강원</span>
+          <span class="chip" onclick="toggleNormalizedChip('regions','chungcheong',this)">충청</span>
+          <span class="chip" onclick="toggleNormalizedChip('regions','gyeongsang',this)">경상</span>
+          <span class="chip" onclick="toggleNormalizedChip('regions','jeolla',this)">전라</span>
+          <span class="chip" onclick="toggleNormalizedChip('regions','jeju',this)">제주</span>
+        </div>
+
+        <label>캐디</label>
+        <div class="chip-group" id="normalized-caddy-chips">
+          <span class="chip selected" onclick="selectNormalizedCaddy('',this)">일반캐디</span>
+          <span class="chip" onclick="selectNormalizedCaddy('drive',this)">운전캐디</span>
+          <span class="chip" onclick="selectNormalizedCaddy('intern',this)">인턴캐디</span>
+          <span class="chip" onclick="selectNormalizedCaddy('none',this)">노캐디</span>
+        </div>
+        <div class="muted" style="font-size:11px; margin-top:4px;">운전캐디·인턴캐디는 골팡에만 있는 옵션이라 카카오골프예약 결과에는 적용되지 않습니다.</div>
+      </div>
+
+      <!-- 골팡만 선택했을 때 보이는 골팡 고유 옵션 -->
+      <div id="round-fields-golfpang" style="display:none;">
         <div class="grid-2">
           <div>
             <label>시간대</label>
@@ -410,8 +433,11 @@
               <option value="">전체</option>
               <option value="5">한강이남</option>
               <option value="1">강북/경춘</option>
+              <option value="8">강원</option>
               <option value="4">충청</option>
-              <option value="16">영호남/제주</option>
+              <option value="3">경상</option>
+              <option value="6">전라</option>
+              <option value="7">제주</option>
             </select>
           </div>
         </div>
@@ -498,6 +524,26 @@
       <div id="golfpang-result-list" style="margin-top:6px;"></div>
       <button class="btn secondary block" id="golfpang-group-btn" style="display:none; margin-top:10px;" onclick="openCreateGroupFromSelection()">선택한 항목으로 비교 그룹 만들기</button>
     </div>
+
+    <dialog id="platformOptionsDialog">
+      <div class="dialog-inner">
+        <h3 style="margin:0 0 10px;">세부검색 옵션</h3>
+        <label>플랫폼 선택</label>
+        <div class="chip-group" style="margin-top:6px;">
+          <label class="chip selected" id="platform-chip-golfpang" style="cursor:pointer;">
+            <input type="checkbox" id="platform-golfpang" checked onchange="onRoundSearchPlatformChange()" style="margin:0;">골팡
+          </label>
+          <label class="chip selected" id="platform-chip-kakaogolf" style="cursor:pointer;">
+            <input type="checkbox" id="platform-kakaogolf" checked onchange="onRoundSearchPlatformChange()" style="margin:0;">카카오골프예약
+          </label>
+        </div>
+        <div class="muted" style="margin-top:10px;">두 플랫폼을 모두 선택하면(기본값) 표준화된 검색 옵션(오전/오후/야간·7개 지역·캐디유형)으로 두 플랫폼을 동시에 검색합니다. 하나만 선택하면 그 플랫폼에서 실제로 지원하는 상세 옵션이 나타납니다.</div>
+        <div class="muted" style="margin-top:6px;">두 플랫폼 다 선택 시: 카카오골프예약 결과를 기본으로, 거기 없는 티타임만 골팡에서 채워서 함께 보여줍니다(골프장명은 자동 매칭 — 표기 방식 차이로 일부 안 맞을 수 있어요).</div>
+        <div class="dialog-actions">
+          <button class="btn block" onclick="document.getElementById('platformOptionsDialog').close()">닫기</button>
+        </div>
+      </div>
+    </dialog>
 
     <div class="card">
       <h2>🆚 동반예약(백업) 비교</h2>
@@ -1922,16 +1968,115 @@ function getSelectedRoundSearchPlatforms() {
   return platforms;
 }
 
+function openPlatformOptionsModal() {
+  document.getElementById('platformOptionsDialog').showModal();
+}
+
 function onRoundSearchPlatformChange() {
   const platforms = getSelectedRoundSearchPlatforms();
+  const both = platforms.length > 1;
   document.getElementById('platform-chip-golfpang').classList.toggle('selected', platforms.includes('golfpang'));
   document.getElementById('platform-chip-kakaogolf').classList.toggle('selected', platforms.includes('kakaogolf'));
-  document.getElementById('round-fields-golfpang').style.display = platforms.includes('golfpang') ? '' : 'none';
-  document.getElementById('round-fields-kakaogolf').style.display = platforms.includes('kakaogolf') ? '' : 'none';
-  document.getElementById('platform-merge-hint').style.display = platforms.length > 1 ? '' : 'none';
-  if (platforms.includes('kakaogolf') && !document.getElementById('kakaogolf-subregion-chips').children.length) {
+  document.getElementById('round-fields-normalized').style.display = both ? '' : 'none';
+  document.getElementById('round-fields-golfpang').style.display = !both && platforms.includes('golfpang') ? '' : 'none';
+  document.getElementById('round-fields-kakaogolf').style.display = !both && platforms.includes('kakaogolf') ? '' : 'none';
+  const platformLabels = { golfpang: '골팡', kakaogolf: '카카오골프예약' };
+  document.getElementById('platform-summary').textContent = platforms.length
+    ? `검색 플랫폼: ${platforms.map((p) => platformLabels[p]).join(' + ')}${both ? ' — 표준화된 옵션 사용' : ''}`
+    : '플랫폼을 하나 이상 선택해주세요 (⚙️ 세부검색 옵션)';
+  if (!both && platforms.includes('kakaogolf') && !document.getElementById('kakaogolf-subregion-chips').children.length) {
     renderKakaoGolfSubRegions();
   }
+}
+
+// 표준화된 지역 → 골팡 sector 코드 / 카카오골프예약 대권역+세부지역 코드.
+// 골팡 sector 코드는 실제 검색 폼 캡처로 확인(3=영남/6=호남/7=제주/8=원주·영동=강원 등, 직접 값으로 필터링됨).
+const NORMALIZED_REGIONS = {
+  hangang: { label: '한강이남', golfpang: '5', kakaoMajor: '1', kakaoSub: ['6', '10', '9', '11', '8', '7'] },
+  gangbuk: { label: '강북/경춘', golfpang: '1', kakaoMajor: '1', kakaoSub: ['3', '4', '5'] },
+  gangwon: { label: '강원', golfpang: '8', kakaoMajor: '12', kakaoSub: ['19', '18', '15', '14', '20'] },
+  chungcheong: { label: '충청', golfpang: '4', kakaoMajor: '22', kakaoSub: ['28', '27', '29', '26', '30', '24'] },
+  gyeongsang: { label: '경상', golfpang: '3', kakaoMajor: '31', kakaoSub: ['35', '39', '33', '36', '38', '37'] },
+  jeolla: { label: '전라', golfpang: '6', kakaoMajor: '41', kakaoSub: ['45', '43', '44'] },
+  jeju: { label: '제주', golfpang: '7', kakaoMajor: '46', kakaoSub: ['48'] },
+};
+
+// 표준화된 티타임 → 골팡 ampm(그대로 1:1) / 카카오골프예약 timeZone 비트마스크값(오전=새벽+오전 합산).
+const NORMALIZED_TIME_OF_DAY = {
+  am: { label: '오전', golfpangAmpm: 'am', kakaoTimeZones: [1, 2] },
+  pm: { label: '오후', golfpangAmpm: 'pm', kakaoTimeZones: [4] },
+  nt: { label: '야간', golfpangAmpm: 'nt', kakaoTimeZones: [8] },
+};
+
+// 표준화된 캐디 → 골팡 caddyType / 카카오골프예약 이벤트값. 운전·인턴캐디는 카카오 쪽 대응 옵션이 없다.
+const NORMALIZED_CADDY = {
+  '': { golfpang: '', kakaoEvent: null },
+  drive: { golfpang: '1', kakaoEvent: null },
+  intern: { golfpang: '3', kakaoEvent: null },
+  none: { golfpang: '2', kakaoEvent: 5 },
+};
+
+let normalizedFilters = { timeOfDay: new Set(), regions: new Set(), caddy: '' };
+
+function toggleNormalizedChip(group, value, el) {
+  const set = normalizedFilters[group];
+  if (set.has(value)) { set.delete(value); el.classList.remove('selected'); }
+  else { set.add(value); el.classList.add('selected'); }
+}
+
+function selectNormalizedCaddy(value, el) {
+  normalizedFilters.caddy = value;
+  el.parentElement.querySelectorAll('.chip').forEach((c) => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+/** 두 플랫폼을 표준화된 옵션으로 동시 검색. 골팡은 지역/시간대를 각각 한 값만 받는 폼이라, 여러 개를
+ * 고르면 (지역×시간대) 조합마다 병렬 호출해서 idx 기준으로 합친다. 카카오골프예약은 지역·시간대 모두
+ * 배열로 한 번에 받아서 호출 1번이면 된다. */
+async function searchRoundsNormalized(date) {
+  const regions = [...normalizedFilters.regions];
+  const times = [...normalizedFilters.timeOfDay];
+  const caddy = NORMALIZED_CADDY[normalizedFilters.caddy] || NORMALIZED_CADDY[''];
+
+  const golfpangSectors = regions.length ? regions.map((r) => NORMALIZED_REGIONS[r].golfpang) : [''];
+  const golfpangAmpms = times.length ? times.map((t) => NORMALIZED_TIME_OF_DAY[t].golfpangAmpm) : [''];
+  const golfpangCalls = [];
+  golfpangSectors.forEach((sector) => {
+    golfpangAmpms.forEach((ampm) => {
+      golfpangCalls.push(
+        api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=join${caddy.golfpang ? '&caddyType=' + caddy.golfpang : ''}`)
+      );
+    });
+  });
+  const golfpangResults = await Promise.all(golfpangCalls);
+  const seen = new Set();
+  const golfpangRounds = [];
+  golfpangResults.forEach((r) => {
+    (r.rounds || []).forEach((row) => {
+      if (seen.has(row.idx)) return;
+      seen.add(row.idx);
+      golfpangRounds.push(row);
+    });
+  });
+
+  const kakaoAreas = regions.length ? [...new Set(regions.flatMap((r) => NORMALIZED_REGIONS[r].kakaoSub))] : [];
+  const kakaoTimeZones = times.length ? [...new Set(times.flatMap((t) => NORMALIZED_TIME_OF_DAY[t].kakaoTimeZones))] : [];
+  const kakaoEvents = caddy.kakaoEvent != null ? [caddy.kakaoEvent] : [];
+  const qs = new URLSearchParams({ date });
+  if (kakaoAreas.length) qs.set('areas', kakaoAreas.join(','));
+  if (kakaoTimeZones.length) qs.set('timeZones', kakaoTimeZones.join(','));
+  if (kakaoEvents.length) qs.set('events', kakaoEvents.join(','));
+  const kakaogolfResult = await api(`/api/kakaogolf/search?${qs.toString()}`);
+
+  roundSearchGolfpangCache = golfpangRounds;
+  roundSearchMergedGolfpang = true;
+  roundSearchPlatform = 'kakaogolf';
+  roundSearchMode = 'join';
+
+  return {
+    result: kakaogolfResult,
+    sourceLabel: `카카오골프예약 기준 + 골팡 티타임 보강 (골팡 ${golfpangRounds.length}건 참고)`,
+  };
 }
 
 async function searchRounds() {
@@ -1940,16 +2085,22 @@ async function searchRounds() {
   const platforms = getSelectedRoundSearchPlatforms();
   if (!platforms.length) { showToast('플랫폼을 하나 이상 선택해주세요'); return; }
   try {
-    let golfpangResult = null;
-    let kakaogolfResult = null;
-    if (platforms.includes('golfpang')) {
+    let result, sourceLabel;
+
+    if (platforms.length > 1) {
+      ({ result, sourceLabel } = await searchRoundsNormalized(date));
+    } else if (platforms.includes('golfpang')) {
       const ampm = document.getElementById('golfpang-ampm').value;
       const sector = document.getElementById('golfpang-sector').value;
       const mode = document.getElementById('golfpang-mode').value;
       const caddyType = document.getElementById('golfpang-caddytype').value;
-      golfpangResult = await api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=${mode}${caddyType ? '&caddyType=' + caddyType : ''}`);
-    }
-    if (platforms.includes('kakaogolf')) {
+      roundSearchGolfpangCache = [];
+      roundSearchMergedGolfpang = false;
+      roundSearchPlatform = 'golfpang';
+      roundSearchMode = mode;
+      result = await api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=${mode}${caddyType ? '&caddyType=' + caddyType : ''}`);
+      sourceLabel = '골팡 1페이지 기준';
+    } else {
       const majorArea = document.getElementById('kakaogolf-region').value;
       const areas = kakaoGolfFilters.subRegions.size ? [...kakaoGolfFilters.subRegions] : [majorArea];
       const visitorCnt = document.getElementById('kakaogolf-visitorcnt').value;
@@ -1961,26 +2112,12 @@ async function searchRounds() {
       if (timeZones.length) qs.set('timeZones', timeZones.join(','));
       if (greenFees.length) qs.set('greenFees', greenFees.join(','));
       if (events.length) qs.set('events', events.join(','));
-      kakaogolfResult = await api(`/api/kakaogolf/search?${qs.toString()}`);
-    }
-
-    roundSearchGolfpangCache = golfpangResult ? golfpangResult.rounds : [];
-    roundSearchMergedGolfpang = platforms.length > 1;
-
-    let result, sourceLabel;
-    if (kakaogolfResult) {
-      // 카카오가 선택에 포함되면(단독이든 골팡과 병합이든) 항상 카카오 스타일 UI를 쓴다
+      roundSearchGolfpangCache = [];
+      roundSearchMergedGolfpang = false;
       roundSearchPlatform = 'kakaogolf';
       roundSearchMode = 'join';
-      result = kakaogolfResult;
-      sourceLabel = roundSearchMergedGolfpang
-        ? `카카오골프예약 기준 + 골팡 티타임 보강 (골팡 ${roundSearchGolfpangCache.length}건 참고)`
-        : '카카오골프예약, 골프장 단위 요약';
-    } else {
-      roundSearchPlatform = 'golfpang';
-      roundSearchMode = document.getElementById('golfpang-mode').value;
-      result = golfpangResult;
-      sourceLabel = '골팡 1페이지 기준';
+      result = await api(`/api/kakaogolf/search?${qs.toString()}`);
+      sourceLabel = '카카오골프예약, 골프장 단위 요약';
     }
 
     roundSearchResultCache = result.rounds;
