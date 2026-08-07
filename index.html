@@ -2162,31 +2162,42 @@ function toggleKakaoGolfTeeTimeSelect(i, ti, el) {
   else kakaoGolfSelectedTeeTimes.delete(key);
 }
 
+function golfpangTeeTimeEntry(g) {
+  return {
+    time: g.time,
+    holes: g.holes,
+    greenFee: g.greenFee,
+    visitorCnt: null,
+    maxVisitorCnt: null,
+    cashback: false,
+    caddyType: g.caddyType,
+    category: g.category,
+    source: '골팡',
+  };
+}
+
 /** 카카오골프예약 티타임 목록에 골팡의 같은 골프장 매물을 보강한다.
- * 규칙: 같은 시간대에 카카오 정보가 이미 있고 그린피도 같으면 골팡 쪽은 추가하지 않음(카카오 정보 유지).
- * 같은 시간대라도 그린피가 다르면 별도 항목으로 추가. 카카오에 아예 없는 시간대도 추가. 둘 다 "출처" 표시. */
+ * 규칙: 같은 시간대면 더 저렴한 쪽 하나만 남긴다(동률이면 카카오 유지) — 둘 다 보여주지 않는다.
+ * 카카오에 아예 없는 시간대는 골팡 걸 그대로 추가. 모든 항목에 "출처" 표시. */
 function mergeGolfpangTeeTimes(kakaoTeeTimes, courseName) {
-  const tagged = kakaoTeeTimes.map((t) => ({ ...t, source: '카카오' }));
-  if (!roundSearchMergedGolfpang) return tagged;
+  const merged = kakaoTeeTimes.map((t) => ({ ...t, source: '카카오' }));
+  if (!roundSearchMergedGolfpang) return merged;
   const norm = normalizeCourseName(courseName);
-  if (!norm) return tagged;
+  if (!norm) return merged;
   const matches = roundSearchGolfpangCache.filter((g) => normalizeCourseName(g.courseName) === norm);
   matches.forEach((g) => {
-    const sameTimeSameFee = tagged.some((t) => t.time === g.time && t.greenFee === g.greenFee);
-    if (sameTimeSameFee) return;
-    tagged.push({
-      time: g.time,
-      holes: g.holes,
-      greenFee: g.greenFee,
-      visitorCnt: null,
-      maxVisitorCnt: null,
-      cashback: false,
-      caddyType: g.caddyType,
-      category: g.category,
-      source: '골팡',
-    });
+    const sameTimeIdx = merged.findIndex((t) => t.time === g.time);
+    if (sameTimeIdx === -1) {
+      merged.push(golfpangTeeTimeEntry(g));
+      return;
+    }
+    const existing = merged[sameTimeIdx];
+    if (existing.greenFee != null && g.greenFee != null && g.greenFee < existing.greenFee) {
+      merged[sameTimeIdx] = golfpangTeeTimeEntry(g); // 골팡이 더 저렴하면 그 시간대를 골팡으로 교체
+    }
+    // 그린피가 같거나 카카오가 더 저렴하면 카카오 유지, 골팡 쪽은 버림
   });
-  return tagged.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  return merged.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 }
 
 /** 카카오골프예약 검색 결과는 골프장 단위 요약이라 개별 티타임이 없음 — 클릭한 골프장 한 곳만
@@ -2281,7 +2292,7 @@ function renderRoundSearchResults(rounds) {
             <div class="f${caddy.accent ? ' accent' : ''}"><span class="k">캐디유무</span>${escapeHtml(caddy.text)}</div>
           </div>
           ${roundSearchPlatform === 'kakaogolf' ? `
-          <button class="btn secondary" style="margin-top:8px; padding:5px 10px; font-size:12px;" onclick="loadKakaoGolfTeeTimes(${i}, this)">티타임 보기 (${r.matchCount ?? 0}건)</button>
+          <button class="btn secondary" style="margin-top:8px; padding:5px 10px; font-size:12px;" onclick="loadKakaoGolfTeeTimes(${i}, this)">티타임 보기${roundSearchMergedGolfpang ? '' : ` (${r.matchCount ?? 0}건)`}</button>
           <div class="tee-times" id="tee-times-${i}"></div>
           ` : ''}
         </div>
