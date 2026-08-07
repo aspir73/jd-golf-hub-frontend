@@ -423,6 +423,16 @@
               <option value="join">조인/백업</option>
             </select>
           </div>
+          <div>
+            <label>캐디유무</label>
+            <select id="golfpang-caddytype">
+              <option value="">전체</option>
+              <option value="0">일반캐디</option>
+              <option value="1">운전캐디</option>
+              <option value="2">노캐디</option>
+              <option value="3">인턴캐디</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -1936,7 +1946,8 @@ async function searchRounds() {
       const ampm = document.getElementById('golfpang-ampm').value;
       const sector = document.getElementById('golfpang-sector').value;
       const mode = document.getElementById('golfpang-mode').value;
-      golfpangResult = await api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=${mode}`);
+      const caddyType = document.getElementById('golfpang-caddytype').value;
+      golfpangResult = await api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=${mode}${caddyType ? '&caddyType=' + caddyType : ''}`);
     }
     if (platforms.includes('kakaogolf')) {
       const majorArea = document.getElementById('kakaogolf-region').value;
