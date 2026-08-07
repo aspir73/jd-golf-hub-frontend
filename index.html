@@ -412,7 +412,11 @@
       <div id="booking-result-summary" class="muted" style="margin-top:8px;"></div>
       <div id="booking-result-list" style="margin-top:6px;"></div>
       <button class="btn secondary block" id="booking-group-btn" style="display:none; margin-top:10px;" onclick="openCreateGroupFromBookingSelection()">선택한 티타임으로 비교 그룹 만들기</button>
-      <div class="muted" id="booking-group-hint" style="display:none; margin-top:4px; font-size:11px;">만든 비교 그룹은 하단 "부킹" 탭의 "동반예약(백업) 비교"에서 확인·비교할 수 있습니다.</div>
+    </div>
+
+    <div class="card">
+      <h2>🆚 동반예약(백업) 비교</h2>
+      <div id="booking-comparison-group-list" class="empty">아직 비교 그룹이 없습니다. 위 조건검색 결과에서 후보를 선택해 만들어보세요.</div>
     </div>
 
     <div class="card">
@@ -1033,7 +1037,7 @@ function showTab(name) {
   });
   if (name === 'score') { loadScores(); loadStats(); }
   if (name === 'home') { loadStats(true); loadSettings(); loadBookings(); }
-  if (name === 'booking') { loadCourses(); loadCompanions(); loadBookings(); }
+  if (name === 'booking') { loadCourses(); loadCompanions(); loadBookings(); loadComparisonGroups(); }
   if (name === 'join') { loadCourses(); loadComparisonGroups(); loadBookings(); }
   if (name === 'food') { loadFavoriteRestaurants(); }
 }
@@ -2234,12 +2238,10 @@ function groupBookingRounds(rounds) {
 function renderBookingSearchResults(rounds) {
   const el = document.getElementById('booking-result-list');
   const groupBtn = document.getElementById('booking-group-btn');
-  const groupHint = document.getElementById('booking-group-hint');
   bookingSearchGroups = groupBookingRounds(rounds);
   if (!bookingSearchGroups.length) {
     el.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>';
     groupBtn.style.display = 'none';
-    groupHint.style.display = 'none';
     return;
   }
   el.innerHTML = bookingSearchGroups.map((g, i) => {
@@ -2261,7 +2263,6 @@ function renderBookingSearchResults(rounds) {
   `;
   }).join('');
   groupBtn.style.display = 'block';
-  groupHint.style.display = 'block';
 }
 
 function toggleBookingTeeTimeSelect(gi, pi, el) {
@@ -2644,44 +2645,58 @@ async function loadComparisonGroups() {
   }
 }
 
+// 비교 그룹 UI는 "조인" 탭과 "부킹" 탭 양쪽에 동시에 표시됩니다.
+// 두 탭이 CSS로만 숨겨질 뿐 DOM에는 함께 존재하므로, 내부 id는 컨테이너별로 접두사를 붙여
+// 서로 충돌하지 않게 스코프를 나눕니다 (group-body-{containerId}-{groupId} 형태).
+const COMPARISON_GROUP_CONTAINERS = ['comparison-group-list', 'booking-comparison-group-list'];
+
 function renderComparisonGroups() {
-  const el = document.getElementById('comparison-group-list');
-  if (!comparisonGroupCache.length) {
-    el.innerHTML = '<div class="empty">아직 비교 그룹이 없습니다. 위 조건검색 결과에서 후보를 선택해 만들어보세요.</div>';
-    return;
-  }
-  el.innerHTML = comparisonGroupCache.map((g) => renderGroupCard(g)).join('');
+  COMPARISON_GROUP_CONTAINERS.forEach((containerId) => {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!comparisonGroupCache.length) {
+      el.innerHTML = '<div class="empty">아직 비교 그룹이 없습니다. 위 조건검색 결과에서 후보를 선택해 만들어보세요.</div>';
+      return;
+    }
+    el.innerHTML = comparisonGroupCache.map((g) => renderGroupCard(g, containerId)).join('');
+  });
   comparisonGroupCache.forEach((g) => {
-    if (groupComponentsCache[g.id]) renderGroupScoreList(g.id);
+    if (groupComponentsCache[g.id]) {
+      COMPARISON_GROUP_CONTAINERS.forEach((containerId) => {
+        if (document.getElementById(containerId)) renderGroupScoreList(g.id, containerId);
+      });
+    }
   });
 }
 
-function renderGroupCard(g) {
+function renderGroupCard(g, containerId) {
   const hasComponents = !!groupComponentsCache[g.id];
+  const scope = `${containerId}-${g.id}`;
   return `
     <div class="card" style="padding:12px; margin-bottom:10px; background:#fafbfa;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <h3 style="margin:0;">${escapeHtml(g.title)} <span class="muted">(${g.candidates.length}개 후보)</span></h3>
         <button class="icon-btn" onclick="removeComparisonGroup('${g.id}')" title="그룹 삭제">🗑️</button>
       </div>
-      <div id="group-body-${g.id}">
+      <div id="group-body-${scope}">
         ${hasComponents
-          ? renderGroupSliders(g.id) + `<div id="group-scorelist-${g.id}" style="margin-top:10px;"></div>`
+          ? renderGroupSliders(g.id, containerId) + `<div id="group-scorelist-${scope}" style="margin-top:10px;"></div>`
           : `<button class="btn secondary block" style="margin-top:8px;" onclick="loadGroupCompare('${g.id}')">점수 비교 보기</button>`}
       </div>
     </div>
   `;
 }
 
-function renderGroupSliders(groupId) {
+function renderGroupSliders(groupId, containerId) {
   const w = groupWeights[groupId] || { w1: 25, w2: 25, w3: 25, w4: 25 };
   groupWeights[groupId] = w;
+  const scope = `${containerId}-${groupId}`;
   const rows = [['w1', '거리'], ['w2', '내 평가'], ['w3', '그린피'], ['w4', '시간대']];
   return `
     <div class="grid-2" style="margin-top:8px;">
       ${rows.map(([key, label]) => `
         <div>
-          <label>${label} <span id="wlabel-${groupId}-${key}">${w[key]}</span>%</label>
+          <label>${label} <span id="wlabel-${scope}-${key}">${w[key]}</span>%</label>
           <input type="range" min="0" max="100" value="${w[key]}" oninput="updateGroupWeight('${groupId}','${key}',this.value)">
         </div>
       `).join('')}
@@ -2693,9 +2708,12 @@ function updateGroupWeight(groupId, key, value) {
   const w = groupWeights[groupId] || { w1: 25, w2: 25, w3: 25, w4: 25 };
   w[key] = Number(value);
   groupWeights[groupId] = w;
-  const labelEl = document.getElementById(`wlabel-${groupId}-${key}`);
-  if (labelEl) labelEl.textContent = value;
-  renderGroupScoreList(groupId);
+  // 두 탭에 동시에 표시될 수 있으므로, 라벨/점수 목록을 모든 컨테이너에서 함께 갱신합니다.
+  COMPARISON_GROUP_CONTAINERS.forEach((containerId) => {
+    const labelEl = document.getElementById(`wlabel-${containerId}-${groupId}-${key}`);
+    if (labelEl) labelEl.textContent = value;
+    if (document.getElementById(containerId)) renderGroupScoreList(groupId, containerId);
+  });
 }
 
 function normalizeWeights(w) {
@@ -2724,8 +2742,8 @@ function computeWeightedScores(components, weights) {
   });
 }
 
-function renderGroupScoreList(groupId) {
-  const el = document.getElementById(`group-scorelist-${groupId}`);
+function renderGroupScoreList(groupId, containerId) {
+  const el = document.getElementById(`group-scorelist-${containerId}-${groupId}`);
   const components = groupComponentsCache[groupId];
   if (!el || !components) return;
   const weights = normalizeWeights(groupWeights[groupId] || { w1: 25, w2: 25, w3: 25, w4: 25 });
