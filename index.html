@@ -227,6 +227,8 @@
   .tee-times .tt-row:first-child { border-top: none; margin-top: 6px; }
   .tee-times .tt-row.min-fee { color: var(--accent); font-weight: 700; }
   .tee-times .min-fee-badge { background: var(--accent); color: #fff; border-radius: 6px; padding: 1px 6px; font-size: 10px; font-weight: 700; margin-left: 4px; }
+  .tee-times .source-badge { background: #eef2ee; color: var(--green-dark); border-radius: 6px; padding: 1px 6px; font-size: 10px; font-weight: 600; }
+  .tee-times .source-badge.golfpang { background: #eef2fb; color: #2b5db5; }
   .tag {
     display: inline-block;
     background: #eef2ee;
@@ -378,13 +380,18 @@
       <div class="grid-2">
         <div>
           <label>플랫폼</label>
-          <select id="round-search-platform" onchange="onRoundSearchPlatformChange()">
-            <option value="golfpang">골팡</option>
-            <option value="kakaogolf">카카오골프예약</option>
-          </select>
+          <div class="chip-group" style="margin-top:6px;">
+            <label class="chip selected" id="platform-chip-golfpang" style="cursor:pointer;">
+              <input type="checkbox" id="platform-golfpang" checked onchange="onRoundSearchPlatformChange()" style="margin:0;">골팡
+            </label>
+            <label class="chip selected" id="platform-chip-kakaogolf" style="cursor:pointer;">
+              <input type="checkbox" id="platform-kakaogolf" checked onchange="onRoundSearchPlatformChange()" style="margin:0;">카카오골프예약
+            </label>
+          </div>
         </div>
         <div><label>날짜</label><input type="date" id="round-search-date"></div>
       </div>
+      <div class="muted" id="platform-merge-hint" style="margin-top:4px;">두 플랫폼을 모두 선택하면 카카오골프예약 결과를 기본으로, 거기 없는 티타임만 골팡에서 채워서 함께 보여줍니다(골프장명은 자동으로 매칭 — 표기 방식 차이로 일부 안 맞을 수 있어요).</div>
 
       <div id="round-fields-golfpang">
         <div class="grid-2">
@@ -1851,8 +1858,20 @@ async function updatePreferredTimeSlot() {
 // 백엔드(src/golfmon.js, /api/golfmon/search)는 남겨두고 플랫폼 선택에서만 제외해둔다.
 // NAS 경유 등으로 우회 경로가 마련되면 옵션/필드를 다시 추가하면 된다.
 let roundSearchResultCache = [];
-let roundSearchPlatform = 'golfpang';
-let roundSearchMode = 'booking';
+let roundSearchPlatform = 'kakaogolf'; // 렌더링 스타일 기준(카카오 스타일 vs 골팡 스타일) — 카카오가 선택돼 있으면 항상 카카오 스타일
+let roundSearchMode = 'join';
+let roundSearchGolfpangCache = []; // 두 플랫폼 동시 검색 시 골팡 원본(개별 매물) 보관 — 카카오 티타임 병합용
+let roundSearchMergedGolfpang = false; // 두 플랫폼을 모두 선택해 병합 모드로 검색했는지
+
+/** 플랫폼마다 표기 방식이 달라(예: "감곡" vs "감곡컨트리클럽") 완전일치 대신 대표적인 골프장 유형
+ * 접미사·괄호 안 부제·공백을 제거하고 비교한다 — 완벽하진 않고 어디까지나 최선의 추정 매칭이다. */
+function normalizeCourseName(name) {
+  return (name || '')
+    .replace(/\(.*?\)/g, '')
+    .replace(/(컨트리클럽|컨트리\s*클럽|골프클럽|골프\s*클럽|골프리조트|리조트|앤리조트|CC|C\.C\.?|GC)/gi, '')
+    .replace(/\s+/g, '')
+    .trim();
+}
 
 // 카카오골프예약 세부지역: 대권역별 목록. 실제 /api/location/area 응답으로 확인한 코드(status:"0" 활성 항목만).
 const KAKAOGOLF_SUB_REGIONS = {
@@ -1886,11 +1905,21 @@ function toggleKakaoGolfChip(group, value, el) {
   else { set.add(value); el.classList.add('selected'); }
 }
 
+function getSelectedRoundSearchPlatforms() {
+  const platforms = [];
+  if (document.getElementById('platform-golfpang').checked) platforms.push('golfpang');
+  if (document.getElementById('platform-kakaogolf').checked) platforms.push('kakaogolf');
+  return platforms;
+}
+
 function onRoundSearchPlatformChange() {
-  roundSearchPlatform = document.getElementById('round-search-platform').value;
-  document.getElementById('round-fields-golfpang').style.display = roundSearchPlatform === 'golfpang' ? '' : 'none';
-  document.getElementById('round-fields-kakaogolf').style.display = roundSearchPlatform === 'kakaogolf' ? '' : 'none';
-  if (roundSearchPlatform === 'kakaogolf' && !document.getElementById('kakaogolf-subregion-chips').children.length) {
+  const platforms = getSelectedRoundSearchPlatforms();
+  document.getElementById('platform-chip-golfpang').classList.toggle('selected', platforms.includes('golfpang'));
+  document.getElementById('platform-chip-kakaogolf').classList.toggle('selected', platforms.includes('kakaogolf'));
+  document.getElementById('round-fields-golfpang').style.display = platforms.includes('golfpang') ? '' : 'none';
+  document.getElementById('round-fields-kakaogolf').style.display = platforms.includes('kakaogolf') ? '' : 'none';
+  document.getElementById('platform-merge-hint').style.display = platforms.length > 1 ? '' : 'none';
+  if (platforms.includes('kakaogolf') && !document.getElementById('kakaogolf-subregion-chips').children.length) {
     renderKakaoGolfSubRegions();
   }
 }
@@ -1898,32 +1927,51 @@ function onRoundSearchPlatformChange() {
 async function searchRounds() {
   const date = document.getElementById('round-search-date').value;
   if (!date) { showToast('날짜를 선택해주세요'); return; }
+  const platforms = getSelectedRoundSearchPlatforms();
+  if (!platforms.length) { showToast('플랫폼을 하나 이상 선택해주세요'); return; }
   try {
-    let result;
-    let sourceLabel;
-    if (roundSearchPlatform === 'golfpang') {
+    let golfpangResult = null;
+    let kakaogolfResult = null;
+    if (platforms.includes('golfpang')) {
       const ampm = document.getElementById('golfpang-ampm').value;
       const sector = document.getElementById('golfpang-sector').value;
       const mode = document.getElementById('golfpang-mode').value;
-      roundSearchMode = mode;
-      result = await api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=${mode}`);
-      sourceLabel = '골팡 1페이지 기준';
-    } else {
+      golfpangResult = await api(`/api/golfpang/search?date=${date}&ampm=${ampm}&sector=${sector}&mode=${mode}`);
+    }
+    if (platforms.includes('kakaogolf')) {
       const majorArea = document.getElementById('kakaogolf-region').value;
       const areas = kakaoGolfFilters.subRegions.size ? [...kakaoGolfFilters.subRegions] : [majorArea];
       const visitorCnt = document.getElementById('kakaogolf-visitorcnt').value;
       const timeZones = [...kakaoGolfFilters.timeZones];
       const greenFees = [...kakaoGolfFilters.greenFees];
       const events = [...kakaoGolfFilters.events];
-      roundSearchMode = 'join';
       const qs = new URLSearchParams({ date, areas: areas.join(',') });
       if (visitorCnt) qs.set('visitorCnt', visitorCnt);
       if (timeZones.length) qs.set('timeZones', timeZones.join(','));
       if (greenFees.length) qs.set('greenFees', greenFees.join(','));
       if (events.length) qs.set('events', events.join(','));
-      result = await api(`/api/kakaogolf/search?${qs.toString()}`);
-      sourceLabel = '카카오골프예약, 골프장 단위 요약';
+      kakaogolfResult = await api(`/api/kakaogolf/search?${qs.toString()}`);
     }
+
+    roundSearchGolfpangCache = golfpangResult ? golfpangResult.rounds : [];
+    roundSearchMergedGolfpang = platforms.length > 1;
+
+    let result, sourceLabel;
+    if (kakaogolfResult) {
+      // 카카오가 선택에 포함되면(단독이든 골팡과 병합이든) 항상 카카오 스타일 UI를 쓴다
+      roundSearchPlatform = 'kakaogolf';
+      roundSearchMode = 'join';
+      result = kakaogolfResult;
+      sourceLabel = roundSearchMergedGolfpang
+        ? `카카오골프예약 기준 + 골팡 티타임 보강 (골팡 ${roundSearchGolfpangCache.length}건 참고)`
+        : '카카오골프예약, 골프장 단위 요약';
+    } else {
+      roundSearchPlatform = 'golfpang';
+      roundSearchMode = document.getElementById('golfpang-mode').value;
+      result = golfpangResult;
+      sourceLabel = '골팡 1페이지 기준';
+    }
+
     roundSearchResultCache = result.rounds;
     kakaoGolfTeeTimesCache = {};
     kakaoGolfSelectedTeeTimes.clear();
@@ -1966,13 +2014,40 @@ function toggleKakaoGolfTeeTimeSelect(i, ti, el) {
   else kakaoGolfSelectedTeeTimes.delete(key);
 }
 
+/** 카카오골프예약 티타임 목록에 골팡의 같은 골프장 매물을 보강한다.
+ * 규칙: 같은 시간대에 카카오 정보가 이미 있고 그린피도 같으면 골팡 쪽은 추가하지 않음(카카오 정보 유지).
+ * 같은 시간대라도 그린피가 다르면 별도 항목으로 추가. 카카오에 아예 없는 시간대도 추가. 둘 다 "출처" 표시. */
+function mergeGolfpangTeeTimes(kakaoTeeTimes, courseName) {
+  const tagged = kakaoTeeTimes.map((t) => ({ ...t, source: '카카오' }));
+  if (!roundSearchMergedGolfpang) return tagged;
+  const norm = normalizeCourseName(courseName);
+  if (!norm) return tagged;
+  const matches = roundSearchGolfpangCache.filter((g) => normalizeCourseName(g.courseName) === norm);
+  matches.forEach((g) => {
+    const sameTimeSameFee = tagged.some((t) => t.time === g.time && t.greenFee === g.greenFee);
+    if (sameTimeSameFee) return;
+    tagged.push({
+      time: g.time,
+      holes: g.holes,
+      greenFee: g.greenFee,
+      visitorCnt: null,
+      maxVisitorCnt: null,
+      cashback: false,
+      caddyType: g.caddyType,
+      category: g.category,
+      source: '골팡',
+    });
+  });
+  return tagged.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+}
+
 /** 카카오골프예약 검색 결과는 골프장 단위 요약이라 개별 티타임이 없음 — 클릭한 골프장 한 곳만
  * /api/kakaogolf/detail로 실제 예약 가능 시간대(시간/인원/가격)를 불러온다(전체 자동조회 시 Worker
  * 서브리퀘스트 한도 초과 위험이 있어 온디맨드로 처리). */
 async function loadKakaoGolfTeeTimes(i, btn) {
   const container = document.getElementById(`tee-times-${i}`);
   const r = roundSearchResultCache[i];
-  const countLabel = `(${r.matchCount ?? 0}건)`;
+  const countLabel = `(${kakaoGolfTeeTimesCache[i]?.length ?? r.matchCount ?? 0}건)`;
   if (container.dataset.loaded) {
     const hidden = container.style.display === 'none';
     container.style.display = hidden ? '' : 'none';
@@ -1987,26 +2062,30 @@ async function loadKakaoGolfTeeTimes(i, btn) {
   btn.textContent = '불러오는 중...';
   try {
     const result = await api(`/api/kakaogolf/detail?golfInfoSeq=${r.idx}&date=${date}${visitorCnt ? '&visitorCnt=' + visitorCnt : ''}${timeZone ? '&timeZone=' + timeZone : ''}`);
-    kakaoGolfTeeTimesCache[i] = result.teeTimes;
-    const fees = result.teeTimes.map((t) => t.greenFee).filter((f) => f != null);
+    const merged = mergeGolfpangTeeTimes(result.teeTimes, r.courseName);
+    kakaoGolfTeeTimesCache[i] = merged;
+    const fees = merged.map((t) => t.greenFee).filter((f) => f != null);
     const minFee = fees.length ? Math.min(...fees) : null;
-    container.innerHTML = result.teeTimes.length
+    container.innerHTML = merged.length
       ? `<div class="muted" style="font-size:11px; margin-top:6px;">비교 그룹에 담을 티타임을 골라보세요</div>` +
-        result.teeTimes.map((t, ti) => {
+        merged.map((t, ti) => {
           const isMin = minFee != null && t.greenFee === minFee;
+          const isGolfpang = t.source === '골팡';
+          const rightInfo = isGolfpang ? (t.caddyType || '') : (t.visitorCnt != null ? t.visitorCnt + '/' + (t.maxVisitorCnt ?? '-') + '인' : '');
           return `
           <label class="tt-row${isMin ? ' min-fee' : ''}" style="cursor:pointer;">
             <span style="display:flex; align-items:center; gap:6px;">
               <input type="checkbox" onclick="toggleKakaoGolfTeeTimeSelect(${i},${ti},this)">
               ${escapeHtml(t.time)}${t.holes ? ' · ' + escapeHtml(t.holes) : ''}
+              ${roundSearchMergedGolfpang ? `<span class="source-badge${isGolfpang ? ' golfpang' : ''}">${t.source}</span>` : ''}
             </span>
-            <span>${t.visitorCnt != null ? t.visitorCnt + '/' + (t.maxVisitorCnt ?? '-') + '인' : ''} · ${t.greenFee != null ? t.greenFee.toLocaleString('ko-KR') + '원' : '-'}${isMin ? ' <span class="min-fee-badge">최저가</span>' : ''}</span>
+            <span>${rightInfo ? escapeHtml(rightInfo) + ' · ' : ''}${t.greenFee != null ? t.greenFee.toLocaleString('ko-KR') + '원' : '-'}${isMin ? ' <span class="min-fee-badge">최저가</span>' : ''}</span>
           </label>
         `;
         }).join('')
       : '<div class="muted" style="margin-top:6px;">예약 가능한 티타임이 없습니다.</div>';
     container.dataset.loaded = '1';
-    btn.textContent = `티타임 접기 ${countLabel}`;
+    btn.textContent = `티타임 접기 (${merged.length}건)`;
   } catch (e) {
     showToast('티타임 조회 실패: ' + e.message);
     btn.textContent = `티타임 보기 ${countLabel}`;
@@ -2100,10 +2179,11 @@ function openCreateGroupFromSelection() {
     const r = roundSearchResultCache[i];
     const t = kakaoGolfTeeTimesCache[i]?.[ti];
     if (!r || !t) return;
+    const fromGolfpang = t.source === '골팡';
     candidates.push({
-      source: 'kakaogolf',
+      source: fromGolfpang ? 'golfpang' : 'kakaogolf',
       mode: 'join',
-      externalId: `${r.idx}-${t.time}`,
+      externalId: `${r.idx}-${t.time}-${t.source || ''}`,
       courseName: r.courseName,
       region: r.region,
       date: r.date,
@@ -2111,8 +2191,8 @@ function openCreateGroupFromSelection() {
       holes: t.holes || r.holes,
       greenFee: t.greenFee,
       nickname: '',
-      caddyType: r.caddyType,
-      category: t.visitorCnt != null ? `${t.visitorCnt}/${t.maxVisitorCnt ?? '-'}인` : r.category,
+      caddyType: fromGolfpang ? (t.caddyType || '') : r.caddyType,
+      category: fromGolfpang ? (t.category || '') : (t.visitorCnt != null ? `${t.visitorCnt}/${t.maxVisitorCnt ?? '-'}인` : r.category),
     });
   });
   createComparisonGroup(title, candidates);
@@ -2564,6 +2644,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadStats(true);
   loadSettings();
   loadBookings();
+  onRoundSearchPlatformChange();
   const lat = localStorage.getItem('jdgh_lat');
   const lon = localStorage.getItem('jdgh_lon');
   if (lat && lon) fetchWeather(lat, lon);
