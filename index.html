@@ -867,7 +867,7 @@
     <h2 id="courseWeatherTitle" style="margin-top:0;">골프장 날씨</h2>
     <label>라운딩 날짜</label>
     <input type="date" id="course-weather-date" onchange="loadCourseWeather()">
-    <div class="muted" style="margin-top:4px; font-size:11px;">기상청 단기예보 특성상 오늘부터 모레(최대 2일 뒤)까지만 조회됩니다.</div>
+    <div class="muted" style="margin-top:4px; font-size:11px;">오늘~모레는 시간대별 단기예보, 3일~10일 뒤는 오전/오후 단위 중기예보로 보여드려요.</div>
     <div id="course-weather-result" style="margin-top:10px;"></div>
     <div class="dialog-actions">
       <button type="button" class="btn secondary block" onclick="document.getElementById('courseWeatherDialog').close()">닫기</button>
@@ -1429,11 +1429,18 @@ function openCourseWeather(id) {
   const dateInput = document.getElementById('course-weather-date');
   dateInput.value = toDateStr(today);
   dateInput.min = toDateStr(today);
-  dateInput.max = toDateStr(new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000));
+  dateInput.max = toDateStr(new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000));
 
   document.getElementById('course-weather-result').innerHTML = '';
   document.getElementById('courseWeatherDialog').showModal();
   loadCourseWeather();
+}
+
+function courseWeatherDayOffset(dateStr) {
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.round((new Date(dateStr) - new Date(todayStr)) / msPerDay);
 }
 
 async function loadCourseWeather() {
@@ -1441,29 +1448,53 @@ async function loadCourseWeather() {
   const date = document.getElementById('course-weather-date').value;
   const el = document.getElementById('course-weather-result');
   el.innerHTML = '<div class="muted">예보 조회 중...</div>';
+  const dayOffset = courseWeatherDayOffset(date);
   try {
-    const data = await api(`/api/weather?lat=${courseWeatherTarget.lat}&lon=${courseWeatherTarget.lon}&date=${date}`);
-    if (!data.hourly.length) {
-      el.innerHTML = '<div class="empty">해당 날짜의 예보 데이터가 없습니다.</div>';
-      return;
+    if (dayOffset <= 2) {
+      const data = await api(`/api/weather?lat=${courseWeatherTarget.lat}&lon=${courseWeatherTarget.lon}&date=${date}`);
+      if (!data.hourly.length) {
+        el.innerHTML = '<div class="empty">해당 날짜의 예보 데이터가 없습니다.</div>';
+        return;
+      }
+      el.innerHTML = `
+        <div class="hourly-scroll">
+          ${data.hourly.map((h) => `
+            <div class="hour-chip">
+              <div class="t">${h.time.slice(0, 2)}시</div>
+              <div class="temp">${h.temp ?? '-'}°</div>
+              <div class="sky">${escapeHtml(h.sky || '')}${h.pty && h.pty !== '없음' ? ' · ' + escapeHtml(h.pty) : ''}</div>
+              <div class="pop">☔ ${h.pop ?? 0}%</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="outfit-box">
+          <h3>👕 예상 복장 추천</h3>
+          <div><strong>${escapeHtml(data.outfit.summary)}</strong></div>
+          <ul>${data.outfit.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
+        </div>
+      `;
+    } else {
+      const data = await api(`/api/weather/midterm?lat=${courseWeatherTarget.lat}&lon=${courseWeatherTarget.lon}&date=${date}`);
+      const ampmLabel = { am: '오전', pm: '오후' };
+      el.innerHTML = `
+        <div class="muted" style="margin-bottom:6px;">${escapeHtml(data.region)} 중기예보 (오늘 ${data.tmFc.slice(8, 10)}시 발표 기준)</div>
+        <div class="hourly-scroll">
+          ${data.periods.map((p) => `
+            <div class="hour-chip">
+              <div class="t">${p.ampm ? ampmLabel[p.ampm] : '종일'}</div>
+              <div class="temp">${data.tempMin ?? '-'}~${data.tempMax ?? '-'}°</div>
+              <div class="sky">${escapeHtml(p.sky || '')}</div>
+              <div class="pop">☔ ${p.pop ?? 0}%</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="outfit-box">
+          <h3>👕 예상 복장 추천</h3>
+          <div><strong>${escapeHtml(data.outfit.summary)}</strong></div>
+          <ul>${data.outfit.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
+        </div>
+      `;
     }
-    el.innerHTML = `
-      <div class="hourly-scroll">
-        ${data.hourly.map((h) => `
-          <div class="hour-chip">
-            <div class="t">${h.time.slice(0, 2)}시</div>
-            <div class="temp">${h.temp ?? '-'}°</div>
-            <div class="sky">${escapeHtml(h.sky || '')}${h.pty && h.pty !== '없음' ? ' · ' + escapeHtml(h.pty) : ''}</div>
-            <div class="pop">☔ ${h.pop ?? 0}%</div>
-          </div>
-        `).join('')}
-      </div>
-      <div class="outfit-box">
-        <h3>👕 예상 복장 추천</h3>
-        <div><strong>${escapeHtml(data.outfit.summary)}</strong></div>
-        <ul>${data.outfit.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
-      </div>
-    `;
   } catch (e) {
     el.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`;
   }
