@@ -411,6 +411,8 @@
       <button class="btn block" style="margin-top:8px;" onclick="searchBookingRounds()">검색하기</button>
       <div id="booking-result-summary" class="muted" style="margin-top:8px;"></div>
       <div id="booking-result-list" style="margin-top:6px;"></div>
+      <button class="btn secondary block" id="booking-group-btn" style="display:none; margin-top:10px;" onclick="openCreateGroupFromBookingSelection()">선택한 티타임으로 비교 그룹 만들기</button>
+      <div class="muted" id="booking-group-hint" style="display:none; margin-top:4px; font-size:11px;">만든 비교 그룹은 하단 "부킹" 탭의 "동반예약(백업) 비교"에서 확인·비교할 수 있습니다.</div>
     </div>
 
     <div class="card">
@@ -2191,6 +2193,7 @@ async function searchBookingRounds() {
       });
     });
     bookingSearchResultCache = rounds;
+    bookingSelectedTeeTimes.clear();
     document.getElementById('booking-result-summary').textContent =
       `총 ${total.toLocaleString('ko-KR')}건 중 ${rounds.length}건 표시 (골팡 조인/백업 기준)`;
     renderBookingSearchResults(rounds);
@@ -2203,6 +2206,8 @@ async function searchBookingRounds() {
 // "티타임 보기"로 접었다 펼친다. 골팡 조인/백업 결과는 이미 통째로 다 받아온 상태라(온디맨드 상세조회가
 // 필요한 카카오골프예약과 달리) 그룹화·펼치기 모두 클라이언트에서 바로 처리한다(추가 API 호출 없음).
 let bookingSearchGroups = [];
+// 조인 탭에서 비교 그룹에 담기로 고른 개별 티타임 키("groupIdx:postingIdx") 집합.
+let bookingSelectedTeeTimes = new Set();
 
 function groupBookingRounds(rounds) {
   const map = new Map();
@@ -2211,14 +2216,19 @@ function groupBookingRounds(rounds) {
     if (!map.has(key)) map.set(key, { courseName: r.courseName, region: r.region, postings: [] });
     map.get(key).postings.push(r);
   });
-  return [...map.values()];
+  // 그룹 안 postings를 미리 시간순 정렬해둬야, 요약 카운트/펼치기/체크박스 인덱스가 전부 같은 순서를 가리킨다.
+  return [...map.values()].map((g) => ({ ...g, postings: [...g.postings].sort((a, b) => (a.time || '').localeCompare(b.time || '')) }));
 }
 
 function renderBookingSearchResults(rounds) {
   const el = document.getElementById('booking-result-list');
+  const groupBtn = document.getElementById('booking-group-btn');
+  const groupHint = document.getElementById('booking-group-hint');
   bookingSearchGroups = groupBookingRounds(rounds);
   if (!bookingSearchGroups.length) {
     el.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>';
+    groupBtn.style.display = 'none';
+    groupHint.style.display = 'none';
     return;
   }
   el.innerHTML = bookingSearchGroups.map((g, i) => {
@@ -2239,6 +2249,14 @@ function renderBookingSearchResults(rounds) {
     </div>
   `;
   }).join('');
+  groupBtn.style.display = 'block';
+  groupHint.style.display = 'block';
+}
+
+function toggleBookingTeeTimeSelect(gi, pi, el) {
+  const key = `${gi}:${pi}`;
+  if (el.checked) bookingSelectedTeeTimes.add(key);
+  else bookingSelectedTeeTimes.delete(key);
 }
 
 function toggleBookingGroupTeeTimes(i, btn) {
@@ -2247,21 +2265,52 @@ function toggleBookingGroupTeeTimes(i, btn) {
   if (!container.dataset.rendered) {
     const fees = g.postings.map((p) => p.greenFee).filter((f) => f != null);
     const minFee = fees.length ? Math.min(...fees) : null;
-    const sorted = [...g.postings].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-    container.innerHTML = sorted.map((p) => {
-      const isMin = minFee != null && p.greenFee === minFee;
-      return `
-        <div class="tt-row${isMin ? ' min-fee' : ''}">
-          <span>${escapeHtml(p.time || '-')}${p.holes ? ' · ' + escapeHtml(p.holes) : ''}</span>
+    container.innerHTML =
+      `<div class="muted" style="font-size:11px; margin-top:6px;">비교 그룹에 담을 티타임을 골라보세요</div>` +
+      g.postings.map((p, pi) => {
+        const isMin = minFee != null && p.greenFee === minFee;
+        return `
+        <label class="tt-row${isMin ? ' min-fee' : ''}" style="cursor:pointer;">
+          <span style="display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" onclick="toggleBookingTeeTimeSelect(${i},${pi},this)">
+            ${escapeHtml(p.time || '-')}${p.holes ? ' · ' + escapeHtml(p.holes) : ''}
+          </span>
           <span>${escapeHtml(p.caddyType || '-')}${p.category ? ' · ' + escapeHtml(p.category) : ''} · ${p.greenFee != null ? p.greenFee.toLocaleString('ko-KR') + '원' : '-'}${isMin ? ' <span class="min-fee-badge">최저가</span>' : ''}</span>
-        </div>
+        </label>
       `;
-    }).join('');
+      }).join('');
     container.dataset.rendered = '1';
   }
   const hidden = container.style.display === 'none';
   container.style.display = hidden ? '' : 'none';
   btn.textContent = hidden ? `티타임 접기 (${g.postings.length}건)` : `티타임 보기 (${g.postings.length}건)`;
+}
+
+function openCreateGroupFromBookingSelection() {
+  const keys = Array.from(bookingSelectedTeeTimes);
+  if (!keys.length) { showToast('비교할 티타임을 선택해주세요'); return; }
+  const title = prompt('비교 그룹 이름을 입력하세요', `${document.getElementById('booking-search-date').value} 조인 비교`);
+  if (!title) return;
+  const candidates = keys.map((key) => {
+    const [gi, pi] = key.split(':').map(Number);
+    const p = bookingSearchGroups[gi]?.postings[pi];
+    if (!p) return null;
+    return {
+      source: 'golfpang',
+      mode: 'join',
+      externalId: p.idx,
+      courseName: p.courseName,
+      region: p.region,
+      date: p.date,
+      time: p.time,
+      holes: p.holes,
+      greenFee: p.greenFee,
+      nickname: p.nickname,
+      caddyType: p.caddyType,
+      category: p.category,
+    };
+  }).filter(Boolean);
+  createComparisonGroup(title, candidates);
 }
 
 async function searchRounds() {
@@ -2561,6 +2610,7 @@ async function createComparisonGroup(title, candidates) {
     showToast('비교 그룹을 만들었습니다');
     document.querySelectorAll('.round-search-select:checked').forEach((cb) => { cb.checked = false; });
     kakaoGolfSelectedTeeTimes.clear();
+    bookingSelectedTeeTimes.clear();
     document.querySelectorAll('.tee-times input[type="checkbox"]:checked').forEach((cb) => { cb.checked = false; });
     await loadComparisonGroups();
   } catch (e) {
