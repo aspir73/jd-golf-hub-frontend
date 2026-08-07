@@ -1881,7 +1881,7 @@ function renderRoundSearchResults(rounds) {
       <div style="display:flex; gap:8px; align-items:flex-start; width:100%;">
         <input type="checkbox" class="round-search-select" data-idx="${i}" style="margin-top:5px;">
         <div style="flex:1;">
-          <div class="name" style="cursor:pointer" onclick="showCourseQuickInfo('${jsAttrEscape(r.courseName)}')">${escapeHtml(r.courseName)}${r.holes ? ' · ' + escapeHtml(r.holes) : ''}</div>
+          <div class="name" style="cursor:pointer" onclick="showCourseQuickInfo('${jsAttrEscape(r.courseName)}')">${escapeHtml(r.courseName)}${r.holes && roundSearchPlatform !== 'kakaogolf' ? ' · ' + escapeHtml(r.holes) : ''}</div>
           <div class="field-grid">
             <div class="f"><span class="k">날짜</span>${escapeHtml(r.date || '-')}</div>
             <div class="f"><span class="k">티타임</span>${escapeHtml(r.time || '-')}</div>
