@@ -2192,6 +2192,17 @@ function mergeGolfpangTeeTimes(kakaoTeeTimes, courseName) {
 /** 카카오골프예약 검색 결과는 골프장 단위 요약이라 개별 티타임이 없음 — 클릭한 골프장 한 곳만
  * /api/kakaogolf/detail로 실제 예약 가능 시간대(시간/인원/가격)를 불러온다(전체 자동조회 시 Worker
  * 서브리퀘스트 한도 초과 위험이 있어 온디맨드로 처리). */
+/** /api/kakaogolf/detail이 받는 timeZone은 미리 합산된 비트마스크 숫자 하나 — 정규화 모드(플랫폼 2개
+ * 선택)면 normalizedFilters.timeOfDay를, 카카오 단독 모드면 kakaoGolfFilters.timeZones를 합산해서 쓴다. */
+function computeActiveKakaoTimeZoneSum() {
+  if (roundSearchMergedGolfpang) {
+    return [...normalizedFilters.timeOfDay]
+      .flatMap((t) => NORMALIZED_TIME_OF_DAY[t]?.kakaoTimeZones || [])
+      .reduce((a, b) => a + b, 0);
+  }
+  return [...kakaoGolfFilters.timeZones].reduce((a, b) => a + Number(b), 0);
+}
+
 async function loadKakaoGolfTeeTimes(i, btn) {
   const container = document.getElementById(`tee-times-${i}`);
   const r = roundSearchResultCache[i];
@@ -2203,9 +2214,10 @@ async function loadKakaoGolfTeeTimes(i, btn) {
     return;
   }
   const date = document.getElementById('round-search-date').value;
-  const visitorCnt = document.getElementById('kakaogolf-visitorcnt').value;
-  // 검색에서 고른 티타임대 필터가 있으면 상세 조회에도 그대로 반영(검색 결과와 일관된 시간대만 보여줌)
-  const timeZone = [...kakaoGolfFilters.timeZones].reduce((a, b) => a + Number(b), 0);
+  // 정규화 모드(플랫폼 2개 다 선택)에서는 kakaoGolfFilters가 아니라 normalizedFilters를 써야 한다 —
+  // 이걸 놓쳐서 정규화 모드의 티타임대 선택(예: 야간)이 상세조회에 전혀 안 먹히던 버그가 있었음.
+  const visitorCnt = roundSearchMergedGolfpang ? '' : document.getElementById('kakaogolf-visitorcnt').value;
+  const timeZone = computeActiveKakaoTimeZoneSum();
   btn.disabled = true;
   btn.textContent = '불러오는 중...';
   try {
