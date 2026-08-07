@@ -1864,15 +1864,19 @@ const KAKAOGOLF_SUB_REGIONS = {
   46: [{ code: 48, label: '제주권' }],
 };
 
+// 서울/경기 기본 세부지역: 수원권·안성권·여주권·용인권. 다른 대권역은 기본 선택 없음(=전체).
+const KAKAOGOLF_DEFAULT_SUB_REGIONS = { 1: ['10', '9', '11', '8'] };
+
 // 세부지역/티타임대/그린피/이벤트 다중선택 상태. 값은 전부 문자열로 관리(칩 data-value와 비교 용이하게).
 let kakaoGolfFilters = { subRegions: new Set(), timeZones: new Set(), greenFees: new Set(), events: new Set() };
 
 function renderKakaoGolfSubRegions() {
   const major = document.getElementById('kakaogolf-region').value;
-  kakaoGolfFilters.subRegions = new Set();
   const list = KAKAOGOLF_SUB_REGIONS[major] || [];
+  const defaults = new Set(KAKAOGOLF_DEFAULT_SUB_REGIONS[major] || []);
+  kakaoGolfFilters.subRegions = new Set(defaults);
   document.getElementById('kakaogolf-subregion-chips').innerHTML = list
-    .map((s) => `<span class="chip" onclick="toggleKakaoGolfChip('subRegions','${s.code}',this)">${escapeHtml(s.label)}</span>`)
+    .map((s) => `<span class="chip${defaults.has(String(s.code)) ? ' selected' : ''}" onclick="toggleKakaoGolfChip('subRegions','${s.code}',this)">${escapeHtml(s.label)}</span>`)
     .join('');
 }
 
