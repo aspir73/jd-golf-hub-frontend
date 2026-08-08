@@ -482,10 +482,10 @@
     </div>
 
     <div class="card">
-      <h2>📋 예약 기록 <span class="muted" style="font-size:12px;">(본인예약)</span></h2>
+      <h2>📋 예약 기록</h2>
       <div class="grid-2">
         <button class="btn secondary" onclick="openBookingDialog(null,'본인')">＋ 직접 추가</button>
-        <button class="btn secondary" onclick="copyBookingReport('본인')">📤 현황 리포트 복사</button>
+        <button class="btn secondary" onclick="copyBookingReport()">📤 현황 리포트 복사</button>
       </div>
       <div id="booking-list" class="empty" style="margin-top:10px;">등록된 예약 기록이 없습니다.</div>
     </div>
@@ -684,8 +684,8 @@
     <div class="card">
       <h2>📋 예약</h2>
       <div class="grid-2">
-        <button class="btn secondary" onclick="openBookingDialog(null,'조인')">＋ 추가</button>
-        <button class="btn secondary" onclick="copyBookingReport('조인')">📤 현황 리포트 복사</button>
+        <button class="btn secondary" onclick="openBookingDialog(null,'본인')">＋ 추가</button>
+        <button class="btn secondary" onclick="copyBookingReport()">📤 현황 리포트 복사</button>
       </div>
       <div id="join-booking-list" class="empty" style="margin-top:10px;">등록된 예약 기록이 없습니다.</div>
     </div>
@@ -1014,28 +1014,22 @@
       <input type="hidden" id="booking-id">
       <input type="hidden" id="booking-matched-id">
       <input type="hidden" id="booking-group-id">
+      <!-- 예전엔 "유형"(본인/조인)을 사용자가 직접 고르게 했는데, 조인/부킹 탭 어느 쪽에서 등록하든
+           결국 사용자 본인이 잡은 예약이라 이 구분 자체가 혼란만 줬다("부킹탭에서 예약하는거니까
+           조인 예약일 수가 없다"는 사용자 피드백). 데이터 모델/백엔드 호환을 위해 필드는 남기되
+           항상 '본인'으로 고정하고 화면에서는 숨긴다. -->
+      <input type="hidden" id="booking-type" value="본인">
 
-      <div class="grid-2">
-        <div>
-          <label>유형</label>
-          <select id="booking-type">
-            <option value="본인">본인</option>
-            <option value="조인">조인</option>
-          </select>
-        </div>
-        <div>
-          <label>상태</label>
-          <select id="booking-status">
-            <option value="가예약">가예약</option>
-            <option value="확정">확정</option>
-            <option value="취소예정">취소예정</option>
-            <option value="취소완료">취소완료</option>
-          </select>
-        </div>
-      </div>
+      <label>상태</label>
+      <select id="booking-status">
+        <option value="가예약">가예약</option>
+        <option value="확정">확정</option>
+        <option value="취소예정">취소예정</option>
+        <option value="취소완료">취소완료</option>
+      </select>
 
       <label>골프장명 *</label>
-      <input type="text" id="booking-course" required>
+      <input type="text" id="booking-course">
       <label>코스명</label>
       <input type="text" id="booking-subcourse">
 
@@ -3183,9 +3177,11 @@ async function loadBookings() {
   try {
     const { bookings } = await api('/api/bookings');
     bookingCache = bookings;
-    // 예약 탭엔 본인예약(type:'본인')만, 조인 탭엔 조인(type:'조인')만 걸러서 보여준다.
-    renderBookingList(bookings.filter((b) => b.type !== '조인'), 'booking-list');
-    renderBookingList(bookings.filter((b) => b.type === '조인'), 'join-booking-list');
+    // 예전엔 type(본인/조인)으로 걸러서 조인 탭/부킹 탭에 다른 목록을 보여줬는데, 두 탭 다
+    // 결국 사용자 본인이 잡은 예약을 관리하는 곳이라 그 구분이 혼란만 줬다 - 이제 두 탭 모두
+    // 같은 전체 예약 목록을 그대로 보여준다(비교 그룹 UI를 두 탭에서 공유하는 것과 같은 패턴).
+    renderBookingList(bookings, 'booking-list');
+    renderBookingList(bookings, 'join-booking-list');
     renderHomeReminders(bookings);
   } catch (e) {
     showToast('예약 기록 조회 실패: ' + e.message);
@@ -3219,7 +3215,7 @@ function renderBookingList(bookings, containerId) {
       <div class="list-item">
         <div>
           <div class="name">${escapeHtml(b.courseName)}${b.courseSubName ? ' · ' + escapeHtml(b.courseSubName) : ''}</div>
-          <div class="sub">${escapeHtml(b.roundDate || '-')} ${escapeHtml(b.roundTime || '')} · ${escapeHtml(b.type)} · ${escapeHtml(b.source)}</div>
+          <div class="sub">${escapeHtml(b.roundDate || '-')} ${escapeHtml(b.roundTime || '')} · ${escapeHtml(b.source)}</div>
           <div class="sub" id="booking-weather-${b.id}"></div>
           ${travelText || costText ? `<div class="sub">${[travelText, costText].filter(Boolean).join(' · ')}</div>` : ''}
           <div class="tags">${badges.join('')}</div>
@@ -3380,6 +3376,11 @@ function openBookingReviewDialog(parsed, matchedBookingId, matchedBooking) {
   notice.innerHTML = matchedBookingId
     ? '<strong>기존 가예약 기록과 매칭되었습니다.</strong><br>저장하면 해당 기록이 "확정"으로 바뀌고, 같은 그룹의 나머지 가예약 건은 "취소 검토 대상"으로 자동 표시됩니다. 아래 내용을 확인한 뒤 저장하세요.'
     : '매칭되는 기존 가예약 기록이 없어 새 예약 기록으로 저장됩니다. 아래 내용을 확인한 뒤 저장하세요.';
+  // 골프장명 자동 인식에 실패하면(비어있는 채로 남으면) 저장 시점에야 막히는 게 아니라
+  // 검토 화면이 뜨자마자 바로 알려준다 - 사용자가 스크롤 안 해도 눈치챌 수 있도록.
+  if (!parsed.courseName) {
+    showToast('골프장명이 자동으로 인식되지 않았어요. 직접 입력해주세요');
+  }
   dialog.showModal();
 }
 
@@ -3429,13 +3430,23 @@ async function parseBookingMessage(inputId = 'booking-message-input', statusId =
 
 document.getElementById('bookingForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  // 골프장명은 필수인데, HTML의 required만 믿으면 브라우저 기본 검증 팝업이 사용자 눈에 안 띄는
+  // 경우(특히 dialog 안이라 스크롤 위치가 애매할 때) "저장을 눌렀는데 아무 반응이 없다"처럼
+  // 보인다 - 메시지에서 골프장명 인식에 실패해 빈 채로 남아있을 때 실제로 이렇게 조용히
+  // 막혔던 버그가 있었다. 그래서 JS로 명시적으로 체크해서 토스트로 알려준다.
+  const courseName = document.getElementById('booking-course').value.trim();
+  if (!courseName) {
+    showToast('골프장명을 입력해주세요 (메시지에서 자동으로 인식되지 않았을 수 있어요)');
+    document.getElementById('booking-course').focus();
+    return;
+  }
   const id = document.getElementById('booking-id').value;
   const matchedId = document.getElementById('booking-matched-id').value;
   const cancelableValue = document.getElementById('booking-cancelable').value;
   const payload = {
     type: document.getElementById('booking-type').value,
     status: document.getElementById('booking-status').value,
-    courseName: document.getElementById('booking-course').value,
+    courseName,
     courseSubName: document.getElementById('booking-subcourse').value,
     roundDate: document.getElementById('booking-date').value,
     roundTime: document.getElementById('booking-time').value,
@@ -3488,14 +3499,13 @@ async function removeBooking(id) {
   }
 }
 
-function copyBookingReport(type) {
+function copyBookingReport() {
   if (!bookingCache.length) { showToast('예약 기록이 없습니다'); return; }
   const active = [...bookingCache]
     .filter((b) => b.status !== '취소완료')
-    .filter((b) => !type || (type === '조인' ? b.type === '조인' : b.type !== '조인'))
     .sort((a, b) => (a.roundDate < b.roundDate ? -1 : 1));
   if (!active.length) { showToast('공유할 예약 기록이 없습니다'); return; }
-  const lines = [type === '조인' ? '⛳ 조인 현황' : '⛳ 예약 현황', '─────────────'];
+  const lines = ['⛳ 예약 현황', '─────────────'];
   active.forEach((b) => {
     let line = `- ${b.courseName}${b.courseSubName ? '(' + b.courseSubName + ')' : ''} ${b.roundDate || ''} ${b.roundTime || ''} [${b.status}]`;
     if (b.reviewCancel) line += ' ⚠취소검토';
