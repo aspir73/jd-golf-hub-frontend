@@ -682,16 +682,9 @@
     </div>
 
     <div class="card">
-      <h2>✍️ 조인확정 메시지로 자동 등록</h2>
-      <textarea id="join-message-input" rows="5" placeholder="골팡/골프장에서 받은 예약확정 카카오톡·문자 내용을 그대로 붙여넣으세요"></textarea>
-      <button class="btn block" style="margin-top:8px;" onclick="parseBookingMessage('join-message-input','join-message-status')">분석하기</button>
-      <div id="join-message-status" class="muted" style="margin-top:6px;"></div>
-    </div>
-
-    <div class="card">
-      <h2>📋 예약 기록 <span class="muted" style="font-size:12px;">(조인)</span></h2>
+      <h2>📋 예약</h2>
       <div class="grid-2">
-        <button class="btn secondary" onclick="openBookingDialog(null,'조인')">＋ 직접 추가</button>
+        <button class="btn secondary" onclick="openBookingDialog(null,'조인')">＋ 추가</button>
         <button class="btn secondary" onclick="copyBookingReport('조인')">📤 현황 리포트 복사</button>
       </div>
       <div id="join-booking-list" class="empty" style="margin-top:10px;">등록된 예약 기록이 없습니다.</div>
@@ -1015,8 +1008,22 @@
 
 <dialog id="bookingDialog">
   <div class="dialog-inner">
-    <h2 id="bookingDialogTitle" style="margin-top:0;">예약 기록 추가</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 id="bookingDialogTitle" style="margin:0;">예약 기록 추가</h2>
+      <button type="button" class="icon-btn" id="booking-message-toggle-btn" onclick="toggleBookingMessageMode()" title="메시지 붙여넣기로 자동 등록">📋</button>
+    </div>
     <div id="booking-match-notice" class="outfit-box" style="display:none; margin-bottom:10px;"></div>
+
+    <div id="booking-message-mode" style="display:none;">
+      <label>예약확정 메시지 붙여넣기</label>
+      <textarea id="booking-dialog-message-input" rows="6" placeholder="골팡/골프장에서 받은 예약확정 카카오톡·문자 내용을 그대로 붙여넣으세요"></textarea>
+      <button type="button" class="btn block" style="margin-top:8px;" onclick="parseBookingDialogMessage()">분석하기</button>
+      <div id="booking-dialog-message-status" class="muted" style="margin-top:6px;"></div>
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary block" onclick="closeBookingDialog()">취소</button>
+      </div>
+    </div>
+
     <form id="bookingForm">
       <input type="hidden" id="booking-id">
       <input type="hidden" id="booking-matched-id">
@@ -3320,15 +3327,18 @@ function renderBookingList(bookings, containerId) {
         <div>
           <div class="name">${escapeHtml(b.courseName)}${b.courseSubName ? ' · ' + escapeHtml(b.courseSubName) : ''}</div>
           <div class="sub">${escapeHtml(b.roundDate || '-')} ${escapeHtml(b.roundTime || '')} · ${escapeHtml(b.type)} · ${escapeHtml(b.source)}</div>
+          <div class="sub" id="booking-weather-${b.id}"></div>
           <div class="tags">${badges.join('')}</div>
         </div>
         <div class="score-actions">
+          <button class="icon-btn" onclick="copyBookingItem('${b.id}')" title="메시지로 복사">📋</button>
           <button class="icon-btn" onclick="openBookingDialog('${b.id}')" title="수정">✏️</button>
           <button class="icon-btn" onclick="removeBooking('${b.id}')" title="삭제">🗑️</button>
         </div>
       </div>
     `;
   }).join('');
+  loadBookingWeatherBadges(sorted);
 }
 
 function renderHomeReminders(bookings) {
@@ -3392,6 +3402,17 @@ function applyParsedToForm(parsed) {
   document.getElementById('booking-memo').value = '';
 }
 
+/** 다이얼로그 안에서 "직접 입력 폼" ↔ "메시지 붙여넣기" 두 모드를 전환한다. */
+function setBookingMessageMode(isMessageMode) {
+  document.getElementById('booking-message-mode').style.display = isMessageMode ? 'block' : 'none';
+  document.getElementById('bookingForm').style.display = isMessageMode ? 'none' : 'block';
+  document.getElementById('booking-message-toggle-btn').style.display = isMessageMode ? 'none' : 'inline-block';
+}
+
+function toggleBookingMessageMode() {
+  setBookingMessageMode(true);
+}
+
 function openBookingDialog(id, defaultType) {
   const dialog = document.getElementById('bookingDialog');
   document.getElementById('bookingForm').reset();
@@ -3399,6 +3420,9 @@ function openBookingDialog(id, defaultType) {
   document.getElementById('booking-matched-id').value = '';
   document.getElementById('booking-group-id').value = '';
   document.getElementById('booking-match-notice').style.display = 'none';
+  document.getElementById('booking-dialog-message-input').value = '';
+  document.getElementById('booking-dialog-message-status').textContent = '';
+  setBookingMessageMode(false);
   document.getElementById('bookingDialogTitle').textContent = id ? '예약 기록 수정' : '예약 기록 추가';
   if (id) {
     const b = bookingCache.find((x) => x.id === id);
@@ -3426,6 +3450,7 @@ function openBookingReviewDialog(parsed, matchedBookingId, matchedBooking) {
   document.getElementById('booking-matched-id').value = matchedBookingId || '';
   document.getElementById('booking-group-id').value = matchedBooking?.groupId || '';
   document.getElementById('bookingDialogTitle').textContent = '예약확정 메시지 검토';
+  setBookingMessageMode(false);
   applyParsedToForm(parsed);
   const notice = document.getElementById('booking-match-notice');
   notice.style.display = 'block';
@@ -3433,6 +3458,21 @@ function openBookingReviewDialog(parsed, matchedBookingId, matchedBooking) {
     ? '<strong>기존 가예약 기록과 매칭되었습니다.</strong><br>저장하면 해당 기록이 "확정"으로 바뀌고, 같은 그룹의 나머지 가예약 건은 "취소 검토 대상"으로 자동 표시됩니다. 아래 내용을 확인한 뒤 저장하세요.'
     : '매칭되는 기존 가예약 기록이 없어 새 예약 기록으로 저장됩니다. 아래 내용을 확인한 뒤 저장하세요.';
   dialog.showModal();
+}
+
+async function parseBookingDialogMessage() {
+  const text = document.getElementById('booking-dialog-message-input').value.trim();
+  if (!text) { showToast('메시지 내용을 입력해주세요'); return; }
+  const statusEl = document.getElementById('booking-dialog-message-status');
+  statusEl.textContent = '분석 중...';
+  try {
+    const result = await api('/api/bookings/parse-message', { method: 'POST', body: JSON.stringify({ text }) });
+    statusEl.textContent = '';
+    openBookingReviewDialog(result.parsed, result.matchedBookingId, result.matchedBooking);
+  } catch (e) {
+    statusEl.textContent = '';
+    showToast('분석 실패: ' + e.message);
+  }
 }
 
 async function parseBookingMessage(inputId = 'booking-message-input', statusId = 'booking-message-status') {
@@ -3528,6 +3568,75 @@ function copyBookingReport(type) {
     () => showToast('클립보드에 복사했습니다'),
     () => showToast('복사 실패 - 직접 선택해서 복사해주세요')
   );
+}
+
+/** 예약 카드 1건을 동반자에게 바로 공유할 수 있는 메시지 형태로 클립보드에 복사 */
+function copyBookingItem(id) {
+  const b = bookingCache.find((x) => x.id === id);
+  if (!b) return;
+  const lines = [`⛳ ${b.courseName}${b.courseSubName ? ' (' + b.courseSubName + ')' : ''}`];
+  const when = `${b.roundDate || ''} ${b.roundTime || ''}`.trim();
+  if (when) lines.push(when);
+  lines.push(`상태: ${b.status}`);
+  if (b.greenFeeAmount != null) lines.push(`그린피: ${Number(b.greenFeeAmount).toLocaleString('ko-KR')}원`);
+  if (b.reservationName) lines.push(`예약자: ${b.reservationName}`);
+  if (b.companions?.length) lines.push(`동반: ${b.companions.map((c) => c.name).filter(Boolean).join(', ')}`);
+  if (b.cancelable?.deadline) lines.push(`취소마감: ${b.cancelable.deadline}`);
+  if (b.contactPhone) lines.push(`문의: ${b.contactPhone}`);
+  if (b.memo) lines.push(`메모: ${b.memo}`);
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(
+    () => showToast('예약 내용을 클립보드에 복사했습니다'),
+    () => showToast('복사 실패 - 직접 선택해서 복사해주세요')
+  );
+}
+
+/** MY 골프장(즐겨찾기)에 등록된 좌표가 있으면 그걸 재사용한다 - 이름이 정확히 같거나
+ * (정규화 기준) 한쪽이 다른 쪽을 포함하면 매칭시킨다. 등록 안 된 골프장은 조용히 생략(부가정보). */
+function findCourseCoordsByName(name) {
+  if (!name) return null;
+  const norm = normalizeCourseName(name);
+  const match = courseCache.find((c) => {
+    if (c.lat == null || c.lon == null) return false;
+    if (c.name === name) return true;
+    const cn = normalizeCourseName(c.name);
+    return cn && norm && (cn === norm || cn.includes(norm) || norm.includes(cn));
+  });
+  return match ? { lat: match.lat, lon: match.lon } : null;
+}
+
+const SKY_ICON = { '맑음': '☀️', '구름많음': '⛅', '흐림': '☁️' };
+function skyIcon(sky) {
+  return SKY_ICON[sky] || '🌡️';
+}
+
+/** 예약 카드 목록에 라운딩 날짜 기준 예상 날씨를 비동기로 채워넣는다(등록된 즐겨찾기 골프장만 -
+ * 좌표가 없으면 조용히 생략). 오늘~모레는 단기예보, 3~10일 뒤는 중기예보, 그 이상은 표시 안 함. */
+async function loadBookingWeatherBadges(bookings) {
+  if (!courseCache.length) await loadCourses();
+  const targets = bookings.filter((b) => b.roundDate && b.status !== '취소완료' && b.status !== '취소예정');
+  await Promise.all(targets.map(async (b) => {
+    const el = document.getElementById(`booking-weather-${b.id}`);
+    if (!el) return;
+    const coords = findCourseCoordsByName(b.courseName);
+    if (!coords) return;
+    const offset = courseWeatherDayOffset(b.roundDate);
+    if (offset < 0 || offset > 10) return;
+    try {
+      if (offset <= 2) {
+        const data = await api(`/api/weather?lat=${coords.lat}&lon=${coords.lon}&date=${b.roundDate}`);
+        if (!data.hourly.length) return;
+        const temps = data.hourly.map((h) => h.temp).filter((t) => t != null);
+        const midSky = data.hourly[Math.floor(data.hourly.length / 2)]?.sky;
+        if (temps.length) el.textContent = `${skyIcon(midSky)} ${Math.min(...temps)}~${Math.max(...temps)}°C (라운딩 당일 예상)`;
+      } else {
+        const data = await api(`/api/weather/midterm?lat=${coords.lat}&lon=${coords.lon}&date=${b.roundDate}`);
+        el.textContent = `${skyIcon(data.periods?.[0]?.sky)} ${data.tempMin ?? '-'}~${data.tempMax ?? '-'}°C (라운딩 당일 예상)`;
+      }
+    } catch {
+      // 실패해도 조용히 생략 - 예약 목록 자체를 막지 않는다
+    }
+  }));
 }
 
 // ===== 초기 로드 =====
