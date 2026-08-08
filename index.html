@@ -51,6 +51,33 @@
     padding: 4px 6px;
     cursor: pointer;
   }
+  .header-actions { display: flex; align-items: center; gap: 2px; }
+  .hamburger-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 20px;
+    background: var(--card);
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    overflow: hidden;
+    min-width: 190px;
+    z-index: 20;
+  }
+  .hamburger-menu.open { display: block; }
+  .hamburger-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 13px 16px;
+    background: none;
+    border: none;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .hamburger-menu button:active { background: var(--bg); }
+  .hamburger-menu button + button { border-top: 1px solid var(--border); }
   main { padding: 16px; max-width: 640px; margin: 0 auto; }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; animation: fade .15s ease; }
@@ -334,7 +361,14 @@
 
 <header class="app-header">
   <h1>⛳ JD Golf Hub</h1>
-  <button type="button" class="header-icon-btn" onclick="openSettingsDialog()" title="설정">⚙️</button>
+  <div class="header-actions">
+    <button type="button" class="header-icon-btn" onclick="toggleHamburgerMenu(event)" title="메뉴">☰</button>
+    <button type="button" class="header-icon-btn" onclick="openSettingsDialog()" title="설정">⚙️</button>
+  </div>
+  <div id="hamburgerMenu" class="hamburger-menu">
+    <button type="button" onclick="hamburgerGoMyGolf()">⭐ MY 골프장</button>
+    <button type="button" onclick="hamburgerGoGolfDb()">🔍 국내 골프장 찾기</button>
+  </div>
 </header>
 
 <dialog id="settingsDialog">
@@ -454,15 +488,6 @@
         <button class="btn secondary" onclick="copyBookingReport('본인')">📤 현황 리포트 복사</button>
       </div>
       <div id="booking-list" class="empty" style="margin-top:10px;">등록된 예약 기록이 없습니다.</div>
-    </div>
-
-    <div class="card">
-      <h2>⭐ 즐겨찾기 골프장</h2>
-      <div style="display:flex; gap:6px;">
-        <button class="btn block" onclick="openCourseDialog()">＋ 골프장 추가</button>
-        <button class="btn secondary block" onclick="openGolfDbBrowse()">🔍 전국 골프장 찾아보기</button>
-      </div>
-      <div id="course-list" class="empty" style="margin-top:10px;">등록된 골프장이 없습니다.</div>
     </div>
 
     <div class="card">
@@ -672,13 +697,14 @@
       <div id="join-booking-list" class="empty" style="margin-top:10px;">등록된 예약 기록이 없습니다.</div>
     </div>
 
+  </section>
+
+  <!-- MY 골프장: 하단 탭이 아니라 홈 화면 우측상단 햄버거 메뉴에서 진입 -->
+  <section id="tab-mygolf" class="tab-panel">
     <div class="card">
-      <h2>⭐ 즐겨찾기 골프장</h2>
-      <div style="display:flex; gap:6px;">
-        <button class="btn block" onclick="openCourseDialog()">＋ 골프장 추가</button>
-        <button class="btn secondary block" onclick="openGolfDbBrowse()">🔍 전국 골프장 찾아보기</button>
-      </div>
-      <div id="join-course-list" class="empty" style="margin-top:10px;">등록된 골프장이 없습니다.</div>
+      <h2>⭐ MY 골프장</h2>
+      <button class="btn block" onclick="openCourseDialog()">＋ 골프장 추가</button>
+      <div id="mygolf-course-list" class="empty" style="margin-top:10px;">등록된 골프장이 없습니다.</div>
     </div>
   </section>
 
@@ -873,8 +899,6 @@
         <div><label>캐디피</label><input type="number" id="course-caddy-fee"></div>
       </div>
 
-      <label>골프팡 예약 링크</label>
-      <input type="text" id="course-link-golfpang" placeholder="https://...">
       <label>골프장 홈페이지</label>
       <input type="text" id="course-link-page" placeholder="https://...">
 
@@ -904,7 +928,7 @@
 
 <dialog id="golfDbBrowseDialog">
   <div class="dialog-inner">
-    <h2 style="margin-top:0;">🔍 전국 골프장 찾아보기</h2>
+    <h2 style="margin-top:0;">🔍 국내 골프장 찾기</h2>
     <div class="muted" style="font-size:11px; margin-bottom:6px;">문화체육관광부 전국 골프장 현황(2024-12-31 기준) 데이터입니다.</div>
 
     <label>이름 검색</label>
@@ -1108,8 +1132,35 @@ function showTab(name) {
   if (name === 'home') { loadStats(true); loadSettings(); loadBookings(); }
   if (name === 'booking') { loadCourses(); loadCompanions(); loadBookings(); loadComparisonGroups(); }
   if (name === 'join') { loadCourses(); loadComparisonGroups(); loadBookings(); }
+  if (name === 'mygolf') { loadCourses(); }
   if (name === 'food') { loadFavoriteRestaurants(); }
 }
+
+// ===== 홈 화면 우측상단 햄버거 메뉴 (MY 골프장 / 국내 골프장 찾기) =====
+function toggleHamburgerMenu(event) {
+  if (event) event.stopPropagation();
+  document.getElementById('hamburgerMenu').classList.toggle('open');
+}
+
+function closeHamburgerMenu() {
+  document.getElementById('hamburgerMenu').classList.remove('open');
+}
+
+function hamburgerGoMyGolf() {
+  closeHamburgerMenu();
+  showTab('mygolf');
+}
+
+function hamburgerGoGolfDb() {
+  closeHamburgerMenu();
+  openGolfDbBrowse();
+}
+
+// 메뉴 바깥을 누르면 닫히도록
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('hamburgerMenu');
+  if (menu && menu.classList.contains('open') && !menu.contains(e.target)) closeHamburgerMenu();
+});
 
 // ===== 날씨 =====
 function locateAndFetchWeather() {
@@ -1441,7 +1492,6 @@ async function loadCourses() {
 }
 
 function renderCourseList(courses) {
-  // 즐겨찾기 골프장은 예약/조인 구분 없는 공용 데이터라 두 탭의 목록 컨테이너에 동일하게 렌더링한다.
   const html = !courses.length
     ? '<div class="empty">등록된 골프장이 없습니다.</div>'
     : courses.map((c) => `
@@ -1462,10 +1512,8 @@ function renderCourseList(courses) {
       </div>
     </div>
   `).join('');
-  ['course-list', 'join-course-list'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = html;
-  });
+  const el = document.getElementById('mygolf-course-list');
+  if (el) el.innerHTML = html;
 }
 
 // ===== 즐겨찾기 골프장별 날씨(라운딩 예정일 기준) =====
@@ -1664,7 +1712,6 @@ function openCourseDialog(id) {
       document.getElementById('course-list-input').value = (c.courseList || []).join(', ');
       document.getElementById('course-cart-fee').value = c.cartFee ?? '';
       document.getElementById('course-caddy-fee').value = c.caddyFee ?? '';
-      document.getElementById('course-link-golfpang').value = c.bookingLinks?.golfpang || '';
       document.getElementById('course-link-page').value = c.bookingLinks?.coursePage || '';
       document.getElementById('course-memo').value = c.memo || '';
     }
@@ -1741,7 +1788,7 @@ async function selectSearchedCourseDb(index) {
   document.getElementById('course-search-results').innerHTML = '';
 }
 
-function selectSearchedCoursePlace(index) {
+async function selectSearchedCoursePlace(index) {
   const p = courseSearchResults[index];
   if (!p) return;
   document.getElementById('course-name').value = p.name;
@@ -1751,6 +1798,22 @@ function selectSearchedCoursePlace(index) {
   document.getElementById('course-lon').value = p.lon;
   document.getElementById('course-search-results').innerHTML = '';
   showToast('선택한 정보로 자동 입력했습니다');
+  await enrichMemoFromGolfDb(p.name);
+}
+
+/** 카카오 검색으로 고른 경우에도, 이름이 공식DB와 확실히 하나로 매칭되면 홀수·구분을 메모에 보태준다
+ *  (메모가 비어있을 때만 - 사용자가 이미 뭔가 적어뒀으면 덮어쓰지 않음). */
+async function enrichMemoFromGolfDb(name) {
+  const memoEl = document.getElementById('course-memo');
+  if (!name || memoEl.value.trim()) return;
+  try {
+    const { courses } = await api('/api/golf-db/search?query=' + encodeURIComponent(name));
+    if (courses.length === 1) {
+      memoEl.value = `${courses[0].holes ?? '-'}홀 · ${courses[0].type}`;
+    }
+  } catch {
+    // 실패해도 조용히 무시 - 메모는 부가정보라 필수가 아님
+  }
 }
 
 document.getElementById('courseForm').addEventListener('submit', async (e) => {
@@ -1767,7 +1830,6 @@ document.getElementById('courseForm').addEventListener('submit', async (e) => {
     cartFee: valOrNull('course-cart-fee'),
     caddyFee: valOrNull('course-caddy-fee'),
     bookingLinks: {
-      golfpang: document.getElementById('course-link-golfpang').value,
       coursePage: document.getElementById('course-link-page').value,
     },
     memo: document.getElementById('course-memo').value,
