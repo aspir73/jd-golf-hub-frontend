@@ -1016,6 +1016,9 @@
            조인 예약일 수가 없다"는 사용자 피드백). 데이터 모델/백엔드 호환을 위해 필드는 남기되
            항상 '본인'으로 고정하고 화면에서는 숨긴다. -->
       <input type="hidden" id="booking-type" value="본인">
+      <!-- 예약번호 입력칸은 화면에서 없애고(예약처 옆 자리는 예약자명으로 대체) 메시지에서 자동
+           추출된 값만 조용히 보관한다 - 데이터 모델/백엔드 호환용. -->
+      <input type="hidden" id="booking-number">
 
       <!-- "상태"는 새로 추가할 때는 어차피 항상 확정(가예약은 조건검색 후보를 비교그룹에
            넣을 때만 쓰는 개념이라 직접 추가/메시지 등록 흐름에선 안 씀)이라 추가 화면에서는
@@ -1056,13 +1059,14 @@
       <div class="grid-2">
         <div>
           <label>예약처</label>
-          <select id="booking-source">
+          <!-- 홈페이지(본인예약)을 고르면 예약자명에 자동으로 "정재동"을 채운다(onBookingSourceChange) -->
+          <select id="booking-source" onchange="onBookingSourceChange()">
             <option value="골팡">골팡</option>
             <option value="홈페이지(본인예약)">홈페이지(본인예약)</option>
             <option value="동반자예약">동반자예약</option>
           </select>
         </div>
-        <div><label>예약번호</label><input type="text" id="booking-number"></div>
+        <div><label>예약자명</label><input type="text" id="booking-reservation-name"></div>
       </div>
 
       <div class="grid-2">
@@ -1075,14 +1079,8 @@
         <div><label>캐디피 (팀 전체)</label><input type="number" id="booking-caddy-fee"></div>
       </div>
 
-      <label>예약자명</label>
-      <input type="text" id="booking-reservation-name">
-
       <label>정산 인원 (본인 포함, 카트비·캐디피 나누는 기준)</label>
       <input type="number" id="booking-companion-count" min="1" placeholder="예: 4">
-
-      <label>동반인원 (한 줄에 한 명: 이름,연락처,성별)</label>
-      <textarea id="booking-companions" rows="2" placeholder="홍길동,010-1234-5678,남"></textarea>
 
       <div class="grid-2">
         <div><label>문의 연락처</label><input type="text" id="booking-contact"></div>
@@ -3141,17 +3139,6 @@ async function removeGroupCandidate(groupId, candidateId) {
 // ===== 예약 기록 (MVP5) =====
 let bookingCache = [];
 
-function companionsToText(arr) {
-  return (arr || []).map((c) => [c.name, c.phone, c.gender].filter(Boolean).join(',')).join('\n');
-}
-
-function parseCompanionsText(text) {
-  return text.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
-    const [name = '', phone = '', gender = ''] = line.split(',').map((s) => s.trim());
-    return { name, phone, gender };
-  });
-}
-
 /** "YYYY-MM-DD" 또는 "M/D" 형식의 자유서식 취소마감 문자열을 Date로 파싱 시도 (실패 시 null) */
 function parseDeadlineDate(str) {
   if (!str) return null;
@@ -3285,7 +3272,6 @@ function applyBookingToForm(b) {
   document.getElementById('booking-payment').value = b.paymentMethod || '';
   document.getElementById('booking-reservation-name').value = b.reservationName || '';
   document.getElementById('booking-companion-count').value = b.companionCount ?? '';
-  document.getElementById('booking-companions').value = companionsToText(b.companions || []);
   document.getElementById('booking-contact').value = b.contactPhone || '';
   document.getElementById('booking-homepage').value = b.homepageUrl || '';
   document.getElementById('booking-memo').value = b.memo || '';
@@ -3310,7 +3296,6 @@ function applyParsedToForm(parsed) {
   document.getElementById('booking-payment').value = parsed.paymentMethod || '';
   document.getElementById('booking-reservation-name').value = parsed.reservationName || '';
   document.getElementById('booking-companion-count').value = parsed.companionCount ?? '';
-  document.getElementById('booking-companions').value = companionsToText(parsed.companions || []);
   document.getElementById('booking-contact').value = parsed.contactPhone || '';
   document.getElementById('booking-homepage').value = parsed.homepageUrl || '';
   document.getElementById('booking-memo').value = parsed.memo || '';
@@ -3357,9 +3342,19 @@ function openBookingDialog(id, defaultType) {
     }
   } else {
     document.getElementById('booking-status').value = '확정';
+    // 카트비/캐디피는 거의 항상 이 금액이라(사용자 피드백) 매번 직접 입력하지 않도록 기본값을 미리 넣어둔다.
+    document.getElementById('booking-cart-fee').value = 120000;
+    document.getElementById('booking-caddy-fee').value = 160000;
     if (defaultType) document.getElementById('booking-type').value = defaultType;
   }
   dialog.showModal();
+}
+
+/** "예약처"를 홈페이지(본인예약)로 고르면 예약자명에 자동으로 사용자 본인 이름을 채운다. */
+function onBookingSourceChange() {
+  if (document.getElementById('booking-source').value === '홈페이지(본인예약)') {
+    document.getElementById('booking-reservation-name').value = '정재동';
+  }
 }
 
 function closeBookingDialog() {
@@ -3467,7 +3462,6 @@ document.getElementById('bookingForm').addEventListener('submit', async (e) => {
     paymentMethod: document.getElementById('booking-payment').value,
     reservationName: document.getElementById('booking-reservation-name').value,
     companionCount: valOrNull('booking-companion-count'),
-    companions: parseCompanionsText(document.getElementById('booking-companions').value),
     contactPhone: document.getElementById('booking-contact').value,
     homepageUrl: document.getElementById('booking-homepage').value,
     memo: document.getElementById('booking-memo').value,
