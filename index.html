@@ -901,7 +901,11 @@
       </div>
 
       <label>골프장 홈페이지</label>
-      <input type="text" id="course-link-page" placeholder="https://...">
+      <div style="display:flex; gap:6px;">
+        <input type="text" id="course-link-page" placeholder="https://...">
+        <button type="button" class="btn secondary" onclick="searchCourseHomepage()">🔍 찾기</button>
+      </div>
+      <div id="course-homepage-results" style="margin-top:6px;"></div>
 
       <label>메모</label>
       <textarea id="course-memo" rows="2"></textarea>
@@ -1486,6 +1490,7 @@ async function removeScore(id) {
 let courseCache = [];
 let courseSearchResults = [];
 let courseSearchDbResults = [];
+let courseHomepageResults = [];
 
 async function loadCourses() {
   try {
@@ -1705,6 +1710,7 @@ function openCourseDialog(id) {
   document.getElementById('course-id').value = '';
   document.getElementById('course-search-results').innerHTML = '';
   document.getElementById('course-drive-info').textContent = '';
+  document.getElementById('course-homepage-results').innerHTML = '';
   document.getElementById('courseDialogTitle').textContent = id ? '골프장 수정' : '골프장 추가';
   if (id) {
     const c = courseCache.find((x) => x.id === id);
@@ -1838,6 +1844,38 @@ async function enrichMemoFromGolfDb(name) {
   } catch {
     // 실패해도 조용히 무시 - 메모는 부가정보라 필수가 아님
   }
+}
+
+/** 골프장 홈페이지 후보 검색(카카오 웹검색) - 1등 결과가 후기 블로그인 경우가 흔해서 자동으로
+ * 채워넣지 않고 후보를 보여주고 사용자가 직접 고르게 한다. */
+async function searchCourseHomepage() {
+  const name = document.getElementById('course-name').value.trim();
+  const el = document.getElementById('course-homepage-results');
+  if (!name) { showToast('먼저 골프장명을 입력해주세요'); return; }
+  el.innerHTML = '<div class="muted">검색 중...</div>';
+  try {
+    const { results } = await api('/api/homepage-search?query=' + encodeURIComponent(name));
+    if (!results.length) {
+      el.innerHTML = '<div class="muted">검색 결과가 없습니다</div>';
+      return;
+    }
+    el.innerHTML = results.map((r, i) => `
+      <div class="search-result" onclick="selectCourseHomepage(${i})">
+        <div class="name">${escapeHtml(r.title)}</div>
+        <div class="addr">${escapeHtml(r.url)}</div>
+      </div>
+    `).join('');
+    courseHomepageResults = results;
+  } catch (e) {
+    showToast('검색 실패: ' + e.message);
+  }
+}
+
+function selectCourseHomepage(index) {
+  const r = courseHomepageResults[index];
+  if (!r) return;
+  document.getElementById('course-link-page').value = r.url;
+  document.getElementById('course-homepage-results').innerHTML = '';
 }
 
 document.getElementById('courseForm').addEventListener('submit', async (e) => {
