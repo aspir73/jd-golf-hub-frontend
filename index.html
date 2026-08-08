@@ -3293,7 +3293,10 @@ function applyBookingToForm(b) {
 }
 
 function applyParsedToForm(parsed) {
-  document.getElementById('booking-type').value = parsed.reservationType || '본인';
+  // 어느 탭의 "＋ 추가"로 다이얼로그를 열었는지가 메시지 내용에서 추측한 조인/본인 여부보다 우선한다 -
+  // 부킹 탭에서 붙여넣었는데 메시지에 "조인"이라는 단어가 없다는 이유로 본인예약으로 저장되면
+  // (부킹/조인 예약이 서로 다른 탭에 걸려있어서) 엉뚱한 탭에 나타나 버린다.
+  document.getElementById('booking-type').value = bookingDialogTypeContext || parsed.reservationType || '본인';
   document.getElementById('booking-status').value = '확정';
   document.getElementById('booking-course').value = parsed.courseName || '';
   document.getElementById('booking-subcourse').value = parsed.courseSubName || '';
@@ -3312,7 +3315,7 @@ function applyParsedToForm(parsed) {
   document.getElementById('booking-companions').value = companionsToText(parsed.companions || []);
   document.getElementById('booking-contact').value = parsed.contactPhone || '';
   document.getElementById('booking-homepage').value = parsed.homepageUrl || '';
-  document.getElementById('booking-memo').value = '';
+  document.getElementById('booking-memo').value = parsed.memo || '';
 }
 
 /** 다이얼로그 안에서 "직접 입력 폼" ↔ "메시지 붙여넣기" 두 모드를 전환한다. */
@@ -3326,6 +3329,11 @@ function toggleBookingMessageMode() {
   setBookingMessageMode(true);
 }
 
+// 다이얼로그를 연 "＋ 추가" 버튼이 어느 탭(본인예약용/조인용) 것이었는지 기억해뒀다가, 메시지
+// 붙여넣기로 등록할 때 그 컨텍스트를 우선 적용한다(applyParsedToForm 참고). id로 기존 기록을
+// 수정하러 연 경우엔 null로 둬서 메시지 재분석 시 굳이 강제하지 않는다.
+let bookingDialogTypeContext = null;
+
 function openBookingDialog(id, defaultType) {
   const dialog = document.getElementById('bookingDialog');
   document.getElementById('bookingForm').reset();
@@ -3338,6 +3346,7 @@ function openBookingDialog(id, defaultType) {
   document.getElementById('booking-dialog-message-status').style.color = '';
   setBookingMessageMode(false);
   document.getElementById('bookingDialogTitle').textContent = id ? '예약 기록 수정' : '예약 기록 추가';
+  bookingDialogTypeContext = id ? null : (defaultType || null);
   if (id) {
     const b = bookingCache.find((x) => x.id === id);
     if (b) {
@@ -3408,6 +3417,9 @@ async function parseBookingMessage(inputId = 'booking-message-input', statusId =
   try {
     const result = await api('/api/bookings/parse-message', { method: 'POST', body: JSON.stringify({ text }) });
     statusEl.textContent = '';
+    // 이 카드는 "조인" 탭(본인예약 목록)에만 있는 카드라 항상 본인예약으로 강제한다 - 부킹탭
+    // 다이얼로그를 먼저 열어봤던 이력 때문에 엉뚱한 타입이 남아있는 걸 방지.
+    bookingDialogTypeContext = '본인';
     openBookingReviewDialog(result.parsed, result.matchedBookingId, result.matchedBooking);
   } catch (e) {
     statusEl.textContent = describeBookingParseError(e.message);
