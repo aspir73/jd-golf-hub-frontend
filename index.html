@@ -683,10 +683,7 @@
 
     <div class="card">
       <h2>📋 예약</h2>
-      <div class="grid-2">
-        <button class="btn secondary" onclick="openBookingDialog(null,'본인')">＋ 추가</button>
-        <button class="btn secondary" onclick="copyBookingReport()">📤 현황 리포트 복사</button>
-      </div>
+      <button class="btn secondary block" onclick="openBookingDialog(null,'본인')">＋ 추가</button>
       <div id="join-booking-list" class="empty" style="margin-top:10px;">등록된 예약 기록이 없습니다.</div>
     </div>
 
@@ -1020,13 +1017,19 @@
            항상 '본인'으로 고정하고 화면에서는 숨긴다. -->
       <input type="hidden" id="booking-type" value="본인">
 
-      <label>상태</label>
-      <select id="booking-status">
-        <option value="가예약">가예약</option>
-        <option value="확정">확정</option>
-        <option value="취소예정">취소예정</option>
-        <option value="취소완료">취소완료</option>
-      </select>
+      <!-- "상태"는 새로 추가할 때는 어차피 항상 확정(가예약은 조건검색 후보를 비교그룹에
+           넣을 때만 쓰는 개념이라 직접 추가/메시지 등록 흐름에선 안 씀)이라 추가 화면에서는
+           안 보이게 숨기고 자동으로 '확정'을 넣는다. 기존 기록을 ✏️ 수정할 때만(취소예정/
+           취소완료로 바꾸는 등) 다시 보여준다 - openBookingDialog 참고. -->
+      <div id="booking-status-row" style="display:none;">
+        <label>상태</label>
+        <select id="booking-status">
+          <option value="가예약">가예약</option>
+          <option value="확정">확정</option>
+          <option value="취소예정">취소예정</option>
+          <option value="취소완료">취소완료</option>
+        </select>
+      </div>
 
       <label>골프장명 *</label>
       <input type="text" id="booking-course">
@@ -1055,8 +1058,8 @@
           <label>예약처</label>
           <select id="booking-source">
             <option value="골팡">골팡</option>
-            <option value="골프장 홈페이지">골프장 홈페이지</option>
-            <option value="직접입력">직접입력</option>
+            <option value="홈페이지(본인예약)">홈페이지(본인예약)</option>
+            <option value="동반자예약">동반자예약</option>
           </select>
         </div>
         <div><label>예약번호</label><input type="text" id="booking-number"></div>
@@ -3274,7 +3277,7 @@ function applyBookingToForm(b) {
   document.getElementById('booking-time').value = b.roundTime || '';
   document.getElementById('booking-cancelable').value = b.cancelable?.possible === true ? 'possible' : b.cancelable?.possible === false ? 'impossible' : 'unknown';
   document.getElementById('booking-cancel-deadline').value = b.cancelable?.deadline || '';
-  document.getElementById('booking-source').value = b.source || '직접입력';
+  document.getElementById('booking-source').value = b.source || '골팡';
   document.getElementById('booking-number').value = b.bookingNumber || '';
   document.getElementById('booking-fee').value = b.greenFeeAmount ?? '';
   document.getElementById('booking-cart-fee').value = b.cartFeeAmount ?? '';
@@ -3300,7 +3303,6 @@ function applyParsedToForm(parsed) {
   document.getElementById('booking-time').value = parsed.roundTime || '';
   document.getElementById('booking-cancelable').value = parsed.cancelable === '가능' ? 'possible' : parsed.cancelable === '불가' ? 'impossible' : 'unknown';
   document.getElementById('booking-cancel-deadline').value = parsed.cancelDeadline || '';
-  document.getElementById('booking-source').value = '직접입력';
   document.getElementById('booking-number').value = parsed.bookingNumber || '';
   document.getElementById('booking-fee').value = parsed.greenFeeAmount ?? '';
   document.getElementById('booking-cart-fee').value = parsed.cartFeeAmount ?? '';
@@ -3343,6 +3345,9 @@ function openBookingDialog(id, defaultType) {
   setBookingMessageMode(false);
   document.getElementById('bookingDialogTitle').textContent = id ? '예약 기록 수정' : '예약 기록 추가';
   bookingDialogTypeContext = id ? null : (defaultType || null);
+  // "상태"는 기존 기록을 고칠 때만 보여준다(가예약→확정, 취소예정/취소완료 등으로 바꿀 일이
+  // 있으니까). 새로 추가할 땐 어차피 항상 확정이라 화면에서 숨기고 값만 미리 넣어둔다.
+  document.getElementById('booking-status-row').style.display = id ? '' : 'none';
   if (id) {
     const b = bookingCache.find((x) => x.id === id);
     if (b) {
@@ -3351,8 +3356,7 @@ function openBookingDialog(id, defaultType) {
       applyBookingToForm(b);
     }
   } else {
-    document.getElementById('booking-status').value = '가예약';
-    document.getElementById('booking-source').value = '직접입력';
+    document.getElementById('booking-status').value = '확정';
     if (defaultType) document.getElementById('booking-type').value = defaultType;
   }
   dialog.showModal();
@@ -3369,6 +3373,7 @@ function openBookingReviewDialog(parsed, matchedBookingId, matchedBooking) {
   document.getElementById('booking-matched-id').value = matchedBookingId || '';
   document.getElementById('booking-group-id').value = matchedBooking?.groupId || '';
   document.getElementById('bookingDialogTitle').textContent = '예약확정 메시지 검토';
+  document.getElementById('booking-status-row').style.display = 'none';
   setBookingMessageMode(false);
   applyParsedToForm(parsed);
   const notice = document.getElementById('booking-match-notice');
