@@ -33,11 +33,23 @@
     position: sticky;
     top: 0;
     z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
   header.app-header h1 {
     margin: 0;
     font-size: 20px;
     font-weight: 700;
+  }
+  .header-icon-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 22px;
+    line-height: 1;
+    padding: 4px 6px;
+    cursor: pointer;
   }
   main { padding: 16px; max-width: 640px; margin: 0 auto; }
   .tab-panel { display: none; }
@@ -322,7 +334,35 @@
 
 <header class="app-header">
   <h1>⛳ JD Golf Hub</h1>
+  <button type="button" class="header-icon-btn" onclick="openSettingsDialog()" title="설정">⚙️</button>
 </header>
+
+<dialog id="settingsDialog">
+  <div class="dialog-inner">
+    <h2 style="margin-top:0;">⚙️ 설정</h2>
+
+    <label>집 주소 (골프장 거리 계산 기준)</label>
+    <div style="display:flex; gap:6px;">
+      <input type="text" id="settings-home-search" placeholder="예: 강남역, 도로명 주소 등">
+      <button type="button" class="btn secondary" onclick="searchHomeAddress()">검색</button>
+    </div>
+    <div id="settings-home-results" style="margin-top:6px;"></div>
+    <div id="settings-home-current" class="muted" style="margin-top:6px;"></div>
+
+    <label style="margin-top:14px;">선호 라운딩 시간대 (여러 개 선택 가능)</label>
+    <div class="chip-group" id="settings-timeslot-chips">
+      <span class="chip" data-slot="dawn" onclick="toggleSettingsTimeSlot('dawn',this)">새벽 (~08시)</span>
+      <span class="chip" data-slot="morning" onclick="toggleSettingsTimeSlot('morning',this)">오전 (08~12시)</span>
+      <span class="chip" data-slot="afternoon" onclick="toggleSettingsTimeSlot('afternoon',this)">오후 (12~16시)</span>
+      <span class="chip" data-slot="evening" onclick="toggleSettingsTimeSlot('evening',this)">저녁 (16시~)</span>
+    </div>
+    <div class="muted" style="margin-top:4px;">동반예약 비교의 "시간대 선호 점수" 계산에 사용됩니다.</div>
+
+    <div class="dialog-actions">
+      <button type="button" class="btn secondary block" onclick="document.getElementById('settingsDialog').close()">닫기</button>
+    </div>
+  </div>
+</dialog>
 
 <main>
   <!-- 홈 -->
@@ -352,25 +392,6 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2>⚙️ 설정</h2>
-      <label>집 주소 (골프장 거리 계산 기준)</label>
-      <div style="display:flex; gap:6px;">
-        <input type="text" id="settings-home-search" placeholder="예: 강남역, 도로명 주소 등">
-        <button type="button" class="btn secondary" onclick="searchHomeAddress()">검색</button>
-      </div>
-      <div id="settings-home-results" style="margin-top:6px;"></div>
-      <div id="settings-home-current" class="muted" style="margin-top:6px;"></div>
-
-      <label style="margin-top:14px;">선호 라운딩 시간대</label>
-      <select id="settings-preferred-timeslot" onchange="updatePreferredTimeSlot()">
-        <option value="dawn">새벽 (~08시)</option>
-        <option value="morning">오전 (08~12시)</option>
-        <option value="afternoon">오후 (12~16시)</option>
-        <option value="evening">저녁 (16시~)</option>
-      </select>
-      <div class="muted" style="margin-top:4px;">동반예약 비교의 "시간대 선호 점수" 계산에 사용됩니다.</div>
-    </div>
   </section>
 
   <!-- 예약: 조건검색 / 동반예약 비교 / 즐겨찾기 골프장 / 동반자 / 정산 -->
@@ -2185,17 +2206,35 @@ async function removeFavoriteRestaurant(id) {
   }
 }
 
-// ===== 설정 (집 주소 / 선호 시간대) =====
-let settingsCache = { homeAddress: '', homeLat: null, homeLon: null, preferredTimeSlot: 'morning' };
+// ===== 설정 (집 주소 / 선호 시간대) - 우측상단 ⚙️ 아이콘으로 여는 다이얼로그 =====
+let settingsCache = { homeAddress: '', homeLat: null, homeLon: null, preferredTimeSlots: ['morning'] };
 let homeSearchResults = [];
+let settingsLoaded = false;
+
+function openSettingsDialog() {
+  document.getElementById('settingsDialog').showModal();
+  if (!settingsLoaded) loadSettings();
+}
+
+function renderSettingsTimeSlotChips() {
+  const selected = new Set(settingsCache.preferredTimeSlots || []);
+  document.querySelectorAll('#settings-timeslot-chips .chip').forEach((chip) => {
+    chip.classList.toggle('selected', selected.has(chip.dataset.slot));
+  });
+}
 
 async function loadSettings() {
   try {
     settingsCache = await api('/api/settings');
-    document.getElementById('settings-preferred-timeslot').value = settingsCache.preferredTimeSlot || 'morning';
+    // 예전 단일값(preferredTimeSlot) 형태로 저장된 계정도 있을 수 있어 배열로 보정한다.
+    if (!Array.isArray(settingsCache.preferredTimeSlots)) {
+      settingsCache.preferredTimeSlots = settingsCache.preferredTimeSlot ? [settingsCache.preferredTimeSlot] : ['morning'];
+    }
+    renderSettingsTimeSlotChips();
     document.getElementById('settings-home-current').textContent = settingsCache.homeAddress
       ? `현재 설정: ${settingsCache.homeAddress}`
       : '아직 집 주소가 설정되지 않았습니다 (동반예약 비교의 거리 점수 계산에 필요)';
+    settingsLoaded = true;
   } catch (e) {
     showToast('설정 조회 실패: ' + e.message);
   }
@@ -2238,12 +2277,23 @@ async function selectHomeAddress(index) {
   }
 }
 
-async function updatePreferredTimeSlot() {
-  const value = document.getElementById('settings-preferred-timeslot').value;
+async function toggleSettingsTimeSlot(slot, el) {
+  const current = new Set(settingsCache.preferredTimeSlots || []);
+  if (current.has(slot)) {
+    if (current.size === 1) { showToast('최소 1개는 선택되어 있어야 합니다'); return; }
+    current.delete(slot);
+  } else {
+    current.add(slot);
+  }
+  const next = [...current];
+  el.classList.toggle('selected');
   try {
-    settingsCache = await api('/api/settings', { method: 'PUT', body: JSON.stringify({ preferredTimeSlot: value }) });
+    settingsCache = await api('/api/settings', { method: 'PUT', body: JSON.stringify({ preferredTimeSlots: next }) });
+    if (!Array.isArray(settingsCache.preferredTimeSlots)) settingsCache.preferredTimeSlots = next;
+    renderSettingsTimeSlotChips();
     showToast('선호 시간대를 저장했습니다');
   } catch (e) {
+    el.classList.toggle('selected'); // 실패했으니 되돌림
     showToast('저장 실패: ' + e.message);
   }
 }
@@ -2998,7 +3048,7 @@ function normalizeWeights(w) {
 
 /** 기획서 3-1 가중치 스코어 알고리즘: 거리·평가·그린피·시간대 각 0~100점을 가중합 */
 function computeWeightedScores(components, weights) {
-  const { candidates, preferredTimeSlot } = components;
+  const { candidates, preferredTimeSlots } = components;
   const fees = candidates.map((c) => c.greenFee).filter((v) => v != null);
   const minFee = fees.length ? Math.min(...fees) : null;
   const maxFee = fees.length ? Math.max(...fees) : null;
@@ -3010,7 +3060,7 @@ function computeWeightedScores(components, weights) {
     if (c.greenFee != null && minFee != null && maxFee != null) {
       feeScore = maxFee === minFee ? 100 : 100 - ((c.greenFee - minFee) / (maxFee - minFee)) * 100;
     }
-    const timeScore = c.timeSlot && preferredTimeSlot ? (c.timeSlot === preferredTimeSlot ? 100 : 40) : 50;
+    const timeScore = c.timeSlot && preferredTimeSlots?.length ? (preferredTimeSlots.includes(c.timeSlot) ? 100 : 40) : 50;
     const total = distanceScore * weights.w1 + ratingScore * weights.w2 + feeScore * weights.w3 + timeScore * weights.w4;
     return { ...c, distanceScore: Math.round(distanceScore), ratingScore: Math.round(ratingScore), feeScore: Math.round(feeScore), timeScore: Math.round(timeScore), total: Math.round(total) };
   });
