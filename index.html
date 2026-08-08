@@ -363,11 +363,11 @@
   <h1>⛳ JD Golf Hub</h1>
   <div class="header-actions">
     <button type="button" class="header-icon-btn" onclick="toggleHamburgerMenu(event)" title="메뉴">☰</button>
-    <button type="button" class="header-icon-btn" onclick="openSettingsDialog()" title="설정">⚙️</button>
   </div>
   <div id="hamburgerMenu" class="hamburger-menu">
     <button type="button" onclick="hamburgerGoMyGolf()">⭐ MY 골프장</button>
     <button type="button" onclick="hamburgerGoGolfDb()">🔍 국내 골프장 찾기</button>
+    <button type="button" onclick="hamburgerGoSettings()">⚙️ 설정</button>
   </div>
 </header>
 
@@ -872,9 +872,9 @@
     <form id="courseForm">
       <input type="hidden" id="course-id">
 
-      <label>골프장 검색 (카카오맵)</label>
+      <label>골프장 검색 (공식DB + 카카오맵)</label>
       <div style="display:flex; gap:6px;">
-        <input type="text" id="course-search-input" placeholder="골프장명 입력">
+        <input type="text" id="course-search-input" placeholder="골프장명 입력" onkeydown="if(event.key==='Enter'){event.preventDefault(); searchCoursePlaces();}">
         <button type="button" class="btn secondary" onclick="searchCoursePlaces()">검색</button>
       </div>
       <div id="course-search-results" style="margin-top:8px;"></div>
@@ -887,6 +887,7 @@
       <input type="text" id="course-phone">
       <input type="hidden" id="course-lat">
       <input type="hidden" id="course-lon">
+      <div id="course-drive-info" class="muted" style="margin-top:4px; font-size:12px;"></div>
 
       <label>예약 오픈 규칙</label>
       <input type="text" id="course-booking-rule" placeholder="예: 라운딩일 30일 전 10시 오픈">
@@ -1154,6 +1155,11 @@ function hamburgerGoMyGolf() {
 function hamburgerGoGolfDb() {
   closeHamburgerMenu();
   openGolfDbBrowse();
+}
+
+function hamburgerGoSettings() {
+  closeHamburgerMenu();
+  openSettingsDialog();
 }
 
 // 메뉴 바깥을 누르면 닫히도록
@@ -1698,6 +1704,7 @@ function openCourseDialog(id) {
   document.getElementById('courseForm').reset();
   document.getElementById('course-id').value = '';
   document.getElementById('course-search-results').innerHTML = '';
+  document.getElementById('course-drive-info').textContent = '';
   document.getElementById('courseDialogTitle').textContent = id ? '골프장 수정' : '골프장 추가';
   if (id) {
     const c = courseCache.find((x) => x.id === id);
@@ -1721,6 +1728,21 @@ function openCourseDialog(id) {
 
 function closeCourseDialog() {
   document.getElementById('courseDialog').close();
+}
+
+/** 집 주소가 설정돼 있고 백엔드가 자동차 거리/이동시간을 함께 내려준 경우에만 표시할 문구 */
+function driveInfoText(p) {
+  if (p.driveDistanceKm == null) return '';
+  return ` · 🚗 ${p.driveDistanceKm}km (약 ${p.driveDurationMin}분)`;
+}
+
+/** 골프장 추가/수정 다이얼로그 하단에 계속 보이는 거리·이동시간 표시(토스트는 금방 사라져서 따로 둠) */
+function setCourseDriveInfo(p) {
+  const el = document.getElementById('course-drive-info');
+  if (!el) return;
+  el.textContent = p && p.driveDistanceKm != null
+    ? `🚗 집에서 ${p.driveDistanceKm}km · 약 ${p.driveDurationMin}분 (카카오맵 자동차 경로 기준)`
+    : '';
 }
 
 async function searchCoursePlaces() {
@@ -1754,7 +1776,7 @@ async function searchCoursePlaces() {
       places.map((p, i) => `
         <div class="search-result" onclick="selectSearchedCoursePlace(${i})">
           <div class="name">${escapeHtml(p.name)}</div>
-          <div class="addr">${escapeHtml(p.address)}${p.phone ? ' · ' + escapeHtml(p.phone) : ''}</div>
+          <div class="addr">${escapeHtml(p.address)}${p.phone ? ' · ' + escapeHtml(p.phone) : ''}${driveInfoText(p)}</div>
         </div>
       `).join('');
   } catch (e) {
@@ -1778,7 +1800,8 @@ async function selectSearchedCourseDb(index) {
       document.getElementById('course-lat').value = best.lat;
       document.getElementById('course-lon').value = best.lon;
       if (best.phone) document.getElementById('course-phone').value = best.phone;
-      showToast('공식DB 정보로 채우고, 좌표는 카카오맵에서 자동으로 찾았습니다');
+      setCourseDriveInfo(best);
+      showToast('공식DB 정보로 채우고, 좌표는 카카오맵에서 자동으로 찾았습니다' + driveInfoText(best));
     } else {
       showToast('공식DB 정보로 채웠습니다 (좌표는 못 찾아서 직접 검색해서 선택해주세요)');
     }
@@ -1797,7 +1820,8 @@ async function selectSearchedCoursePlace(index) {
   document.getElementById('course-lat').value = p.lat;
   document.getElementById('course-lon').value = p.lon;
   document.getElementById('course-search-results').innerHTML = '';
-  showToast('선택한 정보로 자동 입력했습니다');
+  setCourseDriveInfo(p);
+  showToast('선택한 정보로 자동 입력했습니다' + driveInfoText(p));
   await enrichMemoFromGolfDb(p.name);
 }
 
