@@ -477,7 +477,7 @@
     <div class="card">
       <h2>✍️ 예약확정 메시지로 자동 등록</h2>
       <textarea id="booking-message-input" rows="5" placeholder="골팡/골프장에서 받은 예약확정 카카오톡·문자 내용을 그대로 붙여넣으세요"></textarea>
-      <button class="btn block" style="margin-top:8px;" onclick="parseBookingMessage('booking-message-input','booking-message-status')">분석하기</button>
+      <button class="btn block" style="margin-top:8px;" onclick="parseBookingMessage('booking-message-input','booking-message-status')">등록</button>
       <div id="booking-message-status" class="muted" style="margin-top:6px;"></div>
     </div>
 
@@ -1003,7 +1003,7 @@
     <div id="booking-message-mode" style="display:none;">
       <label>예약확정 메시지 붙여넣기</label>
       <textarea id="booking-dialog-message-input" rows="6" placeholder="골팡/골프장에서 받은 예약확정 카카오톡·문자 내용을 그대로 붙여넣으세요"></textarea>
-      <button type="button" class="btn block" style="margin-top:8px;" onclick="parseBookingDialogMessage()">분석하기</button>
+      <button type="button" class="btn block" style="margin-top:8px;" onclick="parseBookingDialogMessage()">등록</button>
       <div id="booking-dialog-message-status" class="muted" style="margin-top:6px;"></div>
       <div class="dialog-actions">
         <button type="button" class="btn secondary block" onclick="closeBookingDialog()">취소</button>
@@ -1069,12 +1069,20 @@
       </div>
 
       <div class="grid-2">
-        <div><label>그린피 금액</label><input type="number" id="booking-fee"></div>
+        <div><label>그린피 (1인)</label><input type="number" id="booking-fee"></div>
         <div><label>결제방식</label><input type="text" id="booking-payment" placeholder="예: 현장결제"></div>
+      </div>
+
+      <div class="grid-2">
+        <div><label>카트비 (팀 전체)</label><input type="number" id="booking-cart-fee"></div>
+        <div><label>캐디피 (팀 전체)</label><input type="number" id="booking-caddy-fee"></div>
       </div>
 
       <label>예약자명</label>
       <input type="text" id="booking-reservation-name">
+
+      <label>정산 인원 (본인 포함, 카트비·캐디피 나누는 기준)</label>
+      <input type="number" id="booking-companion-count" min="1" placeholder="예: 4">
 
       <label>동반인원 (한 줄에 한 명: 이름,연락처,성별)</label>
       <textarea id="booking-companions" rows="2" placeholder="홍길동,010-1234-5678,남"></textarea>
@@ -3204,12 +3212,16 @@ function renderBookingList(bookings, containerId) {
     } else if (b.type === '조인' && b.cancelable?.possible === false) {
       badges.push('<span class="tag" style="background:#fff4e5;color:#8a5a00;">⚠ 취소불가·예약금</span>');
     }
+    const travelText = b.distanceKm != null ? `🚗 ${b.distanceKm}km (약 ${b.durationMin}분)` : '';
+    const cost = estimatedPersonalCost(b);
+    const costText = cost != null ? `💰 1인 예상 ${cost.toLocaleString('ko-KR')}원` : '';
     return `
       <div class="list-item">
         <div>
           <div class="name">${escapeHtml(b.courseName)}${b.courseSubName ? ' · ' + escapeHtml(b.courseSubName) : ''}</div>
           <div class="sub">${escapeHtml(b.roundDate || '-')} ${escapeHtml(b.roundTime || '')} · ${escapeHtml(b.type)} · ${escapeHtml(b.source)}</div>
           <div class="sub" id="booking-weather-${b.id}"></div>
+          ${travelText || costText ? `<div class="sub">${[travelText, costText].filter(Boolean).join(' · ')}</div>` : ''}
           <div class="tags">${badges.join('')}</div>
         </div>
         <div class="score-actions">
@@ -3221,6 +3233,19 @@ function renderBookingList(bookings, containerId) {
     `;
   }).join('');
   loadBookingWeatherBadges(sorted);
+}
+
+/** 요청된 계산식: 그린피(1인) + 캐디피(팀 전체)/정산인원 + 카트비(팀 전체)/정산인원.
+ * 그린피가 없으면 계산 자체를 안 하고(정보 부족), 캐디피·카트비는 정산인원이 있을 때만 나눠서 더한다. */
+function estimatedPersonalCost(b) {
+  if (b.greenFeeAmount == null) return null;
+  let total = b.greenFeeAmount;
+  const n = b.companionCount && b.companionCount > 0 ? b.companionCount : null;
+  if (n) {
+    if (b.caddyFeeAmount != null) total += b.caddyFeeAmount / n;
+    if (b.cartFeeAmount != null) total += b.cartFeeAmount / n;
+  }
+  return Math.round(total);
 }
 
 function renderHomeReminders(bookings) {
@@ -3256,8 +3281,11 @@ function applyBookingToForm(b) {
   document.getElementById('booking-source').value = b.source || '직접입력';
   document.getElementById('booking-number').value = b.bookingNumber || '';
   document.getElementById('booking-fee').value = b.greenFeeAmount ?? '';
+  document.getElementById('booking-cart-fee').value = b.cartFeeAmount ?? '';
+  document.getElementById('booking-caddy-fee').value = b.caddyFeeAmount ?? '';
   document.getElementById('booking-payment').value = b.paymentMethod || '';
   document.getElementById('booking-reservation-name').value = b.reservationName || '';
+  document.getElementById('booking-companion-count').value = b.companionCount ?? '';
   document.getElementById('booking-companions').value = companionsToText(b.companions || []);
   document.getElementById('booking-contact').value = b.contactPhone || '';
   document.getElementById('booking-homepage').value = b.homepageUrl || '';
@@ -3276,8 +3304,11 @@ function applyParsedToForm(parsed) {
   document.getElementById('booking-source').value = '직접입력';
   document.getElementById('booking-number').value = parsed.bookingNumber || '';
   document.getElementById('booking-fee').value = parsed.greenFeeAmount ?? '';
+  document.getElementById('booking-cart-fee').value = parsed.cartFeeAmount ?? '';
+  document.getElementById('booking-caddy-fee').value = parsed.caddyFeeAmount ?? '';
   document.getElementById('booking-payment').value = parsed.paymentMethod || '';
   document.getElementById('booking-reservation-name').value = parsed.reservationName || '';
+  document.getElementById('booking-companion-count').value = parsed.companionCount ?? '';
   document.getElementById('booking-companions').value = companionsToText(parsed.companions || []);
   document.getElementById('booking-contact').value = parsed.contactPhone || '';
   document.getElementById('booking-homepage').value = parsed.homepageUrl || '';
@@ -3403,8 +3434,11 @@ document.getElementById('bookingForm').addEventListener('submit', async (e) => {
     source: document.getElementById('booking-source').value,
     bookingNumber: document.getElementById('booking-number').value,
     greenFeeAmount: valOrNull('booking-fee'),
+    cartFeeAmount: valOrNull('booking-cart-fee'),
+    caddyFeeAmount: valOrNull('booking-caddy-fee'),
     paymentMethod: document.getElementById('booking-payment').value,
     reservationName: document.getElementById('booking-reservation-name').value,
+    companionCount: valOrNull('booking-companion-count'),
     companions: parseCompanionsText(document.getElementById('booking-companions').value),
     contactPhone: document.getElementById('booking-contact').value,
     homepageUrl: document.getElementById('booking-homepage').value,
@@ -3472,9 +3506,15 @@ function copyBookingItem(id) {
   const when = `${b.roundDate || ''} ${b.roundTime || ''}`.trim();
   if (when) lines.push(when);
   lines.push(`상태: ${b.status}`);
-  if (b.greenFeeAmount != null) lines.push(`그린피: ${Number(b.greenFeeAmount).toLocaleString('ko-KR')}원`);
+  if (b.greenFeeAmount != null) lines.push(`그린피(1인): ${Number(b.greenFeeAmount).toLocaleString('ko-KR')}원`);
+  if (b.cartFeeAmount != null) lines.push(`카트비(팀): ${Number(b.cartFeeAmount).toLocaleString('ko-KR')}원`);
+  if (b.caddyFeeAmount != null) lines.push(`캐디피(팀): ${Number(b.caddyFeeAmount).toLocaleString('ko-KR')}원`);
+  const cost = estimatedPersonalCost(b);
+  if (cost != null) lines.push(`1인 예상 비용: ${cost.toLocaleString('ko-KR')}원`);
   if (b.reservationName) lines.push(`예약자: ${b.reservationName}`);
+  if (b.companionCount != null) lines.push(`정산 인원: ${b.companionCount}명`);
   if (b.companions?.length) lines.push(`동반: ${b.companions.map((c) => c.name).filter(Boolean).join(', ')}`);
+  if (b.distanceKm != null) lines.push(`거리: ${b.distanceKm}km (약 ${b.durationMin}분)`);
   if (b.cancelable?.deadline) lines.push(`취소마감: ${b.cancelable.deadline}`);
   if (b.contactPhone) lines.push(`문의: ${b.contactPhone}`);
   if (b.memo) lines.push(`메모: ${b.memo}`);
