@@ -1523,9 +1523,11 @@ async function loadScores() {
 function renderScoreList(scores) {
   const el = document.getElementById('score-list');
   if (!scores.length) {
-    el.innerHTML = '<div class="empty">아직 기록이 없습니다. 위 버튼으로 추가해보세요.</div>';
+    el.classList.add('empty');
+    el.innerHTML = '아직 기록이 없습니다. 위 버튼으로 추가해보세요.';
     return;
   }
+  el.classList.remove('empty');
   const sorted = [...scores].sort((a, b) => (a.date < b.date ? 1 : -1));
   el.innerHTML = sorted.map((s) => `
     <div class="score-item">
@@ -3650,7 +3652,7 @@ function latestWatchCheckedLabel(group) {
  * 5건 -> 원 안에 "태" + "(5)", 풀네임은 title 툴팁으로만 남김), 티타임이 많이 잡힌 골프장이
  * 먼저 보이도록 확인건수 내림차순으로 정렬한다. "마지막 업데이트 시각"은 별도 줄 대신 새로
  * 발견된 자리 줄(또는 새로 발견된 게 없으면 그 자리)의 오른쪽 끝에 맞춰서 함께 보여준다. */
-function renderWatchGroupCard(g, { showWeatherTile = false, scopeKey = 'home' } = {}) {
+function renderWatchGroupCard(g, { showWeatherTile = false, scopeKey = 'home', showCourseBadges = true } = {}) {
   const group = g.watches;
   const dateObj = parseRoundDateLocal(g.date);
   const days = dateObj ? daysUntil(dateObj) : null;
@@ -3699,7 +3701,7 @@ function renderWatchGroupCard(g, { showWeatherTile = false, scopeKey = 'home' } 
         </div>
         <div class="home-booking-main">
           <div class="name"><span class="tag" style="margin-right:4px; vertical-align:middle;">${escapeHtml(WATCH_MODE_LABELS[g.mode])}</span>${timeIcon ? timeIcon + ' ' : ''}${group.length}개 골프장</div>
-          <div class="sub" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${courseBadges}</div>
+          ${showCourseBadges ? `<div class="sub" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${courseBadges}</div>` : ''}
           ${statusLine}
         </div>${weatherTileHtml}
       </div>
@@ -3725,7 +3727,9 @@ function renderHomeWatchGroups() {
   card.style.display = groups.length ? 'block' : 'none';
   if (!groups.length) return;
 
-  el.innerHTML = groups.map((g) => renderWatchGroupCard(g, { showWeatherTile: true, scopeKey: 'home' })).join('');
+  // 홈 탭은 "부킹 5개 골프장 · 새로 발견 N건" 정도의 요약만 보여주는 심플 UI로 유지하고,
+  // 골프장별 상세(두음자 배지 목록)는 부킹/조인 탭 자체 카드에서만 보여준다(showCourseBadges:false).
+  el.innerHTML = groups.map((g) => renderWatchGroupCard(g, { showWeatherTile: true, scopeKey: 'home', showCourseBadges: false })).join('');
   loadWatchGroupWeatherTiles(groups, 'home');
 }
 
@@ -3753,9 +3757,14 @@ function renderWatchList(watches, elId, mode) {
   const el = document.getElementById(elId);
   if (!el) return;
   if (!watches.length) {
-    el.innerHTML = '<div class="empty">등록된 모니터링이 없습니다.</div>';
+    el.classList.add('empty');
+    el.innerHTML = '등록된 모니터링이 없습니다.';
     return;
   }
+  // 초기 HTML엔 "등록된 모니터링이 없습니다" 빈 상태용 class="empty"가 박혀 있는데(text-align:
+  // center 포함), 실제 데이터를 채울 때 이 class를 안 지우면 카드 안 글자가 계속 가운데 정렬로
+  // 보인다(왼쪽 정렬 요청으로 발견된 버그) - 데이터가 생기면 반드시 떼어낸다.
+  el.classList.remove('empty');
   const groups = new Map();
   watches.forEach((w) => {
     if (!groups.has(w.date)) groups.set(w.date, []);
@@ -4489,9 +4498,13 @@ function renderBookingList(bookings, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!bookings.length) {
-    el.innerHTML = '<div class="empty">등록된 예약 기록이 없습니다.</div>';
+    el.classList.add('empty');
+    el.innerHTML = '등록된 예약 기록이 없습니다.';
     return;
   }
+  // 워치 목록과 같은 이유(class="empty"가 초기 HTML에 박혀 있어 안 지우면 계속 가운데 정렬로
+  // 보임)로 데이터가 있으면 반드시 떼어낸다.
+  el.classList.remove('empty');
   const sorted = [...bookings].sort((a, b) => (a.roundDate < b.roundDate ? -1 : 1));
   el.innerHTML = sorted.map((b) => {
     const badges = [`<span class="tag">${escapeHtml(b.status)}</span>`];
