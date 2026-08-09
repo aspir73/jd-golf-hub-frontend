@@ -811,6 +811,14 @@
     <div class="card">
       <h2>⭐ MY 골프장</h2>
       <button class="btn block" onclick="openCourseDialog()">＋ 골프장 추가</button>
+      <label style="margin-top:10px;">지역 필터</label>
+      <div class="chip-group" id="mygolf-region-chips">
+        <span class="chip selected" onclick="setMygolfRegionFilter('',this)">전체</span>
+        <span class="chip" onclick="setMygolfRegionFilter('capital',this)">수도권</span>
+        <span class="chip" onclick="setMygolfRegionFilter('gangbuk',this)">강북/경춘</span>
+        <span class="chip" onclick="setMygolfRegionFilter('gangwon',this)">강원</span>
+        <span class="chip" onclick="setMygolfRegionFilter('chungcheong',this)">충청</span>
+      </div>
       <div id="mygolf-course-list" class="empty" style="margin-top:10px;">등록된 골프장이 없습니다.</div>
     </div>
   </section>
@@ -969,6 +977,9 @@
     <h2 id="courseDialogTitle" style="margin-top:0;">골프장 추가</h2>
     <form id="courseForm">
       <input type="hidden" id="course-id">
+      <!-- 문체부 공식 DB 매칭 결과의 지역(시/도) - MY골프장 지역 필터링용. 검색 결과 선택 시
+           자동으로 채워짐(course-region 관련 함수들 참고). -->
+      <input type="hidden" id="course-region">
 
       <label>골프장 검색 (공식DB + 카카오맵)</label>
       <div style="display:flex; gap:6px;">
@@ -1564,10 +1575,36 @@ async function loadCourses() {
   }
 }
 
+// MY골프장 지역 필터 - 문체부 DB의 시/도 값만으로는 "수도권(한강이남)"과 "강북/경춘"을 구분할
+// 수 없어서(둘 다 DB상 "경기"), 카카오 검색으로 등록할 때 같이 저장돼 있는 좌표의 위도로 나눈다.
+// 한강이 지나는 서울 구간 위도(약 37.55)를 기준으로 그보다 남쪽이면 한강이남(=수도권), 북쪽이면
+// 강북/경춘 쪽으로 본다("한강이남"이라는 기존 용어 자체가 이미 이 경계 개념을 담고 있음). 좌표가
+// 없는 골프장(카카오 검색 없이 등록)은 구분이 안 되니 더 흔한 쪽인 수도권으로 분류한다.
+const HAN_RIVER_LAT = 37.55;
+let mygolfRegionFilter = '';
+
+function setMygolfRegionFilter(value, el) {
+  mygolfRegionFilter = value;
+  document.querySelectorAll('#mygolf-region-chips .chip').forEach((c) => c.classList.remove('selected'));
+  el.classList.add('selected');
+  renderCourseList(courseCache);
+}
+
+function matchesMygolfRegionFilter(c) {
+  if (!mygolfRegionFilter) return true;
+  const isCapitalAreaRegion = ['서울', '경기', '인천'].includes(c.region);
+  if (mygolfRegionFilter === 'capital') return isCapitalAreaRegion && (c.lat == null || c.lat < HAN_RIVER_LAT);
+  if (mygolfRegionFilter === 'gangbuk') return isCapitalAreaRegion && c.lat != null && c.lat >= HAN_RIVER_LAT;
+  if (mygolfRegionFilter === 'gangwon') return c.region === '강원';
+  if (mygolfRegionFilter === 'chungcheong') return ['충남', '충북', '대전', '세종'].includes(c.region);
+  return true;
+}
+
 function renderCourseList(courses) {
-  const html = !courses.length
-    ? '<div class="empty">등록된 골프장이 없습니다.</div>'
-    : courses.map((c) => `
+  const filtered = courses.filter(matchesMygolfRegionFilter);
+  const html = !filtered.length
+    ? `<div class="empty">${courses.length ? '이 지역에 등록된 골프장이 없습니다.' : '등록된 골프장이 없습니다.'}</div>`
+    : filtered.map((c, i) => `
     <div class="list-item">
       <div>
         <div class="name">${escapeHtml(c.name)}</div>
@@ -1579,6 +1616,8 @@ function renderCourseList(courses) {
         </div>
       </div>
       <div class="score-actions">
+        <button class="icon-btn" onclick="moveCourseItem('${c.id}','up')" title="위로" ${i === 0 ? 'disabled style="opacity:.3;"' : ''}>▲</button>
+        <button class="icon-btn" onclick="moveCourseItem('${c.id}','down')" title="아래로" ${i === filtered.length - 1 ? 'disabled style="opacity:.3;"' : ''}>▼</button>
         <button class="icon-btn" onclick="openCourseWeather('${c.id}')" title="날씨">🌤</button>
         <button class="icon-btn" onclick="openCourseDialog('${c.id}')" title="수정">✏️</button>
         <button class="icon-btn" onclick="removeCourse('${c.id}')" title="삭제">🗑️</button>
@@ -1587,6 +1626,19 @@ function renderCourseList(courses) {
   `).join('');
   const el = document.getElementById('mygolf-course-list');
   if (el) el.innerHTML = html;
+}
+
+/** 카드의 ▲▼로 저장 순서(=표시 순서) 자체를 한 칸씩 바꾼다. 지역 필터가 걸려있으면 화면에는
+ * 인접해 보여도 전체 목록 기준으로는 안 붙어있을 수 있어 기대와 다르게 움직일 수 있음 - 순서
+ * 조정은 "전체" 필터에서 하는 걸 권장(필터별로 별도 순서를 두는 건 과한 기능이라 생략). */
+async function moveCourseItem(id, direction) {
+  try {
+    const { courses } = await api(`/api/courses/${id}/move`, { method: 'POST', body: JSON.stringify({ direction }) });
+    courseCache = courses;
+    renderCourseList(courseCache);
+  } catch (e) {
+    showToast('순서 변경 실패: ' + e.message);
+  }
 }
 
 // ===== 즐겨찾기 골프장별 날씨(라운딩 예정일 기준) =====
@@ -1759,6 +1811,7 @@ function addGolfDbCourseToFavorites(index) {
   document.getElementById('golfDbBrowseDialog').close();
   openCourseDialog();
   document.getElementById('course-name').value = c.name;
+  document.getElementById('course-region').value = c.region || '';
   document.getElementById('course-address').value = c.address;
   document.getElementById('course-memo').value = `${c.holes ?? '-'}홀 · ${c.type}`;
   // 공식DB엔 좌표가 없어서, 다이얼로그를 연 채로 카카오 검색까지 자동으로 한 번 걸어준다.
@@ -1778,6 +1831,7 @@ function openCourseDialog(id) {
     const c = courseCache.find((x) => x.id === id);
     if (c) {
       document.getElementById('course-id').value = c.id;
+      document.getElementById('course-region').value = c.region || '';
       document.getElementById('course-name').value = c.name || '';
       document.getElementById('course-address').value = c.address || '';
       document.getElementById('course-phone').value = c.bookingPhone || '';
@@ -1856,6 +1910,7 @@ async function selectSearchedCourseDb(index) {
   const c = courseSearchDbResults[index];
   if (!c) return;
   document.getElementById('course-name').value = c.name;
+  document.getElementById('course-region').value = c.region || '';
   document.getElementById('course-address').value = c.address;
   const memoEl = document.getElementById('course-memo');
   if (!memoEl.value.trim()) memoEl.value = `${c.holes ?? '-'}홀 · ${c.type}`;
@@ -1893,18 +1948,20 @@ async function selectSearchedCoursePlace(index) {
   await enrichMemoFromGolfDb(p.name);
 }
 
-/** 카카오 검색으로 고른 경우에도, 이름이 공식DB와 확실히 하나로 매칭되면 홀수·구분을 메모에 보태준다
- *  (메모가 비어있을 때만 - 사용자가 이미 뭔가 적어뒀으면 덮어쓰지 않음). */
+/** 카카오 검색으로 고른 경우에도, 이름이 공식DB와 확실히 하나로 매칭되면 홀수·구분을 메모에,
+ * 지역을 course-region에 보태준다(메모는 비어있을 때만 - 사용자가 이미 뭔가 적어뒀으면 안 덮어씀.
+ * 지역은 필터링에만 쓰는 내부 값이라 이미 있어도 갱신). */
 async function enrichMemoFromGolfDb(name) {
+  if (!name) return;
   const memoEl = document.getElementById('course-memo');
-  if (!name || memoEl.value.trim()) return;
   try {
     const { courses } = await api('/api/golf-db/search?query=' + encodeURIComponent(name));
     if (courses.length === 1) {
-      memoEl.value = `${courses[0].holes ?? '-'}홀 · ${courses[0].type}`;
+      if (!memoEl.value.trim()) memoEl.value = `${courses[0].holes ?? '-'}홀 · ${courses[0].type}`;
+      document.getElementById('course-region').value = courses[0].region || '';
     }
   } catch {
-    // 실패해도 조용히 무시 - 메모는 부가정보라 필수가 아님
+    // 실패해도 조용히 무시 - 메모/지역 모두 부가정보라 필수가 아님
   }
 }
 
@@ -1945,6 +2002,7 @@ document.getElementById('courseForm').addEventListener('submit', async (e) => {
   const id = document.getElementById('course-id').value;
   const payload = {
     name: document.getElementById('course-name').value,
+    region: document.getElementById('course-region').value,
     address: document.getElementById('course-address').value,
     bookingPhone: document.getElementById('course-phone').value,
     lat: valOrNull('course-lat'),
