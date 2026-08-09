@@ -3004,10 +3004,13 @@ function renderWatchList(watches) {
   });
   const sortedDates = [...groups.keys()].sort();
 
+  // 홈 탭 "예약 일정" 카드와 같은 [D-day 타일] + 본문 컨셉으로 맞춘다(hb-tile/hb-date-tile
+  // 재사용 - home-booking-item과 똑같은 CSS를 그대로 써서 스타일이 어긋날 일이 없게 함).
   el.innerHTML = sortedDates.map((date) => {
     const group = groups.get(date);
-    const expired = date < today;
     const dateObj = parseRoundDateLocal(date);
+    const days = dateObj ? daysUntil(dateObj) : null;
+    const ddayText = days == null ? '-' : days === 0 ? 'D-DAY' : days > 0 ? `D-${days}` : `D+${Math.abs(days)}`;
     const dateLabel = dateObj ? `${dateObj.getMonth() + 1}/${dateObj.getDate()}(${WATCH_WEEKDAY_KO[dateObj.getDay()]})` : date;
     const totalNew = group.reduce((sum, w) => sum + (w.lastResults || []).filter((r) => r.isNew).length, 0);
     const totalResults = group.reduce((sum, w) => sum + (w.lastResults || []).length, 0);
@@ -3019,13 +3022,16 @@ function renderWatchList(watches) {
     else if (anyUnchecked) statusText = '아직 검색 전인 골프장 있음';
     else statusText = '현재 빈자리 없음';
     return `
-      <div class="list-item" style="cursor:pointer;" onclick="openWatchDetailDialog('${date}')">
-        <div>
-          <div class="name">📅 ${escapeHtml(dateLabel)}${expired ? ' <span class="muted" style="font-size:11px;">(지난 날짜)</span>' : ''}</div>
-          <div class="sub">${group.length}개 골프장 · ${escapeHtml(courseNames)}</div>
+      <div class="home-booking-item" onclick="openWatchDetailDialog('${date}')" style="cursor:pointer;">
+        <div class="hb-tile hb-date-tile">
+          <div class="hb-date">${escapeHtml(dateLabel)}</div>
+          <div class="hb-dday">${escapeHtml(ddayText)}</div>
+        </div>
+        <div class="home-booking-main">
+          <div class="name">${group.length}개 골프장</div>
+          <div class="sub">${escapeHtml(courseNames)}</div>
           <div class="sub"${totalNew > 0 ? ' style="color:var(--accent); font-weight:700;"' : ''}>${escapeHtml(statusText)}</div>
         </div>
-        <div class="score-actions" style="font-size:20px; color:var(--muted); align-self:center;">›</div>
       </div>
     `;
   }).join('');
