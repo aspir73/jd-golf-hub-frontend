@@ -622,7 +622,10 @@
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
         <h2 style="margin:0;">⏰ 조인 티타임 워치</h2>
-        <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="openWatchDialog('join')">＋ 워치 추가</button>
+        <div style="display:flex; gap:6px;">
+          <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="deleteAllWatches('join')">🗑️ 전체 삭제</button>
+          <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="openWatchDialog('join')">＋ 워치 추가</button>
+        </div>
       </div>
       <div class="muted" style="margin-top:4px; font-size:12px;">지정한 골프장·날짜·시간대의 골팡 조인/백업 매물을 30분마다 백그라운드에서 자동으로 재검색해둡니다.</div>
       <div id="joinwatch-list" class="empty" style="margin-top:10px;">등록된 워치가 없습니다.</div>
@@ -821,7 +824,10 @@
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
         <h2 style="margin:0;">⏰ 티타임 워치</h2>
-        <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="openWatchDialog('booking')">＋ 워치 추가</button>
+        <div style="display:flex; gap:6px;">
+          <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="deleteAllWatches('booking')">🗑️ 전체 삭제</button>
+          <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="openWatchDialog('booking')">＋ 워치 추가</button>
+        </div>
       </div>
       <div class="muted" style="margin-top:4px; font-size:12px;">지정한 골프장·날짜·시간대를 30분마다 백그라운드에서 자동으로 재검색해둡니다.</div>
       <div id="watch-list" class="empty" style="margin-top:10px;">등록된 워치가 없습니다.</div>
@@ -1006,6 +1012,11 @@
 <dialog id="watchDetailDialog">
   <div class="dialog-inner">
     <h3 id="watchDetailTitle" style="margin:0 0 10px;">워치 상세</h3>
+    <div class="muted" style="font-size:11px; margin-bottom:4px;">골프장 행을 누르면 확인된 티타임을 펼쳐볼 수 있어요.</div>
+    <div class="grid-2" style="margin-bottom:8px;">
+      <button type="button" class="btn secondary" style="padding:6px 12px; font-size:12px;" onclick="toggleWatchDetailSelectAll()"><span id="watch-detail-select-all-label">전체 선택</span></button>
+      <button type="button" class="btn danger" id="watch-detail-delete-selected-btn" style="display:none; padding:6px 12px; font-size:12px;" onclick="deleteSelectedWatchDetailItems()">🗑️ 선택 삭제 (<span id="watch-detail-selected-count">0</span>)</button>
+    </div>
     <div id="watch-detail-list"></div>
     <div class="dialog-actions">
       <button type="button" class="btn block" onclick="closeWatchDetailDialog()">닫기</button>
@@ -3602,31 +3613,59 @@ function renderWatchList(watches, elId, mode) {
 }
 
 /** 워치 카드(≒ 골프장 하나) 상세 항목 - 상세 다이얼로그 안에서 재사용. */
+// 상세 다이얼로그 안에서 골프장 행을 눌러 펼쳤을 때 어떤 워치의 티타임 목록이 열려있는지(id
+// 집합) - 기본은 접힌 상태로 요약만 보여주고, 눌러야 전체 티타임 목록을 볼 수 있게 한다.
+let watchDetailExpandedIds = new Set();
+// 상세 다이얼로그 안 체크박스로 고른 워치 id 집합("선택 삭제"용) - MY골프장 탭의 다중선택
+// 패턴(mygolfSelectedIds)과 동일.
+let watchDetailSelectedIds = new Set();
+
+function toggleWatchDetailExpand(id) {
+  if (watchDetailExpandedIds.has(id)) watchDetailExpandedIds.delete(id);
+  else watchDetailExpandedIds.add(id);
+  renderWatchDetailList();
+}
+
 function renderWatchItemDetail(w) {
   const timeLabel = w.timeOfDay?.length ? w.timeOfDay.map((t) => WATCH_TIME_LABELS[t]).join('/') : '전체 시간대';
   const results = w.lastResults || [];
   const newCount = results.filter((r) => r.isNew).length;
-  let resultHtml;
+  const expanded = watchDetailExpandedIds.has(w.id);
+  const clickable = results.length > 0;
+
+  let statusText;
+  let statusStyle = '';
   if (w.lastError) {
-    resultHtml = `<div class="sub" style="color:var(--danger);">조회 실패: ${escapeHtml(w.lastError)}</div>`;
+    statusText = `조회 실패: ${w.lastError}`;
+    statusStyle = 'color:var(--danger);';
   } else if (!results.length) {
-    resultHtml = `<div class="sub">${w.lastCheckedAt ? '현재 빈자리 없음' : '아직 검색 전입니다 - 새로고침을 눌러보세요'}</div>`;
+    statusText = w.lastCheckedAt ? '현재 빈자리 없음' : '아직 검색 전입니다 - 새로고침을 눌러보세요';
   } else {
-    const items = results.slice(0, 6).map((r) =>
+    statusText = (newCount ? `🆕 새로 발견된 자리 ${newCount}건 · ` : '') + `전체 ${results.length}건 확인됨` + (clickable ? (expanded ? ' ▲' : ' ▼ 눌러서 티타임 보기') : '');
+    statusStyle = newCount ? 'color:var(--accent); font-weight:700;' : '';
+  }
+
+  let expandedHtml = '';
+  if (expanded && results.length) {
+    const items = results.map((r) =>
       `<span class="tag"${r.isNew ? ' style="background:#fff4e5;color:#8a5a00;"' : ''}>${r.isNew ? '🆕 ' : ''}${escapeHtml(r.time)}${r.courseSubName ? ' ' + escapeHtml(r.courseSubName) : ''} · ${r.greenFee != null ? r.greenFee.toLocaleString('ko-KR') + '원' : '-'}</span>`
     ).join('');
-    resultHtml = `<div class="tags" style="margin-top:6px;">${items}</div>${results.length > 6 ? `<div class="sub" style="margin-top:4px;">외 ${results.length - 6}건 더</div>` : ''}`;
-    if (newCount) resultHtml = `<div class="sub" style="color:var(--accent); font-weight:700;">🆕 새로 발견된 자리 ${newCount}건</div>` + resultHtml;
+    expandedHtml = `<div class="tags" style="margin-top:6px;">${items}</div>`;
   }
+
   return `
-    <div class="list-item">
+    <div class="list-item"${clickable ? ` onclick="toggleWatchDetailExpand('${w.id}')" style="cursor:pointer;"` : ''}>
       <div>
-        <div class="name">${escapeHtml(w.courseName)}</div>
+        <div class="name">
+          <input type="checkbox" class="watch-detail-checkbox" data-id="${w.id}" ${watchDetailSelectedIds.has(w.id) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="onWatchDetailCheckboxChange(this)" style="margin-right:6px; vertical-align:middle;">
+          ${escapeHtml(w.courseName)}
+        </div>
         <div class="sub">${escapeHtml(timeLabel)}</div>
         <div class="sub">${escapeHtml(formatRelativeTime(w.lastCheckedAt))}</div>
-        ${resultHtml}
+        <div class="sub" style="${statusStyle}">${escapeHtml(statusText)}</div>
+        ${expandedHtml}
       </div>
-      <div class="score-actions">
+      <div class="score-actions" onclick="event.stopPropagation()">
         <button class="icon-btn" onclick="refreshWatchNow('${w.id}')" title="지금 새로고침">🔄</button>
         <button class="icon-btn" onclick="deleteWatchItem('${w.id}')" title="삭제">🗑️</button>
       </div>
@@ -3637,6 +3676,8 @@ function renderWatchItemDetail(w) {
 function openWatchDetailDialog(date, mode) {
   watchDetailOpenDate = date;
   watchDetailOpenMode = mode === 'join' ? 'join' : 'booking';
+  watchDetailExpandedIds = new Set();
+  watchDetailSelectedIds = new Set();
   const dateObj = parseRoundDateLocal(date);
   const dateLabel = dateObj ? `${dateObj.getMonth() + 1}/${dateObj.getDate()}(${WATCH_WEEKDAY_KO[dateObj.getDay()]})` : date;
   document.getElementById('watchDetailTitle').textContent = `${dateLabel} 워치 상세`;
@@ -3644,14 +3685,78 @@ function openWatchDetailDialog(date, mode) {
   document.getElementById('watchDetailDialog').showModal();
 }
 
+function currentWatchDetailGroup() {
+  return watchCache.filter((w) => w.date === watchDetailOpenDate && (w.mode || 'booking') === watchDetailOpenMode);
+}
+
 function renderWatchDetailList() {
-  const group = watchCache.filter((w) => w.date === watchDetailOpenDate && (w.mode || 'booking') === watchDetailOpenMode);
+  const group = currentWatchDetailGroup();
   const el = document.getElementById('watch-detail-list');
   if (!group.length) {
     el.innerHTML = '<div class="empty">이 날짜에 남은 워치가 없습니다.</div>';
-    return;
+  } else {
+    el.innerHTML = group.map(renderWatchItemDetail).join('');
   }
-  el.innerHTML = group.map(renderWatchItemDetail).join('');
+  updateWatchDetailSelectionUI();
+}
+
+function onWatchDetailCheckboxChange(checkbox) {
+  const id = checkbox.dataset.id;
+  if (checkbox.checked) watchDetailSelectedIds.add(id);
+  else watchDetailSelectedIds.delete(id);
+  updateWatchDetailSelectionUI();
+}
+
+function toggleWatchDetailSelectAll() {
+  const group = currentWatchDetailGroup();
+  const allSelected = group.length > 0 && group.every((w) => watchDetailSelectedIds.has(w.id));
+  if (allSelected) group.forEach((w) => watchDetailSelectedIds.delete(w.id));
+  else group.forEach((w) => watchDetailSelectedIds.add(w.id));
+  renderWatchDetailList();
+}
+
+function updateWatchDetailSelectionUI() {
+  const group = currentWatchDetailGroup();
+  const count = watchDetailSelectedIds.size;
+  const countEl = document.getElementById('watch-detail-selected-count');
+  const btnEl = document.getElementById('watch-detail-delete-selected-btn');
+  if (countEl) countEl.textContent = count;
+  if (btnEl) btnEl.style.display = count ? 'inline-block' : 'none';
+  const allSelected = group.length > 0 && group.every((w) => watchDetailSelectedIds.has(w.id));
+  const labelEl = document.getElementById('watch-detail-select-all-label');
+  if (labelEl) labelEl.textContent = allSelected ? '전체 해제' : '전체 선택';
+}
+
+async function deleteSelectedWatchDetailItems() {
+  const ids = [...watchDetailSelectedIds];
+  if (!ids.length) return;
+  if (!confirm(`선택한 워치 ${ids.length}개를 삭제할까요?`)) return;
+  try {
+    await api('/api/watches/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) });
+    showToast('선택한 워치를 삭제했습니다');
+    watchDetailSelectedIds.clear();
+    await loadWatches();
+    if (currentWatchDetailGroup().length) renderWatchDetailList();
+    else closeWatchDetailDialog();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
+
+/** 워치 카드 헤더의 "🗑️ 전체 삭제" - 해당 탭(부킹/조인)에 등록된 워치를 날짜 상관없이 전부 지운다. */
+async function deleteAllWatches(mode) {
+  const ids = watchCache.filter((w) => (w.mode || 'booking') === mode).map((w) => w.id);
+  if (!ids.length) { showToast('삭제할 워치가 없습니다'); return; }
+  const label = mode === 'join' ? '조인' : '부킹';
+  if (!confirm(`${label} 워치 ${ids.length}개를 모두 삭제할까요?`)) return;
+  try {
+    await api('/api/watches/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) });
+    showToast('전체 삭제했습니다');
+    await loadWatches();
+    if (watchDetailOpenDate && watchDetailOpenMode === mode) closeWatchDetailDialog();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
 }
 
 function closeWatchDetailDialog() {
@@ -3676,6 +3781,8 @@ async function deleteWatchItem(id) {
   try {
     await api(`/api/watches/${id}`, { method: 'DELETE' });
     showToast('삭제했습니다');
+    watchDetailSelectedIds.delete(id);
+    watchDetailExpandedIds.delete(id);
     await loadWatches();
     if (watchDetailOpenDate) {
       const stillHasAny = watchCache.some((w) => w.date === watchDetailOpenDate && (w.mode || 'booking') === watchDetailOpenMode);
