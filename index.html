@@ -283,10 +283,34 @@
   .drag-list-item .drag-handle.disabled { opacity: .25; cursor: default; touch-action: auto; }
   .list-item .name.name-left { text-align: left; }
   .list-item .sub.sub-left { text-align: left; }
-  /* 선택 체크박스는 오른쪽 열(🌤✏️) 바로 아래에 - onMygolfCheckboxChange 등에서 참조하는
-     클래스명은 그대로 두고 위치만 score-actions-stacked 안으로 옮김 */
+  /* 오른쪽 열: "⋮" 통합 메뉴(편집/삭제) + 선택 체크박스를 세로로 배치 */
   .score-actions.score-actions-stacked { flex-direction: column; align-items: center; gap: 8px; }
   .score-actions-stacked .mygolf-select-checkbox { width: 17px; height: 17px; }
+  .mygolf-card-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 15;
+    min-width: 96px;
+    overflow: hidden;
+  }
+  .mygolf-card-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 9px 12px;
+    border: none;
+    background: none;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .mygolf-card-menu button:active { background: #f0f4f0; }
+  .mygolf-card-menu button + button { border-top: 1px solid var(--border); }
 
   /* MY골프장 카드의 앞으로 7일 날씨 요약 줄 - 더 큼직하게(요청 반영) */
   .week-weather-strip { display: flex; gap: 8px; margin-top: 8px; }
@@ -1649,9 +1673,6 @@ let mygolfSelectedIds = new Set();
 
 function renderCourseList(courses) {
   const filtered = courses.filter(matchesMygolfRegionFilter);
-  // 드래그 재정렬은 "전체" 필터에서만 켠다 - 필터가 걸리면 화면엔 인접해 보여도 실제 저장
-  // 배열에서는 안 붙어있는 항목들일 수 있어서, 그 상태로 드래그하면 기대와 다르게 움직인다.
-  const dragEnabled = !mygolfRegionFilter;
   // 지난번에 캐시해둔 날씨/그린피가 있으면 API 응답을 기다리지 않고 바로 보여주기 위해 미리 읽어둠.
   const mygolfWeatherCache = loadMygolfCache(MYGOLF_WEATHER_CACHE_KEY);
   const mygolfGreenFeeCache = loadMygolfCache(MYGOLF_GREENFEE_CACHE_KEY);
@@ -1667,7 +1688,7 @@ function renderCourseList(courses) {
       const cachedFees = mygolfGreenFeeCache[c.id];
       return `
     <div class="drag-list-item" data-id="${c.id}">
-      <div class="drag-handle${dragEnabled ? '' : ' disabled'}" title="${dragEnabled ? '눌러서 위아래로 끌면 순서가 바뀝니다' : '"전체" 필터에서만 순서를 바꿀 수 있어요'}">≡</div>
+      <div class="drag-handle" title="눌러서 위아래로 끌면 순서가 바뀝니다">≡</div>
       <div class="list-item">
         <div>
           <div class="name name-left">${escapeHtml(c.name)}</div>
@@ -1675,9 +1696,13 @@ function renderCourseList(courses) {
           <div class="week-weather-strip" id="mygolf-weather-${c.id}">${cachedDays ? renderWeekWeatherHtml(cachedDays) : ''}</div>
           <div class="week-greenfee-strip" id="mygolf-greenfee-${c.id}">${cachedFees ? renderWeekGreenFeeHtml(cachedFees) : ''}</div>
         </div>
-        <div class="score-actions score-actions-stacked">
-          <button class="icon-btn" onclick="openCourseDialog('${c.id}')" title="수정">✏️</button>
+        <div class="score-actions score-actions-stacked" style="position:relative;">
+          <button class="icon-btn" onclick="toggleMygolfCardMenu(event, '${c.id}')" title="더보기">⋮</button>
           <input type="checkbox" class="mygolf-select-checkbox" data-id="${c.id}" ${mygolfSelectedIds.has(c.id) ? 'checked' : ''} onchange="onMygolfCheckboxChange(this)">
+          <div class="mygolf-card-menu" id="mygolf-menu-${c.id}" style="display:none;">
+            <button type="button" onclick="closeMygolfCardMenus(); openCourseDialog('${c.id}')">✏️ 편집</button>
+            <button type="button" onclick="deleteSingleCourse('${c.id}')">🗑️ 삭제</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1685,7 +1710,7 @@ function renderCourseList(courses) {
     }).join('');
   const el = document.getElementById('mygolf-course-list');
   if (el) el.innerHTML = html;
-  if (dragEnabled) initCourseDragReorder(el);
+  initCourseDragReorder(el);
   updateMygolfSelectionUI();
   loadMygolfWeekWeather(filtered);
   loadMygolfWeekGreenFees(filtered);
@@ -1696,6 +1721,36 @@ function onMygolfCheckboxChange(checkbox) {
   if (checkbox.checked) mygolfSelectedIds.add(id);
   else mygolfSelectedIds.delete(id);
   updateMygolfSelectionUI();
+}
+
+/** 카드별 ✏️ 아이콘을 없애고, "⋮" 하나로 편집/삭제를 모아둔 작은 메뉴로 통합했다.
+ * 한 번에 하나만 열리게 다른 메뉴는 먼저 닫는다. */
+function toggleMygolfCardMenu(e, id) {
+  e.stopPropagation();
+  const menu = document.getElementById(`mygolf-menu-${id}`);
+  const wasOpen = menu.style.display !== 'none';
+  closeMygolfCardMenus();
+  menu.style.display = wasOpen ? 'none' : 'block';
+}
+
+function closeMygolfCardMenus() {
+  document.querySelectorAll('.mygolf-card-menu').forEach((m) => { m.style.display = 'none'; });
+}
+
+document.addEventListener('click', closeMygolfCardMenus);
+
+async function deleteSingleCourse(id) {
+  closeMygolfCardMenus();
+  const course = courseCache.find((c) => c.id === id);
+  if (!confirm(`"${course?.name || ''}"을(를) 즐겨찾기에서 삭제할까요?`)) return;
+  try {
+    await api(`/api/courses/${id}`, { method: 'DELETE' });
+    showToast('삭제했습니다');
+    mygolfSelectedIds.delete(id);
+    await loadCourses();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
 }
 
 function updateMygolfSelectionUI() {
@@ -1815,7 +1870,7 @@ async function loadMygolfWeekGreenFees(courses) {
 let courseDragState = null;
 
 function initCourseDragReorder(container) {
-  container.querySelectorAll('.drag-handle:not(.disabled)').forEach((handle) => {
+  container.querySelectorAll('.drag-handle').forEach((handle) => {
     handle.addEventListener('pointerdown', onCourseDragStart);
   });
 }
@@ -1869,7 +1924,15 @@ async function onCourseDragEnd(e) {
   item.style.transform = '';
   courseDragState = null;
 
-  const orderedIds = [...container.querySelectorAll('.drag-list-item')].map((el) => el.dataset.id);
+  // 지역 필터가 걸려있으면 화면엔 그 지역 카드만 보이므로, 드래그로 나온 순서는 "필터된
+  // 부분집합" 안에서의 순서일 뿐이다. 이걸 그대로 저장하면 화면에 안 보이던 다른 지역
+  // 카드들이 통째로 사라지거나 뒤섞이므로, 전체 순서(courseCache) 안에서 "필터된 카드들이
+  // 있던 자리"에 새 순서대로 다시 끼워넣는 방식으로 합친다 - 안 보이던 카드들의 상대 순서는
+  // 그대로 유지됨.
+  const filteredOrderIds = [...container.querySelectorAll('.drag-list-item')].map((el) => el.dataset.id);
+  const filteredSet = new Set(filteredOrderIds);
+  let filteredIdx = 0;
+  const orderedIds = courseCache.map((c) => (filteredSet.has(c.id) ? filteredOrderIds[filteredIdx++] : c.id));
   try {
     const { courses } = await api('/api/courses/reorder', { method: 'POST', body: JSON.stringify({ orderedIds }) });
     courseCache = courses;
