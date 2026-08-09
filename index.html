@@ -746,6 +746,42 @@
       </div>
     </dialog>
 
+    <!-- 티타임 워치(핵심 MVP) - 특정 골프장·날짜·시간대를 지정해두면 Cloudflare Cron이 30분마다
+         백그라운드에서 재검색해서 KV에 저장해둔다. 알림은 아직 없고(사용자가 "앱 내에서만 확인"
+         방식을 명시적으로 선택), 이 탭을 열 때마다 최신 결과를 바로 볼 수 있는 것까지가 1차 범위. -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <h2 style="margin:0;">⏰ 티타임 워치</h2>
+        <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="openWatchDialog()">＋ 워치 추가</button>
+      </div>
+      <div class="muted" style="margin-top:4px; font-size:12px;">지정한 골프장·날짜·시간대를 30분마다 백그라운드에서 자동으로 재검색해둡니다.</div>
+      <div id="watch-list" class="empty" style="margin-top:10px;">등록된 워치가 없습니다.</div>
+    </div>
+
+    <dialog id="watchDialog">
+      <div class="dialog-inner">
+        <h3 style="margin:0 0 10px;">티타임 워치 추가</h3>
+        <label>골프장명 *</label>
+        <div style="position:relative;">
+          <input type="text" id="watch-course-input" placeholder="예: 세현CC" autocomplete="off"
+            oninput="onWatchCourseInput()" onfocus="onWatchCourseInput()">
+          <div id="watch-course-suggestions" class="course-suggestion-list" style="display:none;"></div>
+        </div>
+        <label style="margin-top:10px;">감시할 날짜 *</label>
+        <input type="date" id="watch-date">
+        <label style="margin-top:10px;">시간대 <span class="muted" style="font-size:11px;">(선택 안 하면 전체 시간대)</span></label>
+        <div class="chip-group" id="watch-timeofday-chips">
+          <span class="chip" onclick="toggleWatchTimeOfDay('am',this)">오전</span>
+          <span class="chip" onclick="toggleWatchTimeOfDay('pm',this)">오후</span>
+          <span class="chip" onclick="toggleWatchTimeOfDay('nt',this)">야간</span>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn secondary block" onclick="document.getElementById('watchDialog').close()">취소</button>
+          <button type="button" class="btn block" onclick="submitWatch()">추가</button>
+        </div>
+      </div>
+    </dialog>
+
     <div class="card">
       <h2>🆚 동반예약(백업) 비교</h2>
       <div id="comparison-group-list" class="empty">아직 비교 그룹이 없습니다. 위 조건검색 결과에서 후보를 선택해 만들어보세요.</div>
@@ -2835,6 +2871,172 @@ function filterRoundsByCourseName(rounds) {
   });
 }
 
+// ===== 티타임 워치(핵심 MVP) - 특정 골프장·날짜·시간대를 지정해두면 Cloudflare Cron이 30분마다
+// 백그라운드에서 재검색해서 결과를 저장해둔다(백엔드 watches.js/scheduled 핸들러). 여기서는
+// 워치 등록 다이얼로그(골프장명 자동완성 - 위 booking-course-filter와 같은 패턴)와 목록 렌더링만
+// 담당한다. =====
+let watchDialogCourse = null; // 자동완성으로 선택된 { name, region } - null이면 입력창 텍스트를 그대로 씀
+let watchDialogTimeOfDay = new Set();
+let watchCourseDebounceTimer = null;
+let watchCache = [];
+
+function onWatchCourseInput() {
+  watchDialogCourse = null;
+  const box = document.getElementById('watch-course-suggestions');
+  const q = document.getElementById('watch-course-input').value.trim();
+  if (watchCourseDebounceTimer) clearTimeout(watchCourseDebounceTimer);
+  if (q.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  watchCourseDebounceTimer = setTimeout(async () => {
+    try {
+      const { courses } = await api(`/api/golf-db/search?query=${encodeURIComponent(q)}`);
+      if (!courses.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+      box.dataset.courses = JSON.stringify(courses.slice(0, 8));
+      box.innerHTML = courses.slice(0, 8).map((c, idx) =>
+        `<div class="course-suggestion-item" onclick="selectWatchCourse(${idx})">${escapeHtml(c.name)} <span class="muted" style="font-size:11px;">${escapeHtml(c.region || '')}</span></div>`
+      ).join('');
+      box.style.display = 'block';
+    } catch {
+      box.style.display = 'none';
+    }
+  }, 300);
+}
+
+function selectWatchCourse(idx) {
+  const box = document.getElementById('watch-course-suggestions');
+  const courses = JSON.parse(box.dataset.courses || '[]');
+  const course = courses[idx];
+  if (!course) return;
+  watchDialogCourse = course;
+  document.getElementById('watch-course-input').value = course.name;
+  box.style.display = 'none';
+}
+
+function toggleWatchTimeOfDay(value, el) {
+  if (watchDialogTimeOfDay.has(value)) { watchDialogTimeOfDay.delete(value); el.classList.remove('selected'); }
+  else { watchDialogTimeOfDay.add(value); el.classList.add('selected'); }
+}
+
+function openWatchDialog() {
+  document.getElementById('watch-course-input').value = '';
+  document.getElementById('watch-course-suggestions').style.display = 'none';
+  document.getElementById('watch-date').value = '';
+  watchDialogCourse = null;
+  watchDialogTimeOfDay = new Set();
+  document.querySelectorAll('#watch-timeofday-chips .chip').forEach((c) => c.classList.remove('selected'));
+  document.getElementById('watchDialog').showModal();
+}
+
+async function submitWatch() {
+  const courseName = watchDialogCourse?.name || document.getElementById('watch-course-input').value.trim();
+  const date = document.getElementById('watch-date').value;
+  if (!courseName) { showToast('골프장명을 입력해주세요'); return; }
+  if (!date) { showToast('감시할 날짜를 선택해주세요'); return; }
+  try {
+    await api('/api/watches', {
+      method: 'POST',
+      body: JSON.stringify({
+        courseName,
+        region: watchDialogCourse?.region || '',
+        date,
+        timeOfDay: [...watchDialogTimeOfDay],
+      }),
+    });
+    showToast('워치를 추가했습니다 - 30분마다 자동으로 재검색됩니다');
+    document.getElementById('watchDialog').close();
+    await loadWatches();
+  } catch (e) {
+    showToast('워치 추가 실패: ' + e.message);
+  }
+}
+
+/** "3분 전"/"2시간 전"처럼 상대 시간으로 표시(마지막 확인 시각용) */
+function formatRelativeTime(isoString) {
+  if (!isoString) return '아직 확인 안 함';
+  const diffMs = Date.now() - new Date(isoString).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return '방금 확인';
+  if (mins < 60) return `${mins}분 전 확인`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}시간 전 확인`;
+  return `${Math.floor(hours / 24)}일 전 확인`;
+}
+
+async function loadWatches() {
+  try {
+    const { watches } = await api('/api/watches');
+    watchCache = watches;
+    renderWatchList(watches);
+  } catch (e) {
+    showToast('워치 목록 조회 실패: ' + e.message);
+  }
+}
+
+const WATCH_TIME_LABELS = { am: '오전', pm: '오후', nt: '야간' };
+
+function renderWatchList(watches) {
+  const el = document.getElementById('watch-list');
+  if (!watches.length) {
+    el.innerHTML = '<div class="empty">등록된 워치가 없습니다.</div>';
+    return;
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const sorted = [...watches].sort((a, b) => (a.date < b.date ? -1 : 1));
+  el.innerHTML = sorted.map((w) => {
+    const expired = w.date < today;
+    const timeLabel = w.timeOfDay?.length ? w.timeOfDay.map((t) => WATCH_TIME_LABELS[t]).join('/') : '전체 시간대';
+    const results = w.lastResults || [];
+    const newCount = results.filter((r) => r.isNew).length;
+    let resultHtml;
+    if (w.lastError) {
+      resultHtml = `<div class="sub" style="color:var(--danger);">조회 실패: ${escapeHtml(w.lastError)}</div>`;
+    } else if (!results.length) {
+      resultHtml = `<div class="sub">${w.lastCheckedAt ? '현재 빈자리 없음' : '아직 검색 전입니다 - 새로고침을 눌러보세요'}</div>`;
+    } else {
+      const items = results.slice(0, 6).map((r) =>
+        `<span class="tag"${r.isNew ? ' style="background:#fff4e5;color:#8a5a00;"' : ''}>${r.isNew ? '🆕 ' : ''}${escapeHtml(r.time)}${r.courseSubName ? ' ' + escapeHtml(r.courseSubName) : ''} · ${r.greenFee != null ? r.greenFee.toLocaleString('ko-KR') + '원' : '-'}</span>`
+      ).join('');
+      resultHtml = `<div class="tags" style="margin-top:6px;">${items}</div>${results.length > 6 ? `<div class="sub" style="margin-top:4px;">외 ${results.length - 6}건 더</div>` : ''}`;
+      if (newCount) resultHtml = `<div class="sub" style="color:var(--accent); font-weight:700;">🆕 새로 발견된 자리 ${newCount}건</div>` + resultHtml;
+    }
+    return `
+      <div class="list-item">
+        <div>
+          <div class="name">${escapeHtml(w.courseName)}${expired ? ' <span class="muted" style="font-size:11px;">(지난 날짜)</span>' : ''}</div>
+          <div class="sub">${escapeHtml(w.date)} · ${escapeHtml(timeLabel)}</div>
+          <div class="sub">${escapeHtml(formatRelativeTime(w.lastCheckedAt))}</div>
+          ${resultHtml}
+        </div>
+        <div class="score-actions">
+          <button class="icon-btn" onclick="refreshWatchNow('${w.id}')" title="지금 새로고침">🔄</button>
+          <button class="icon-btn" onclick="deleteWatchItem('${w.id}')" title="삭제">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function refreshWatchNow(id) {
+  showToast('재검색 중...');
+  try {
+    await api(`/api/watches/${id}/refresh`, { method: 'POST' });
+    await loadWatches();
+    showToast('최신 결과로 갱신했습니다');
+  } catch (e) {
+    showToast('재검색 실패: ' + e.message);
+  }
+}
+
+async function deleteWatchItem(id) {
+  if (!confirm('이 워치를 삭제할까요?')) return;
+  try {
+    await api(`/api/watches/${id}`, { method: 'DELETE' });
+    showToast('삭제했습니다');
+    await loadWatches();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
+
 async function searchRounds() {
   const date = document.getElementById('round-search-date').value;
   if (!date) { showToast('날짜를 선택해주세요'); return; }
@@ -3891,6 +4093,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadStats(true);
   loadSettings();
   loadBookings();
+  loadWatches();
   onRoundSearchPlatformChange();
   const lat = localStorage.getItem('jdgh_lat');
   const lon = localStorage.getItem('jdgh_lon');
