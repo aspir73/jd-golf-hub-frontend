@@ -378,6 +378,30 @@
   .home-booking-main { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; }
   .home-booking-main .name { font-size: 15px; font-weight: 800; }
 
+  /* 홈 탭 티타임 워치 카드에서 골프장 하나하나를 풀네임 대신 두음자 원형 배지로 압축해서
+     보여준다("태광컨트리클럽(회원제)" -> "(태)5") - renderHomeWatchGroups 참고. */
+  .watch-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-right: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .watch-badge-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--green-dark);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .watch-badge.is-new .watch-badge-circle { background: var(--accent); }
+
   /* 검색 결과 리스트(카카오 장소 검색) */
   .search-result {
     padding: 8px 10px;
@@ -3613,8 +3637,15 @@ function renderHomeWatchGroups() {
     const ddayText = days == null ? '-' : days === 0 ? 'D-DAY' : days > 0 ? `D-${days}` : `D+${Math.abs(days)}`;
     const dateLabel = dateObj ? `${dateObj.getMonth() + 1}/${dateObj.getDate()}(${WATCH_WEEKDAY_KO[dateObj.getDay()]})` : g.date;
 
-    const courseSummary = group.map((w) => `${w.courseName}(${(w.lastResults || []).length})`).join(', ');
-    const newFoundCourses = [...new Set(group.filter((w) => (w.lastResults || []).some((r) => r.isNew)).map((w) => w.courseName))];
+    // 골프장 풀네임 대신 두음자(첫 글자) 원형 배지 + 확인건수로 압축해서 보여준다
+    // ("태광컨트리클럽(회원제)5건" -> ⓣ(5)) - 풀네임은 title 툴팁으로만 남긴다.
+    const courseBadges = group.map((w) => {
+      const initial = (w.courseName || '').trim().charAt(0) || '?';
+      const count = (w.lastResults || []).length;
+      const hasNew = (w.lastResults || []).some((r) => r.isNew);
+      return `<span class="watch-badge${hasNew ? ' is-new' : ''}" title="${escapeHtml(w.courseName)}"><span class="watch-badge-circle">${escapeHtml(initial)}</span>(${count})</span>`;
+    }).join('');
+    const newFoundCourses = [...new Set(group.filter((w) => (w.lastResults || []).some((r) => r.isNew)).map((w) => (w.courseName || '').trim().charAt(0) || '?'))];
     const newFoundCount = group.reduce((sum, w) => sum + (w.lastResults || []).filter((r) => r.isNew).length, 0);
     const tileId = `home-watch-weather-tile-${g.mode}-${g.date}`;
 
@@ -3625,10 +3656,10 @@ function renderHomeWatchGroups() {
           <div class="hb-dday">${escapeHtml(ddayText)}</div>
         </div>
         <div class="home-booking-main">
-          <div class="name"><span class="tag" style="margin-right:4px; vertical-align:middle;">${escapeHtml(WATCH_MODE_LABELS[g.mode])}</span>${escapeHtml(describeWatchGroupTimeOfDay(group))}${group.length}개 골프장 모니터링 중</div>
+          <div class="name"><span class="tag" style="margin-right:4px; vertical-align:middle;">${escapeHtml(WATCH_MODE_LABELS[g.mode])}</span>${escapeHtml(describeWatchGroupTimeOfDay(group))}${group.length}개 모니터링</div>
           <div class="sub">${escapeHtml(latestWatchCheckedLabel(group))}</div>
-          <div class="sub" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(courseSummary)}">${escapeHtml(courseSummary)}</div>
-          ${newFoundCount ? `<div class="sub" style="color:var(--accent); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(newFoundCourses.join(', '))}">🆕 새로 발견 ${newFoundCount}건 (${escapeHtml(newFoundCourses.join(', '))})</div>` : ''}
+          <div class="sub" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${courseBadges}</div>
+          ${newFoundCount ? `<div class="sub" style="color:var(--accent); font-weight:700;">🆕 새로 발견 ${newFoundCount}건 (${escapeHtml(newFoundCourses.join(', '))})</div>` : ''}
         </div>
         <div class="hb-tile hb-weather-tile" id="${tileId}" style="display:none;">
           <div class="hb-wt-icon">🌡️</div>
