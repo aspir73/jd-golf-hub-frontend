@@ -262,6 +262,25 @@
   .list-item .field-grid .f { font-size: 12px; }
   .list-item .field-grid .f .k { color: var(--muted); margin-right: 4px; }
   .list-item .field-grid .f.accent { color: var(--accent); font-weight: 600; }
+
+  /* MY골프장 드래그 재정렬 - 카드 왼쪽의 손잡이(바)를 누른 채 위아래로 끌면 순서가 바뀐다 */
+  .drag-list-item { display: flex; align-items: stretch; gap: 8px; border-bottom: 1px solid var(--border); }
+  .drag-list-item:last-child { border-bottom: none; }
+  .drag-list-item.dragging { position: relative; z-index: 5; background: #f7faf7; box-shadow: 0 6px 16px rgba(0,0,0,0.12); border-radius: 8px; }
+  .drag-list-item .drag-handle {
+    flex: 0 0 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 18px;
+    cursor: grab;
+    touch-action: none; /* 손잡이를 끄는 동안 브라우저 기본 스크롤과 충돌하지 않게 */
+    user-select: none;
+  }
+  .drag-list-item.dragging .drag-handle { cursor: grabbing; }
+  .drag-list-item .list-item { flex: 1; min-width: 0; padding: 12px 0; border-bottom: none; }
+  .drag-list-item .drag-handle.disabled { opacity: .25; cursor: default; touch-action: auto; }
   .tee-times .tt-row { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 0; border-top: 1px solid var(--border); }
   .tee-times .tt-row:first-child { border-top: none; margin-top: 6px; }
   .tee-times .tt-row.min-fee { color: var(--accent); font-weight: 700; }
@@ -1602,42 +1621,102 @@ function matchesMygolfRegionFilter(c) {
 
 function renderCourseList(courses) {
   const filtered = courses.filter(matchesMygolfRegionFilter);
+  // 드래그 재정렬은 "전체" 필터에서만 켠다 - 필터가 걸리면 화면엔 인접해 보여도 실제 저장
+  // 배열에서는 안 붙어있는 항목들일 수 있어서, 그 상태로 드래그하면 기대와 다르게 움직인다.
+  const dragEnabled = !mygolfRegionFilter;
   const html = !filtered.length
     ? `<div class="empty">${courses.length ? '이 지역에 등록된 골프장이 없습니다.' : '등록된 골프장이 없습니다.'}</div>`
-    : filtered.map((c, i) => `
-    <div class="list-item">
-      <div>
-        <div class="name">${escapeHtml(c.name)}</div>
-        <div class="sub">${escapeHtml(c.address || '')}${c.homeDistanceKm != null ? ' · ' + c.homeDistanceKm + 'km' : ''}</div>
-        <div class="tags">
-          ${(c.courseList || []).map((cn) => `<span class="tag">${escapeHtml(cn)}</span>`).join('')}
-          ${c.cartFee != null ? `<span class="tag">카트비 ${Number(c.cartFee).toLocaleString('ko-KR')}원</span>` : ''}
-          ${c.caddyFee != null ? `<span class="tag">캐디피 ${Number(c.caddyFee).toLocaleString('ko-KR')}원</span>` : ''}
+    : filtered.map((c) => `
+    <div class="drag-list-item" data-id="${c.id}">
+      <div class="drag-handle${dragEnabled ? '' : ' disabled'}" title="${dragEnabled ? '눌러서 위아래로 끌면 순서가 바뀝니다' : '"전체" 필터에서만 순서를 바꿀 수 있어요'}">≡</div>
+      <div class="list-item">
+        <div>
+          <div class="name">${escapeHtml(c.name)}</div>
+          <div class="sub">${escapeHtml(c.address || '')}${c.homeDistanceKm != null ? ' · ' + c.homeDistanceKm + 'km' : ''}</div>
+          <div class="tags">
+            ${(c.courseList || []).map((cn) => `<span class="tag">${escapeHtml(cn)}</span>`).join('')}
+            ${c.cartFee != null ? `<span class="tag">카트비 ${Number(c.cartFee).toLocaleString('ko-KR')}원</span>` : ''}
+            ${c.caddyFee != null ? `<span class="tag">캐디피 ${Number(c.caddyFee).toLocaleString('ko-KR')}원</span>` : ''}
+          </div>
         </div>
-      </div>
-      <div class="score-actions">
-        <button class="icon-btn" onclick="moveCourseItem('${c.id}','up')" title="위로" ${i === 0 ? 'disabled style="opacity:.3;"' : ''}>▲</button>
-        <button class="icon-btn" onclick="moveCourseItem('${c.id}','down')" title="아래로" ${i === filtered.length - 1 ? 'disabled style="opacity:.3;"' : ''}>▼</button>
-        <button class="icon-btn" onclick="openCourseWeather('${c.id}')" title="날씨">🌤</button>
-        <button class="icon-btn" onclick="openCourseDialog('${c.id}')" title="수정">✏️</button>
-        <button class="icon-btn" onclick="removeCourse('${c.id}')" title="삭제">🗑️</button>
+        <div class="score-actions">
+          <button class="icon-btn" onclick="openCourseWeather('${c.id}')" title="날씨">🌤</button>
+          <button class="icon-btn" onclick="openCourseDialog('${c.id}')" title="수정">✏️</button>
+          <button class="icon-btn" onclick="removeCourse('${c.id}')" title="삭제">🗑️</button>
+        </div>
       </div>
     </div>
   `).join('');
   const el = document.getElementById('mygolf-course-list');
   if (el) el.innerHTML = html;
+  if (dragEnabled) initCourseDragReorder(el);
 }
 
-/** 카드의 ▲▼로 저장 순서(=표시 순서) 자체를 한 칸씩 바꾼다. 지역 필터가 걸려있으면 화면에는
- * 인접해 보여도 전체 목록 기준으로는 안 붙어있을 수 있어 기대와 다르게 움직일 수 있음 - 순서
- * 조정은 "전체" 필터에서 하는 걸 권장(필터별로 별도 순서를 두는 건 과한 기능이라 생략). */
-async function moveCourseItem(id, direction) {
+// ===== MY골프장 드래그 재정렬(Pointer Events - 마우스/터치 공용) =====
+let courseDragState = null;
+
+function initCourseDragReorder(container) {
+  container.querySelectorAll('.drag-handle:not(.disabled)').forEach((handle) => {
+    handle.addEventListener('pointerdown', onCourseDragStart);
+  });
+}
+
+function onCourseDragStart(e) {
+  const handle = e.currentTarget;
+  const item = handle.closest('.drag-list-item');
+  const container = item.parentElement;
+  courseDragState = { item, container, startY: e.clientY };
+  item.classList.add('dragging');
+  // handle 자체에 setPointerCapture로 묶는 대신 document에 리스너를 건다 - 드래그 중엔 커서가
+  // 손잡이 바깥(다른 카드들 위)으로 계속 움직이는 게 당연한데, 캡처 방식은 환경에 따라 그 이후
+  // move/up 이벤트가 안정적으로 안 잡히는 경우가 있어서(실제로 겪음) 더 확실한 document 위임
+  // 방식으로 바꿨다.
+  document.addEventListener('pointermove', onCourseDragMove);
+  document.addEventListener('pointerup', onCourseDragEnd);
+  document.addEventListener('pointercancel', onCourseDragEnd);
+  e.preventDefault();
+}
+
+/** 커서가 어느 카드의 중간선을 지났는지로 "이 카드 앞에 끼워넣기" 대상을 찾는다(표준 드래그
+ * 정렬 패턴) - 드래그 중인 카드 자신은 제외. */
+function getDragAfterElement(container, y) {
+  const siblings = [...container.querySelectorAll('.drag-list-item:not(.dragging)')];
+  return siblings.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) return { offset, element: child };
+    return closest;
+  }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+}
+
+function onCourseDragMove(e) {
+  if (!courseDragState) return;
+  const { item, container, startY } = courseDragState;
+  // transform은 매번 "드래그 시작점 대비 커서 총 이동거리"로 다시 계산하므로, 아래서 DOM 순서를
+  // 바꿔도(레이아웃이 그 자리에서 다시 잡히므로) 카드가 튀지 않고 계속 커서를 따라간다.
+  item.style.transform = `translateY(${e.clientY - startY}px)`;
+  const afterElement = getDragAfterElement(container, e.clientY);
+  if (afterElement == null) container.appendChild(item);
+  else if (afterElement !== item.nextElementSibling) container.insertBefore(item, afterElement);
+}
+
+async function onCourseDragEnd(e) {
+  if (!courseDragState) return;
+  const { item, container } = courseDragState;
+  document.removeEventListener('pointermove', onCourseDragMove);
+  document.removeEventListener('pointerup', onCourseDragEnd);
+  document.removeEventListener('pointercancel', onCourseDragEnd);
+  item.classList.remove('dragging');
+  item.style.transform = '';
+  courseDragState = null;
+
+  const orderedIds = [...container.querySelectorAll('.drag-list-item')].map((el) => el.dataset.id);
   try {
-    const { courses } = await api(`/api/courses/${id}/move`, { method: 'POST', body: JSON.stringify({ direction }) });
+    const { courses } = await api('/api/courses/reorder', { method: 'POST', body: JSON.stringify({ orderedIds }) });
     courseCache = courses;
-    renderCourseList(courseCache);
-  } catch (e) {
-    showToast('순서 변경 실패: ' + e.message);
+  } catch (err) {
+    showToast('순서 변경 실패: ' + err.message);
+    renderCourseList(courseCache); // 실패했으면 서버 기준으로 다시 그려서 화면을 원상복구
   }
 }
 
