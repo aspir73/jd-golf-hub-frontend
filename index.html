@@ -3192,6 +3192,13 @@ async function loadBookings() {
   }
 }
 
+// 골팡 검색 결과의 "구분" 값이 실제 코스명이 아니라 그냥 "예약코스"라는 일반 문구로 오는
+// 경우가 있다(특정 코스명이 아니라 "예약 가능한 코스"라는 뜻의 플레이스홀더) - 이런 경우엔
+// 정보가 아니라 노이즈라 카드/복사 텍스트 어디서도 보여주지 않는다.
+function displayableSubCourse(name) {
+  return name && name !== '예약코스' ? name : '';
+}
+
 function renderBookingList(bookings, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
@@ -3218,7 +3225,7 @@ function renderBookingList(bookings, containerId) {
     return `
       <div class="list-item">
         <div>
-          <div class="name">${escapeHtml(b.courseName)}${b.courseSubName ? ' · ' + escapeHtml(b.courseSubName) : ''}</div>
+          <div class="name">${escapeHtml(b.courseName)}${displayableSubCourse(b.courseSubName) ? ' · ' + escapeHtml(displayableSubCourse(b.courseSubName)) : ''}</div>
           <div class="sub">${escapeHtml(b.roundDate || '-')} ${escapeHtml(b.roundTime || '')} · ${escapeHtml(b.source)}</div>
           <div class="sub" id="booking-weather-${b.id}"></div>
           ${travelText || costText ? `<div class="sub">${[travelText, costText].filter(Boolean).join(' · ')}</div>` : ''}
@@ -3520,7 +3527,7 @@ function copyBookingReport() {
   if (!active.length) { showToast('공유할 예약 기록이 없습니다'); return; }
   const lines = ['⛳ 예약 현황', '─────────────'];
   active.forEach((b) => {
-    let line = `- ${b.courseName}${b.courseSubName ? '(' + b.courseSubName + ')' : ''} ${b.roundDate || ''} ${b.roundTime || ''} [${b.status}]`;
+    let line = `- ${b.courseName}${displayableSubCourse(b.courseSubName) ? '(' + displayableSubCourse(b.courseSubName) + ')' : ''} ${b.roundDate || ''} ${b.roundTime || ''} [${b.status}]`;
     if (b.reviewCancel) line += ' ⚠취소검토';
     if (b.type === '조인' && b.cancelable?.possible === false) line += ' ⚠취소불가·예약금';
     else if (b.cancelable?.possible === true && b.cancelable.deadline) line += ` (취소마감 ${b.cancelable.deadline})`;
@@ -3537,7 +3544,7 @@ function copyBookingReport() {
 function copyBookingItem(id) {
   const b = bookingCache.find((x) => x.id === id);
   if (!b) return;
-  const lines = [`⛳ ${b.courseName}${b.courseSubName ? ' (' + b.courseSubName + ')' : ''}`];
+  const lines = [`⛳ ${b.courseName}${displayableSubCourse(b.courseSubName) ? ' (' + displayableSubCourse(b.courseSubName) + ')' : ''}`];
   const when = `${b.roundDate || ''} ${b.roundTime || ''}`.trim();
   if (when) lines.push(when);
   lines.push(`상태: ${b.status}`);
