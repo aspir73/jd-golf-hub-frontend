@@ -3196,6 +3196,24 @@ let bookingSearchGroups = [];
 // 조인 탭에서 비교 그룹에 담기로 고른 개별 티타임 키("groupIdx:postingIdx") 집합.
 let bookingSelectedTeeTimes = new Set();
 
+/** MY골프장(즐겨찾기)에 등록된 골프장인지 이름으로 판별한다 - 검색 결과 정렬(즐겨찾기 우선
+ * 표시)에 쓴다. 표기가 달라도 매칭되도록 normalizeCourseName으로 비교(다른 검색 매칭들과 동일). */
+function isMyGolfCourseName(name) {
+  if (!name || !courseCache.length) return false;
+  const norm = normalizeCourseName(name);
+  return Boolean(norm && courseCache.some((c) => normalizeCourseName(c.name) === norm));
+}
+
+/** 검색 결과 배열에서 MY골프장에 등록된 골프장을 맨 앞으로 안정 정렬한다(그 안에서의 원래
+ * 순서·정렬기준은 그대로 유지) - nameFn으로 각 항목에서 골프장명을 뽑아온다. */
+function prioritizeMyGolfResults(items, nameFn) {
+  if (!courseCache.length) return items;
+  const mine = [];
+  const rest = [];
+  items.forEach((item) => (isMyGolfCourseName(nameFn(item)) ? mine : rest).push(item));
+  return [...mine, ...rest];
+}
+
 function groupBookingRounds(rounds) {
   const map = new Map();
   rounds.forEach((r) => {
@@ -3219,7 +3237,7 @@ function groupBookingRounds(rounds) {
 function renderBookingSearchResults(rounds) {
   const el = document.getElementById('booking-result-list');
   const groupBtn = document.getElementById('booking-group-btn');
-  bookingSearchGroups = groupBookingRounds(rounds);
+  bookingSearchGroups = prioritizeMyGolfResults(groupBookingRounds(rounds), (g) => g.courseName);
   if (!bookingSearchGroups.length) {
     el.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>';
     groupBtn.style.display = 'none';
@@ -3617,7 +3635,7 @@ function latestWatchCheckedLabel(group) {
  * 5건 -> 원 안에 "태" + "(5)", 풀네임은 title 툴팁으로만 남김), 티타임이 많이 잡힌 골프장이
  * 먼저 보이도록 확인건수 내림차순으로 정렬한다. "마지막 업데이트 시각"은 별도 줄 대신 새로
  * 발견된 자리 줄(또는 새로 발견된 게 없으면 그 자리)의 오른쪽 끝에 맞춰서 함께 보여준다. */
-function renderWatchGroupCard(g, { showWeatherTile = false } = {}) {
+function renderWatchGroupCard(g, { showWeatherTile = false, scopeKey = 'home' } = {}) {
   const group = g.watches;
   const dateObj = parseRoundDateLocal(g.date);
   const days = dateObj ? daysUntil(dateObj) : null;
@@ -3648,7 +3666,7 @@ function renderWatchGroupCard(g, { showWeatherTile = false } = {}) {
       <span style="font-size:11px; color:var(--muted); white-space:nowrap;">${escapeHtml(updateLabel)}</span>
     </div>`;
 
-  const tileId = `home-watch-weather-tile-${g.mode}-${g.date}`;
+  const tileId = `${scopeKey}-watch-weather-tile-${g.mode}-${g.date}`;
   // 예보 범위 밖(10일 초과)이거나 아직 못 불러왔어도 카드 레이아웃이 흔들리지 않도록 자리를
   // 계속 차지해둔다(display:none로 숨기지 않음 - loadWeatherTilesGeneric이 값을 얻으면 텍스트만
   // 갈아끼우고, 못 얻으면 기본 placeholder "🌡️ -"가 그대로 보임).
@@ -3692,15 +3710,17 @@ function renderHomeWatchGroups() {
   card.style.display = groups.length ? 'block' : 'none';
   if (!groups.length) return;
 
-  el.innerHTML = groups.map((g) => renderWatchGroupCard(g, { showWeatherTile: true })).join('');
-  loadHomeWatchWeatherTiles(groups);
+  el.innerHTML = groups.map((g) => renderWatchGroupCard(g, { showWeatherTile: true, scopeKey: 'home' })).join('');
+  loadWatchGroupWeatherTiles(groups, 'home');
 }
 
 /** 각 워치 그룹의 대표 골프장(첫 번째) 좌표로 그 라운딩 날짜의 날씨를 채운다 - "예약 일정" 카드의
- * loadHomeWeatherTiles와 같은 로직(loadWeatherTilesGeneric)을 그대로 재사용. */
-async function loadHomeWatchWeatherTiles(groups) {
+ * loadHomeWeatherTiles와 같은 로직(loadWeatherTilesGeneric)을 그대로 재사용. scopeKey는
+ * renderWatchGroupCard가 만든 tileId와 짝이 맞아야 한다(홈 탭과 부킹/조인 탭이 같은
+ * (모드+날짜) 조합을 동시에 보여줄 수도 있어서, id 충돌을 막으려고 스코프별로 접두어를 다르게 씀). */
+async function loadWatchGroupWeatherTiles(groups, scopeKey) {
   await loadWeatherTilesGeneric(groups.map((g) => ({
-    tileId: `home-watch-weather-tile-${g.mode}-${g.date}`,
+    tileId: `${scopeKey}-watch-weather-tile-${g.mode}-${g.date}`,
     courseName: g.watches[0]?.courseName,
     date: g.date,
   })));
@@ -3727,8 +3747,12 @@ function renderWatchList(watches, elId, mode) {
     groups.get(w.date).push(w);
   });
   const sortedDates = [...groups.keys()].sort();
-  // 홈 탭 "티타임 모니터링" 카드와 완전히 같은 압축 카드 UI(renderWatchGroupCard)를 재사용한다.
-  el.innerHTML = sortedDates.map((date) => renderWatchGroupCard({ mode, date, watches: groups.get(date) })).join('');
+  // 홈 탭 "티타임 모니터링" 카드와 완전히 같은 압축 카드 UI(renderWatchGroupCard, 날씨 타일
+  // 포함)를 재사용한다. scopeKey로 elId를 그대로 써서 홈 탭의 같은 (모드+날짜) 카드와 타일
+  // id가 겹치지 않게 한다.
+  const groupList = sortedDates.map((date) => ({ mode, date, watches: groups.get(date) }));
+  el.innerHTML = groupList.map((g) => renderWatchGroupCard(g, { showWeatherTile: true, scopeKey: elId })).join('');
+  loadWatchGroupWeatherTiles(groupList, elId);
 }
 
 /** 워치 카드(≒ 골프장 하나) 상세 항목 - 상세 다이얼로그 안에서 재사용. */
@@ -3956,7 +3980,7 @@ async function searchRounds() {
       sourceLabel = '카카오골프예약, 골프장 단위 요약';
     }
 
-    const filteredRounds = filterRoundsByCourseName(result.rounds);
+    const filteredRounds = prioritizeMyGolfResults(filterRoundsByCourseName(result.rounds), (r) => r.officialName || r.courseName);
     roundSearchResultCache = filteredRounds;
     kakaoGolfTeeTimesCache = {};
     kakaoGolfSelectedTeeTimes.clear();
