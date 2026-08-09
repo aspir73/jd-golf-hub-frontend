@@ -281,6 +281,17 @@
   .drag-list-item.dragging .drag-handle { cursor: grabbing; }
   .drag-list-item .list-item { flex: 1; min-width: 0; padding: 12px 0; border-bottom: none; }
   .drag-list-item .drag-handle.disabled { opacity: .25; cursor: default; touch-action: auto; }
+  .drag-list-item .mygolf-select-checkbox { flex: 0 0 18px; align-self: center; width: 16px; height: 16px; }
+  .list-item .name.name-left { text-align: left; }
+
+  /* MY골프장 카드의 앞으로 7일 날씨 요약 줄 */
+  .week-weather-strip { display: flex; gap: 2px; margin-top: 6px; }
+  .week-weather-strip .ww-day { flex: 1; min-width: 0; text-align: center; }
+  .week-weather-strip .ww-dow { font-size: 10px; color: var(--muted); }
+  .week-weather-strip .ww-icon { font-size: 14px; line-height: 1.4; }
+  .week-weather-strip .ww-temp { font-size: 9px; color: var(--muted); white-space: nowrap; }
+  .week-weather-strip .ww-temp .max { color: var(--danger); }
+  .week-weather-strip .ww-temp .min { color: #2b5db5; }
   .tee-times .tt-row { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 0; border-top: 1px solid var(--border); }
   .tee-times .tt-row:first-child { border-top: none; margin-top: 6px; }
   .tee-times .tt-row.min-fee { color: var(--accent); font-weight: 700; }
@@ -837,6 +848,12 @@
         <span class="chip" onclick="setMygolfRegionFilter('gangbuk',this)">강북/경춘</span>
         <span class="chip" onclick="setMygolfRegionFilter('gangwon',this)">강원</span>
         <span class="chip" onclick="setMygolfRegionFilter('chungcheong',this)">충청</span>
+      </div>
+      <!-- 카드마다 있던 개별 삭제 아이콘 대신, 체크박스로 여러 개 골라서 한 번에 지우는 방식으로
+           변경(요청 반영). "전체 선택"은 지금 필터에 걸려서 보이는 카드 기준으로 동작. -->
+      <div class="grid-2" style="margin-top:10px;">
+        <button class="btn secondary" onclick="toggleMygolfSelectAll()"><span id="mygolf-select-all-label">전체 선택</span></button>
+        <button class="btn danger" id="mygolf-delete-selected-btn" style="display:none;" onclick="deleteSelectedCourses()">🗑️ 선택 삭제 (<span id="mygolf-selected-count">0</span>)</button>
       </div>
       <div id="mygolf-course-list" class="empty" style="margin-top:10px;">등록된 골프장이 없습니다.</div>
     </div>
@@ -1619,6 +1636,9 @@ function matchesMygolfRegionFilter(c) {
   return true;
 }
 
+// 카드마다 있던 개별 삭제 아이콘 대신 체크박스로 여러 개 선택해서 한 번에 지운다.
+let mygolfSelectedIds = new Set();
+
 function renderCourseList(courses) {
   const filtered = courses.filter(matchesMygolfRegionFilter);
   // 드래그 재정렬은 "전체" 필터에서만 켠다 - 필터가 걸리면 화면엔 인접해 보여도 실제 저장
@@ -1626,13 +1646,19 @@ function renderCourseList(courses) {
   const dragEnabled = !mygolfRegionFilter;
   const html = !filtered.length
     ? `<div class="empty">${courses.length ? '이 지역에 등록된 골프장이 없습니다.' : '등록된 골프장이 없습니다.'}</div>`
-    : filtered.map((c) => `
+    : filtered.map((c) => {
+      const travelText = c.homeDistanceKm != null
+        ? `🚗 ${c.homeDistanceKm}km${c.homeDurationMin != null ? ' (약 ' + c.homeDurationMin + '분)' : ''}`
+        : '';
+      return `
     <div class="drag-list-item" data-id="${c.id}">
+      <input type="checkbox" class="mygolf-select-checkbox" data-id="${c.id}" ${mygolfSelectedIds.has(c.id) ? 'checked' : ''} onchange="onMygolfCheckboxChange(this)">
       <div class="drag-handle${dragEnabled ? '' : ' disabled'}" title="${dragEnabled ? '눌러서 위아래로 끌면 순서가 바뀝니다' : '"전체" 필터에서만 순서를 바꿀 수 있어요'}">≡</div>
       <div class="list-item">
         <div>
-          <div class="name">${escapeHtml(c.name)}</div>
-          <div class="sub">${escapeHtml(c.address || '')}${c.homeDistanceKm != null ? ' · ' + c.homeDistanceKm + 'km' : ''}</div>
+          <div class="name name-left">${escapeHtml(c.name)}</div>
+          ${travelText ? `<div class="sub">${travelText}</div>` : ''}
+          <div class="week-weather-strip" id="mygolf-weather-${c.id}"></div>
           <div class="tags">
             ${(c.courseList || []).map((cn) => `<span class="tag">${escapeHtml(cn)}</span>`).join('')}
             ${c.cartFee != null ? `<span class="tag">카트비 ${Number(c.cartFee).toLocaleString('ko-KR')}원</span>` : ''}
@@ -1642,14 +1668,83 @@ function renderCourseList(courses) {
         <div class="score-actions">
           <button class="icon-btn" onclick="openCourseWeather('${c.id}')" title="날씨">🌤</button>
           <button class="icon-btn" onclick="openCourseDialog('${c.id}')" title="수정">✏️</button>
-          <button class="icon-btn" onclick="removeCourse('${c.id}')" title="삭제">🗑️</button>
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+    }).join('');
   const el = document.getElementById('mygolf-course-list');
   if (el) el.innerHTML = html;
   if (dragEnabled) initCourseDragReorder(el);
+  updateMygolfSelectionUI();
+  loadMygolfWeekWeather(filtered);
+}
+
+function onMygolfCheckboxChange(checkbox) {
+  const id = checkbox.dataset.id;
+  if (checkbox.checked) mygolfSelectedIds.add(id);
+  else mygolfSelectedIds.delete(id);
+  updateMygolfSelectionUI();
+}
+
+function updateMygolfSelectionUI() {
+  const count = mygolfSelectedIds.size;
+  document.getElementById('mygolf-selected-count').textContent = count;
+  document.getElementById('mygolf-delete-selected-btn').style.display = count > 0 ? '' : 'none';
+  const visibleIds = [...document.querySelectorAll('.mygolf-select-checkbox')].map((el) => el.dataset.id);
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => mygolfSelectedIds.has(id));
+  document.getElementById('mygolf-select-all-label').textContent = allSelected ? '전체 해제' : '전체 선택';
+}
+
+/** 지금 화면에 보이는(지역 필터 적용된) 카드 기준으로 전체 선택/해제를 토글한다. */
+function toggleMygolfSelectAll() {
+  const checkboxes = [...document.querySelectorAll('.mygolf-select-checkbox')];
+  const allSelected = checkboxes.length > 0 && checkboxes.every((el) => mygolfSelectedIds.has(el.dataset.id));
+  checkboxes.forEach((el) => {
+    el.checked = !allSelected;
+    if (allSelected) mygolfSelectedIds.delete(el.dataset.id);
+    else mygolfSelectedIds.add(el.dataset.id);
+  });
+  updateMygolfSelectionUI();
+}
+
+async function deleteSelectedCourses() {
+  const ids = [...mygolfSelectedIds];
+  if (!ids.length) return;
+  if (!confirm(`선택한 골프장 ${ids.length}개를 즐겨찾기에서 삭제할까요?`)) return;
+  try {
+    await Promise.all(ids.map((id) => api(`/api/courses/${id}`, { method: 'DELETE' })));
+    showToast('삭제했습니다');
+    mygolfSelectedIds.clear();
+    await loadCourses();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
+
+const WEEK_WEATHER_DOW = ['일', '월', '화', '수', '목', '금', '토'];
+const SKY_ICON_EXT = { '맑음': '☀️', '구름많음': '⛅', '흐림': '☁️', '비': '🌧️', '눈': '❄️', '비/눈': '🌨️', '소나기': '🌦️' };
+
+/** MY골프장 카드에 앞으로 7일 날씨를 한 줄 요약으로 채운다 - 좌표 있는 카드만, /api/weather/week
+ * 를 카드별로 병렬 호출(개인 목록이라 몇 개 안 되므로 순차 대신 병렬로도 충분히 가벼움). */
+async function loadMygolfWeekWeather(courses) {
+  await Promise.all(courses.map(async (c) => {
+    const el = document.getElementById(`mygolf-weather-${c.id}`);
+    if (!el || c.lat == null || c.lon == null) return;
+    try {
+      const { days } = await api(`/api/weather/week?lat=${c.lat}&lon=${c.lon}`);
+      el.innerHTML = days.map((d) => {
+        const dow = WEEK_WEATHER_DOW[new Date(d.date).getDay()];
+        const icon = SKY_ICON_EXT[d.sky] || '-';
+        const temp = d.tempMax != null && d.tempMin != null
+          ? `<span class="max">${d.tempMax}</span>/<span class="min">${d.tempMin}</span>`
+          : '-';
+        return `<div class="ww-day"><div class="ww-dow">${dow}</div><div class="ww-icon">${icon}</div><div class="ww-temp">${temp}</div></div>`;
+      }).join('');
+    } catch {
+      // 실패해도 조용히 생략 - 카드 목록 자체를 막지 않는다
+    }
+  }));
 }
 
 // ===== MY골프장 드래그 재정렬(Pointer Events - 마우스/터치 공용) =====
@@ -2109,17 +2204,6 @@ document.getElementById('courseForm').addEventListener('submit', async (e) => {
     showToast('저장 실패: ' + err.message);
   }
 });
-
-async function removeCourse(id) {
-  if (!confirm('이 골프장을 즐겨찾기에서 삭제할까요?')) return;
-  try {
-    await api(`/api/courses/${id}`, { method: 'DELETE' });
-    showToast('삭제했습니다');
-    await loadCourses();
-  } catch (e) {
-    showToast('삭제 실패: ' + e.message);
-  }
-}
 
 // ===== 동반자 =====
 let companionCache = [];
