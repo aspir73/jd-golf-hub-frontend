@@ -562,6 +562,13 @@
       <label style="margin-top:10px;">날짜</label>
       <input type="date" id="booking-search-date">
 
+      <label style="margin-top:10px;">골프장명 <span class="muted" style="font-size:11px;">(입력 시 해당 골프장만 검색)</span></label>
+      <div style="position:relative;">
+        <input type="text" id="joincond-course-filter-input" placeholder="예: 세현CC" autocomplete="off"
+          oninput="onJoinCondCourseFilterInput()" onfocus="onJoinCondCourseFilterInput()">
+        <div id="joincond-course-filter-suggestions" class="course-suggestion-list" style="display:none;"></div>
+      </div>
+
       <label>티타임</label>
       <div class="chip-group" id="booking-timeofday-chips">
         <span class="chip" onclick="toggleBookingChip('timeOfDay','am',this)">오전</span>
@@ -571,13 +578,13 @@
 
       <label>지역</label>
       <div class="chip-group" id="booking-region-chips">
-        <span class="chip" onclick="toggleBookingChip('regions','hangang',this)">한강이남</span>
-        <span class="chip" onclick="toggleBookingChip('regions','gangbuk',this)">강북/경춘</span>
-        <span class="chip" onclick="toggleBookingChip('regions','gangwon',this)">강원</span>
-        <span class="chip" onclick="toggleBookingChip('regions','chungcheong',this)">충청</span>
-        <span class="chip" onclick="toggleBookingChip('regions','gyeongsang',this)">경상</span>
-        <span class="chip" onclick="toggleBookingChip('regions','jeolla',this)">전라</span>
-        <span class="chip" onclick="toggleBookingChip('regions','jeju',this)">제주</span>
+        <span class="chip" data-region-key="hangang" onclick="toggleBookingChip('regions','hangang',this)">한강이남</span>
+        <span class="chip" data-region-key="gangbuk" onclick="toggleBookingChip('regions','gangbuk',this)">강북/경춘</span>
+        <span class="chip" data-region-key="gangwon" onclick="toggleBookingChip('regions','gangwon',this)">강원</span>
+        <span class="chip" data-region-key="chungcheong" onclick="toggleBookingChip('regions','chungcheong',this)">충청</span>
+        <span class="chip" data-region-key="gyeongsang" onclick="toggleBookingChip('regions','gyeongsang',this)">경상</span>
+        <span class="chip" data-region-key="jeolla" onclick="toggleBookingChip('regions','jeolla',this)">전라</span>
+        <span class="chip" data-region-key="jeju" onclick="toggleBookingChip('regions','jeju',this)">제주</span>
       </div>
 
       <label>캐디</label>
@@ -594,42 +601,27 @@
       <button class="btn secondary block" id="booking-group-btn" style="display:none; margin-top:10px;" onclick="openCreateGroupFromBookingSelection()">선택한 티타임으로 비교 그룹 만들기</button>
     </div>
 
+    <!-- 조인 티타임 워치 - 부킹 탭의 워치 기능과 동일한 UI/JS(shared watchDialog/watchDetailDialog)를
+         쓰되 mode='join'으로 등록해서, 재검색 시 골팡 '조인/백업' 매물만 훑고 카카오골프예약은
+         제외한다(조인 조건검색과 동일한 범위 - watches.js의 fetchWatchResults 참고). -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <h2 style="margin:0;">⏰ 조인 티타임 워치</h2>
+        <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="openWatchDialog('join')">＋ 워치 추가</button>
+      </div>
+      <div class="muted" style="margin-top:4px; font-size:12px;">지정한 골프장·날짜·시간대의 골팡 조인/백업 매물을 30분마다 백그라운드에서 자동으로 재검색해둡니다.</div>
+      <div id="joinwatch-list" class="empty" style="margin-top:10px;">등록된 워치가 없습니다.</div>
+    </div>
+
     <div class="card">
       <h2>🆚 동반예약(백업) 비교</h2>
       <div id="booking-comparison-group-list" class="empty">아직 비교 그룹이 없습니다. 위 조건검색 결과에서 후보를 선택해 만들어보세요.</div>
     </div>
 
     <div class="card">
-      <h2>✍️ 예약확정 메시지로 자동 등록</h2>
-      <textarea id="booking-message-input" rows="5" placeholder="골팡/골프장에서 받은 예약확정 카카오톡·문자 내용을 그대로 붙여넣으세요"></textarea>
-      <button class="btn block" style="margin-top:8px;" onclick="parseBookingMessage('booking-message-input','booking-message-status')">등록</button>
-      <div id="booking-message-status" class="muted" style="margin-top:6px;"></div>
-    </div>
-
-    <div class="card">
-      <h2>📋 예약 기록</h2>
-      <div class="grid-2">
-        <button class="btn secondary" onclick="openBookingDialog(null,'본인')">＋ 직접 추가</button>
-        <button class="btn secondary" onclick="copyBookingReport()">📤 현황 리포트 복사</button>
-      </div>
+      <h2>조인 예약</h2>
+      <button class="btn secondary block" onclick="openBookingDialog(null,'본인','조인')">＋ 추가</button>
       <div id="booking-list" class="empty" style="margin-top:10px;">등록된 예약 기록이 없습니다.</div>
-    </div>
-
-    <div class="card">
-      <h2>👥 동반자</h2>
-      <button class="btn block secondary" onclick="openCompanionDialog()">＋ 동반자 추가</button>
-      <div id="companion-list" class="empty" style="margin-top:10px;">등록된 동반자가 없습니다.</div>
-    </div>
-
-    <div class="card">
-      <h2>💰 정산</h2>
-      <button class="btn block" onclick="openSettlementDialog()">정산 계산하기</button>
-      <div id="settlement-result-box" style="display:none; margin-top:12px;">
-        <div id="settlement-person-list"></div>
-        <div id="settlement-transfer-list" style="margin-top:10px;"></div>
-        <div class="kakao-message-box" id="settlement-kakao-message"></div>
-        <button class="btn secondary block" style="margin-top:10px;" onclick="copySettlementMessage()">📋 카카오톡 공유문구 복사</button>
-      </div>
     </div>
   </section>
 
@@ -814,46 +806,11 @@
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
         <h2 style="margin:0;">⏰ 티타임 워치</h2>
-        <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="openWatchDialog()">＋ 워치 추가</button>
+        <button class="btn secondary" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="openWatchDialog('booking')">＋ 워치 추가</button>
       </div>
       <div class="muted" style="margin-top:4px; font-size:12px;">지정한 골프장·날짜·시간대를 30분마다 백그라운드에서 자동으로 재검색해둡니다.</div>
       <div id="watch-list" class="empty" style="margin-top:10px;">등록된 워치가 없습니다.</div>
     </div>
-
-    <dialog id="watchDialog">
-      <div class="dialog-inner">
-        <h3 style="margin:0 0 10px;">티타임 워치 추가</h3>
-        <label>골프장명 *</label>
-        <div style="position:relative;">
-          <input type="text" id="watch-course-input" placeholder="예: 세현CC" autocomplete="off"
-            oninput="onWatchCourseInput()" onfocus="onWatchCourseInput()">
-          <div id="watch-course-suggestions" class="course-suggestion-list" style="display:none;"></div>
-        </div>
-        <label style="margin-top:10px;">감시할 날짜 *</label>
-        <input type="date" id="watch-date">
-        <label style="margin-top:10px;">시간대 <span class="muted" style="font-size:11px;">(선택 안 하면 전체 시간대)</span></label>
-        <div class="chip-group" id="watch-timeofday-chips">
-          <span class="chip" onclick="toggleWatchTimeOfDay('am',this)">오전</span>
-          <span class="chip" onclick="toggleWatchTimeOfDay('pm',this)">오후</span>
-          <span class="chip" onclick="toggleWatchTimeOfDay('nt',this)">야간</span>
-        </div>
-        <div class="dialog-actions">
-          <button type="button" class="btn secondary block" onclick="document.getElementById('watchDialog').close()">취소</button>
-          <button type="button" class="btn block" onclick="submitWatch()">추가</button>
-        </div>
-      </div>
-    </dialog>
-
-    <!-- 같은 날짜에 묶인 워치들의 골프장별 상세 - renderWatchList의 요약 카드를 누르면 열림 -->
-    <dialog id="watchDetailDialog">
-      <div class="dialog-inner">
-        <h3 id="watchDetailTitle" style="margin:0 0 10px;">워치 상세</h3>
-        <div id="watch-detail-list"></div>
-        <div class="dialog-actions">
-          <button type="button" class="btn block" onclick="closeWatchDetailDialog()">닫기</button>
-        </div>
-      </div>
-    </dialog>
 
     <div class="card">
       <h2>🆚 동반예약(백업) 비교</h2>
@@ -862,7 +819,7 @@
 
     <div class="card">
       <h2>📋 예약</h2>
-      <button class="btn secondary block" onclick="openBookingDialog(null,'본인')">＋ 추가</button>
+      <button class="btn secondary block" onclick="openBookingDialog(null,'본인','부킹')">＋ 추가</button>
       <div id="join-booking-list" class="empty" style="margin-top:10px;">등록된 예약 기록이 없습니다.</div>
     </div>
 
@@ -975,6 +932,71 @@
 </nav>
 
 <div class="toast" id="toast"></div>
+
+<!-- 티타임 워치 다이얼로그 - 부킹/조인 두 탭에서 공용으로 연다(openWatchDialog(mode)). 특정
+     탭 섹션 안에 두면 다른 탭이 활성화된 상태(그 섹션이 display:none)에서 열었을 때 dialog의
+     open 속성은 true가 돼도 조상이 display:none이라 화면엔 아예 안 그려지는 문제가 있어서
+     (실사용 중 발견 - Playwright로 조인 탭에서 열어봤을 때 dialog.open===true인데도 안 보임),
+     bookingDialog 등 다른 공용 다이얼로그처럼 탭 섹션 바깥(body 최상위)에 둔다. -->
+<dialog id="watchDialog">
+  <div class="dialog-inner">
+    <h3 style="margin:0 0 10px;">티타임 워치 추가</h3>
+
+    <div class="chip-group">
+      <span class="chip selected" id="watch-mode-search-chip" onclick="setWatchPickMode('search')">🔍 이름으로 검색</span>
+      <span class="chip" id="watch-mode-mygolf-chip" onclick="setWatchPickMode('mygolf')">⭐ MY골프장에서 선택</span>
+    </div>
+
+    <div id="watch-pick-search" style="margin-top:10px;">
+      <label>골프장명 *</label>
+      <div style="position:relative;">
+        <input type="text" id="watch-course-input" placeholder="예: 세현CC" autocomplete="off"
+          oninput="onWatchCourseInput()" onfocus="onWatchCourseInput()">
+        <div id="watch-course-suggestions" class="course-suggestion-list" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div id="watch-pick-mygolf" style="display:none; margin-top:10px;">
+      <label>지역 필터</label>
+      <div class="chip-group" id="watch-mygolf-region-chips">
+        <span class="chip selected" onclick="setWatchMygolfRegionFilter('',this)">전체</span>
+        <span class="chip" onclick="setWatchMygolfRegionFilter('capital',this)">수도권</span>
+        <span class="chip" onclick="setWatchMygolfRegionFilter('gangbuk',this)">강북/경춘</span>
+        <span class="chip" onclick="setWatchMygolfRegionFilter('gangwon',this)">강원</span>
+        <span class="chip" onclick="setWatchMygolfRegionFilter('chungcheong',this)">충청</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+        <button type="button" class="btn secondary" style="padding:6px 12px; font-size:12px;" onclick="toggleWatchMygolfSelectAll()"><span id="watch-mygolf-select-all-label">전체 선택</span></button>
+        <span class="muted" id="watch-mygolf-selected-count" style="font-size:12px;">0개 선택됨</span>
+      </div>
+      <div id="watch-mygolf-picker-list" style="margin-top:8px; max-height:220px; overflow-y:auto;"></div>
+    </div>
+
+    <label style="margin-top:10px;">감시할 날짜 *</label>
+    <input type="date" id="watch-date">
+    <label style="margin-top:10px;">시간대 <span class="muted" style="font-size:11px;">(선택 안 하면 전체 시간대)</span></label>
+    <div class="chip-group" id="watch-timeofday-chips">
+      <span class="chip" onclick="toggleWatchTimeOfDay('am',this)">오전</span>
+      <span class="chip" onclick="toggleWatchTimeOfDay('pm',this)">오후</span>
+      <span class="chip" onclick="toggleWatchTimeOfDay('nt',this)">야간</span>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn secondary block" onclick="document.getElementById('watchDialog').close()">취소</button>
+      <button type="button" class="btn block" onclick="submitWatch()">추가</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 같은 날짜에 묶인 워치들의 골프장별 상세 - renderWatchList의 요약 카드를 누르면 열림 -->
+<dialog id="watchDetailDialog">
+  <div class="dialog-inner">
+    <h3 id="watchDetailTitle" style="margin:0 0 10px;">워치 상세</h3>
+    <div id="watch-detail-list"></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn block" onclick="closeWatchDetailDialog()">닫기</button>
+    </div>
+  </div>
+</dialog>
 
 <dialog id="scoreDialog">
   <div class="dialog-inner">
@@ -1282,8 +1304,10 @@
         <div><label>캐디피 (팀 전체)</label><input type="text" inputmode="numeric" id="booking-caddy-fee" oninput="formatMoneyInput(this)"></div>
       </div>
 
-      <label>정산 인원 (본인 포함, 카트비·캐디피 나누는 기준)</label>
-      <input type="number" id="booking-companion-count" min="1" placeholder="예: 4">
+      <div class="grid-2">
+        <div><label>정산 인원 (본인 포함, 카트비·캐디피 나누는 기준)</label><input type="number" id="booking-companion-count" min="1" placeholder="예: 4"></div>
+        <div><label>선입금</label><input type="text" inputmode="numeric" id="booking-deposit" oninput="formatMoneyInput(this)"></div>
+      </div>
 
       <div class="grid-2">
         <div><label>문의 연락처</label><input type="text" id="booking-contact"></div>
@@ -1334,7 +1358,7 @@ function showTab(name) {
   });
   if (name === 'score') { loadScores(); loadStats(); }
   if (name === 'home') { loadStats(true); loadSettings(); loadBookings(); }
-  if (name === 'booking') { loadCourses(); loadCompanions(); loadBookings(); loadComparisonGroups(); }
+  if (name === 'booking') { loadCourses(); loadBookings(); loadComparisonGroups(); }
   if (name === 'join') { loadCourses(); loadComparisonGroups(); loadBookings(); }
   if (name === 'mygolf') { loadCourses(); }
   if (name === 'food') { loadFavoriteRestaurants(); }
@@ -1658,14 +1682,21 @@ function setMygolfRegionFilter(value, el) {
   renderCourseList(courseCache);
 }
 
-function matchesMygolfRegionFilter(c) {
-  if (!mygolfRegionFilter) return true;
+/** MY골프장 4개 지역 필터(전체/수도권/강북경춘/강원/충청)의 실제 판정 로직 - MY골프장 탭
+ * 자체 필터(mygolfRegionFilter)와 워치 다이얼로그의 "MY골프장에서 선택" 피커가 똑같은 기준을
+ * 써야 해서 filterValue를 인자로 받는 형태로 분리해뒀다. */
+function matchesRegionFilterValue(c, filterValue) {
+  if (!filterValue) return true;
   const isCapitalAreaRegion = ['서울', '경기', '인천'].includes(c.region);
-  if (mygolfRegionFilter === 'capital') return isCapitalAreaRegion && (c.lat == null || c.lat < HAN_RIVER_LAT);
-  if (mygolfRegionFilter === 'gangbuk') return isCapitalAreaRegion && c.lat != null && c.lat >= HAN_RIVER_LAT;
-  if (mygolfRegionFilter === 'gangwon') return c.region === '강원';
-  if (mygolfRegionFilter === 'chungcheong') return ['충남', '충북', '대전', '세종'].includes(c.region);
+  if (filterValue === 'capital') return isCapitalAreaRegion && (c.lat == null || c.lat < HAN_RIVER_LAT);
+  if (filterValue === 'gangbuk') return isCapitalAreaRegion && c.lat != null && c.lat >= HAN_RIVER_LAT;
+  if (filterValue === 'gangwon') return c.region === '강원';
+  if (filterValue === 'chungcheong') return ['충남', '충북', '대전', '세종'].includes(c.region);
   return true;
+}
+
+function matchesMygolfRegionFilter(c) {
+  return matchesRegionFilterValue(c, mygolfRegionFilter);
 }
 
 // 카드마다 있던 개별 삭제 아이콘 대신 체크박스로 여러 개 선택해서 한 번에 지운다.
@@ -3001,9 +3032,74 @@ function selectBookingCaddy(value, el) {
   el.classList.add('selected');
 }
 
+// ===== 조인 조건검색: 골프장명 지정 검색 =====
+// 부킹 탭(tab-join)의 골프장명 필터(bookingCourseFilter/onBookingCourseFilterInput 등, 655번째
+// 줄 부근)와 완전히 같은 패턴이지만, 조인 탭(tab-booking) 자체 검색은 이미 "booking" 접두어를
+// 쓰고 있어서(searchBookingRounds/bookingSearchFilters) 이름이 겹친다 - "joincond" 접두어로
+// 구분한다(둘 다 서로 다른 탭의 검색 상태라 절대 공유하면 안 됨).
+let joinCondCourseFilter = null; // 후보를 선택해 확정된 { name, region, ... } - null이면 필터 없음
+let joinCondCourseFilterDebounceTimer = null;
+
+function onJoinCondCourseFilterInput() {
+  joinCondCourseFilter = null; // 사용자가 다시 타이핑하면 이전에 확정했던 매칭은 무효화
+  const box = document.getElementById('joincond-course-filter-suggestions');
+  const q = document.getElementById('joincond-course-filter-input').value.trim();
+  if (joinCondCourseFilterDebounceTimer) clearTimeout(joinCondCourseFilterDebounceTimer);
+  if (q.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  joinCondCourseFilterDebounceTimer = setTimeout(async () => {
+    try {
+      const { courses } = await api(`/api/golf-db/search?query=${encodeURIComponent(q)}`);
+      if (!courses.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+      box.dataset.courses = JSON.stringify(courses.slice(0, 8));
+      box.innerHTML = courses.slice(0, 8).map((c, idx) =>
+        `<div class="course-suggestion-item" onclick="selectJoinCondCourseFilter(${idx})">${escapeHtml(c.name)} <span class="muted" style="font-size:11px;">${escapeHtml(c.region || '')}</span></div>`
+      ).join('');
+      box.style.display = 'block';
+    } catch {
+      box.style.display = 'none';
+    }
+  }, 300);
+}
+
+function selectJoinCondCourseFilter(idx) {
+  const box = document.getElementById('joincond-course-filter-suggestions');
+  const courses = JSON.parse(box.dataset.courses || '[]');
+  const course = courses[idx];
+  if (!course) return;
+  joinCondCourseFilter = course;
+  document.getElementById('joincond-course-filter-input').value = course.name;
+  box.style.display = 'none';
+  applyJoinCondCourseFilterRegion(course);
+}
+
+/** 지정한 골프장이 속한 지역을 조인 탭 자체 지역 칩(booking-region-chips)에 자동 반영한다 -
+ * 안 그러면 검색 자체가 그 골프장이 있는 지역을 안 훑어서 결과가 아예 안 나온다. */
+function applyJoinCondCourseFilterRegion(course) {
+  const normKeys = DB_REGION_TO_NORMALIZED[course.region] || [];
+  if (!normKeys.length) return;
+  bookingSearchFilters.regions = new Set(normKeys);
+  document.querySelectorAll('#booking-region-chips .chip').forEach((chip) => {
+    chip.classList.toggle('selected', normKeys.includes(chip.dataset.regionKey));
+  });
+}
+
+/** 검색 결과에서 지정한 골프장만 남긴다(정규화 이름 비교 - 표기가 달라도 매칭). */
+function filterJoinRoundsByCourseName(rounds) {
+  const target = joinCondCourseFilter?.name || document.getElementById('joincond-course-filter-input').value.trim();
+  if (!target) return rounds;
+  const normTarget = normalizeCourseName(target);
+  if (!normTarget) return rounds;
+  return rounds.filter((r) => {
+    if (joinCondCourseFilter?.name && r.officialName === joinCondCourseFilter.name) return true;
+    const norm = normalizeCourseName(r.courseName || r.officialName || '');
+    return norm && (norm === normTarget || norm.includes(normTarget) || normTarget.includes(norm));
+  });
+}
+
 async function searchBookingRounds() {
   const date = document.getElementById('booking-search-date').value;
   if (!date) { showToast('날짜를 선택해주세요'); return; }
+  document.getElementById('joincond-course-filter-suggestions').style.display = 'none';
   const regions = [...bookingSearchFilters.regions];
   const times = [...bookingSearchFilters.timeOfDay];
   const caddy = NORMALIZED_CADDY[bookingSearchFilters.caddy] || NORMALIZED_CADDY.general;
@@ -3020,20 +3116,22 @@ async function searchBookingRounds() {
     });
     const results = await Promise.all(calls);
     const seen = new Set();
-    const rounds = [];
+    const allRounds = [];
     let total = 0;
     results.forEach((r) => {
       total += r.totalCount || 0;
       (r.rounds || []).forEach((row) => {
         if (seen.has(row.idx)) return;
         seen.add(row.idx);
-        rounds.push(row);
+        allRounds.push(row);
       });
     });
+    const rounds = filterJoinRoundsByCourseName(allRounds);
     bookingSearchResultCache = rounds;
     bookingSelectedTeeTimes.clear();
+    const courseFilterLabel = joinCondCourseFilter?.name || document.getElementById('joincond-course-filter-input').value.trim();
     document.getElementById('booking-result-summary').textContent =
-      `총 ${total.toLocaleString('ko-KR')}건 중 ${rounds.length}건 표시 (골팡 조인/백업 기준)`;
+      `총 ${total.toLocaleString('ko-KR')}건 중 ${rounds.length}건 표시 (골팡 조인/백업 기준)${courseFilterLabel ? ` · "${courseFilterLabel}" 검색` : ''}`;
     renderBookingSearchResults(rounds);
   } catch (e) {
     showToast('검색 실패: ' + e.message);
@@ -3238,6 +3336,70 @@ let watchDialogCourse = null; // 자동완성으로 선택된 { name, region } -
 let watchDialogTimeOfDay = new Set();
 let watchCourseDebounceTimer = null;
 let watchCache = [];
+// 이 다이얼로그가 지금 어느 탭에서 열렸는지("booking"=부킹 탭/골팡부킹+카카오골프, "join"=조인
+// 탭/골팡 조인·백업만) - 워치 등록 시 mode로 실어보내고, 목록도 이 값 기준으로 나눠서 렌더링한다.
+let watchDialogMode = 'booking';
+// 다이얼로그 안에서 "이름으로 검색" ↔ "MY골프장에서 선택" 두 가지 등록 방식 중 어느 쪽을 쓰는지.
+let watchPickMode = 'search';
+let watchMygolfRegionFilter = '';
+let watchMygolfSelectedIds = new Set();
+
+function setWatchPickMode(mode) {
+  watchPickMode = mode;
+  document.getElementById('watch-mode-search-chip').classList.toggle('selected', mode === 'search');
+  document.getElementById('watch-mode-mygolf-chip').classList.toggle('selected', mode === 'mygolf');
+  document.getElementById('watch-pick-search').style.display = mode === 'search' ? 'block' : 'none';
+  document.getElementById('watch-pick-mygolf').style.display = mode === 'mygolf' ? 'block' : 'none';
+  if (mode === 'mygolf') renderWatchMygolfPicker();
+}
+
+function setWatchMygolfRegionFilter(value, el) {
+  watchMygolfRegionFilter = value;
+  document.querySelectorAll('#watch-mygolf-region-chips .chip').forEach((c) => c.classList.remove('selected'));
+  el.classList.add('selected');
+  renderWatchMygolfPicker();
+}
+
+/** MY골프장 즐겨찾기(courseCache)에서 지역 필터에 맞는 것만 체크박스 목록으로 보여준다 -
+ * MY골프장 탭의 체크박스 다중선택 UX(mygolfSelectedIds)를 그대로 가져온 것. */
+function renderWatchMygolfPicker() {
+  const filtered = courseCache.filter((c) => matchesRegionFilterValue(c, watchMygolfRegionFilter));
+  const el = document.getElementById('watch-mygolf-picker-list');
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty">${courseCache.length ? '이 지역에 등록된 MY골프장이 없습니다.' : 'MY골프장에 등록된 골프장이 없습니다.'}</div>`;
+  } else {
+    el.innerHTML = filtered.map((c) => `
+      <label style="display:flex; align-items:center; gap:8px; padding:8px 4px; border-bottom:1px solid var(--border);">
+        <input type="checkbox" class="watch-mygolf-checkbox" data-id="${c.id}" ${watchMygolfSelectedIds.has(c.id) ? 'checked' : ''} onchange="onWatchMygolfCheckboxChange(this)">
+        <span>${escapeHtml(c.name)}</span>
+      </label>
+    `).join('');
+  }
+  updateWatchMygolfSelectionUI();
+}
+
+function onWatchMygolfCheckboxChange(checkbox) {
+  const id = checkbox.dataset.id;
+  if (checkbox.checked) watchMygolfSelectedIds.add(id);
+  else watchMygolfSelectedIds.delete(id);
+  updateWatchMygolfSelectionUI();
+}
+
+function toggleWatchMygolfSelectAll() {
+  const filtered = courseCache.filter((c) => matchesRegionFilterValue(c, watchMygolfRegionFilter));
+  const allSelected = filtered.length > 0 && filtered.every((c) => watchMygolfSelectedIds.has(c.id));
+  if (allSelected) filtered.forEach((c) => watchMygolfSelectedIds.delete(c.id));
+  else filtered.forEach((c) => watchMygolfSelectedIds.add(c.id));
+  renderWatchMygolfPicker();
+}
+
+function updateWatchMygolfSelectionUI() {
+  document.getElementById('watch-mygolf-selected-count').textContent = `${watchMygolfSelectedIds.size}개 선택됨`;
+  const filtered = courseCache.filter((c) => matchesRegionFilterValue(c, watchMygolfRegionFilter));
+  const allSelected = filtered.length > 0 && filtered.every((c) => watchMygolfSelectedIds.has(c.id));
+  const label = document.getElementById('watch-mygolf-select-all-label');
+  if (label) label.textContent = allSelected ? '전체 해제' : '전체 선택';
+}
 
 function onWatchCourseInput() {
   watchDialogCourse = null;
@@ -3275,21 +3437,44 @@ function toggleWatchTimeOfDay(value, el) {
   else { watchDialogTimeOfDay.add(value); el.classList.add('selected'); }
 }
 
-function openWatchDialog() {
+function openWatchDialog(mode) {
+  watchDialogMode = mode === 'join' ? 'join' : 'booking';
   document.getElementById('watch-course-input').value = '';
   document.getElementById('watch-course-suggestions').style.display = 'none';
   document.getElementById('watch-date').value = '';
   watchDialogCourse = null;
   watchDialogTimeOfDay = new Set();
   document.querySelectorAll('#watch-timeofday-chips .chip').forEach((c) => c.classList.remove('selected'));
+  watchMygolfSelectedIds = new Set();
+  watchMygolfRegionFilter = '';
+  document.querySelectorAll('#watch-mygolf-region-chips .chip').forEach((c, idx) => c.classList.toggle('selected', idx === 0));
+  setWatchPickMode('search');
+  if (!courseCache.length) loadCourses();
   document.getElementById('watchDialog').showModal();
 }
 
 async function submitWatch() {
-  const courseName = watchDialogCourse?.name || document.getElementById('watch-course-input').value.trim();
   const date = document.getElementById('watch-date').value;
-  if (!courseName) { showToast('골프장명을 입력해주세요'); return; }
   if (!date) { showToast('감시할 날짜를 선택해주세요'); return; }
+  const timeOfDay = [...watchDialogTimeOfDay];
+
+  if (watchPickMode === 'mygolf') {
+    const selected = courseCache.filter((c) => watchMygolfSelectedIds.has(c.id));
+    if (!selected.length) { showToast('MY골프장에서 하나 이상 선택해주세요'); return; }
+    try {
+      const items = selected.map((c) => ({ courseName: c.name, region: c.region || '', date, timeOfDay, mode: watchDialogMode }));
+      await api('/api/watches/bulk', { method: 'POST', body: JSON.stringify({ items }) });
+      showToast(`${selected.length}개 골프장에 워치를 추가했습니다 - 30분마다 자동으로 재검색됩니다`);
+      document.getElementById('watchDialog').close();
+      await loadWatches();
+    } catch (e) {
+      showToast('워치 추가 실패: ' + e.message);
+    }
+    return;
+  }
+
+  const courseName = watchDialogCourse?.name || document.getElementById('watch-course-input').value.trim();
+  if (!courseName) { showToast('골프장명을 입력해주세요'); return; }
   try {
     await api('/api/watches', {
       method: 'POST',
@@ -3297,7 +3482,8 @@ async function submitWatch() {
         courseName,
         region: watchDialogCourse?.region || '',
         date,
-        timeOfDay: [...watchDialogTimeOfDay],
+        timeOfDay,
+        mode: watchDialogMode,
       }),
     });
     showToast('워치를 추가했습니다 - 30분마다 자동으로 재검색됩니다');
@@ -3324,7 +3510,10 @@ async function loadWatches() {
   try {
     const { watches } = await api('/api/watches');
     watchCache = watches;
-    renderWatchList(watches);
+    // mode가 없는 기존(마이그레이션 전) 워치는 부킹 워치로 취급한다(watches.js normalizeWatch의
+    // 기본값과 동일한 규칙).
+    renderWatchList(watchCache.filter((w) => (w.mode || 'booking') !== 'join'), 'watch-list', 'booking');
+    renderWatchList(watchCache.filter((w) => (w.mode || 'booking') === 'join'), 'joinwatch-list', 'join');
   } catch (e) {
     showToast('워치 목록 조회 실패: ' + e.message);
   }
@@ -3332,19 +3521,22 @@ async function loadWatches() {
 
 const WATCH_TIME_LABELS = { am: '오전', pm: '오후', nt: '야간' };
 const WATCH_WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
-// 상세 다이얼로그가 지금 어느 날짜를 보여주고 있는지 - 새로고침/삭제 후 목록뿐 아니라 열려있는
-// 상세 다이얼로그도 같이 최신화하기 위해 기억해둔다(닫혀 있으면 null).
+// 상세 다이얼로그가 지금 어느 날짜/모드를 보여주고 있는지 - 새로고침/삭제 후 목록뿐 아니라
+// 열려있는 상세 다이얼로그도 같이 최신화하기 위해 기억해둔다(닫혀 있으면 null).
 let watchDetailOpenDate = null;
+let watchDetailOpenMode = 'booking';
 
 /** 같은 날짜에 여러 골프장을 워치해도 목록이 늘어지지 않도록, 날짜별로 하나의 요약 카드로
- * 묶어서 보여준다. 카드를 누르면 그 날짜에 걸린 골프장들의 상세 정보(다이얼로그)를 연다. */
-function renderWatchList(watches) {
-  const el = document.getElementById('watch-list');
+ * 묶어서 보여준다. 카드를 누르면 그 날짜에 걸린 골프장들의 상세 정보(다이얼로그)를 연다.
+ * elId/mode: 부킹 탭(watch-list, mode='booking')과 조인 탭(joinwatch-list, mode='join')이
+ * 같은 워치 데이터(watchCache)를 mode로 나눠서 각자의 목록 영역에 렌더링하는 데 쓴다. */
+function renderWatchList(watches, elId, mode) {
+  const el = document.getElementById(elId);
+  if (!el) return;
   if (!watches.length) {
     el.innerHTML = '<div class="empty">등록된 워치가 없습니다.</div>';
     return;
   }
-  const today = new Date().toISOString().slice(0, 10);
   const groups = new Map();
   watches.forEach((w) => {
     if (!groups.has(w.date)) groups.set(w.date, []);
@@ -3370,7 +3562,7 @@ function renderWatchList(watches) {
     else if (anyUnchecked) statusText = '아직 검색 전인 골프장 있음';
     else statusText = '현재 빈자리 없음';
     return `
-      <div class="home-booking-item" onclick="openWatchDetailDialog('${date}')" style="cursor:pointer;">
+      <div class="home-booking-item" onclick="openWatchDetailDialog('${date}','${mode}')" style="cursor:pointer;">
         <div class="hb-tile hb-date-tile">
           <div class="hb-date">${escapeHtml(dateLabel)}</div>
           <div class="hb-dday">${escapeHtml(ddayText)}</div>
@@ -3418,8 +3610,9 @@ function renderWatchItemDetail(w) {
   `;
 }
 
-function openWatchDetailDialog(date) {
+function openWatchDetailDialog(date, mode) {
   watchDetailOpenDate = date;
+  watchDetailOpenMode = mode === 'join' ? 'join' : 'booking';
   const dateObj = parseRoundDateLocal(date);
   const dateLabel = dateObj ? `${dateObj.getMonth() + 1}/${dateObj.getDate()}(${WATCH_WEEKDAY_KO[dateObj.getDay()]})` : date;
   document.getElementById('watchDetailTitle').textContent = `${dateLabel} 워치 상세`;
@@ -3428,7 +3621,7 @@ function openWatchDetailDialog(date) {
 }
 
 function renderWatchDetailList() {
-  const group = watchCache.filter((w) => w.date === watchDetailOpenDate);
+  const group = watchCache.filter((w) => w.date === watchDetailOpenDate && (w.mode || 'booking') === watchDetailOpenMode);
   const el = document.getElementById('watch-detail-list');
   if (!group.length) {
     el.innerHTML = '<div class="empty">이 날짜에 남은 워치가 없습니다.</div>';
@@ -3461,7 +3654,7 @@ async function deleteWatchItem(id) {
     showToast('삭제했습니다');
     await loadWatches();
     if (watchDetailOpenDate) {
-      const stillHasAny = watchCache.some((w) => w.date === watchDetailOpenDate);
+      const stillHasAny = watchCache.some((w) => w.date === watchDetailOpenDate && (w.mode || 'booking') === watchDetailOpenMode);
       if (stillHasAny) renderWatchDetailList();
       else closeWatchDetailDialog();
     }
@@ -4183,6 +4376,7 @@ function applyBookingToForm(b) {
   document.getElementById('booking-fee').value = formatMoneyValue(b.greenFeeAmount);
   document.getElementById('booking-cart-fee').value = formatMoneyValue(b.cartFeeAmount);
   document.getElementById('booking-caddy-fee').value = formatMoneyValue(b.caddyFeeAmount);
+  document.getElementById('booking-deposit').value = formatMoneyValue(b.depositAmount);
   document.getElementById('booking-payment').value = b.paymentMethod || '';
   document.getElementById('booking-reservation-name').value = b.reservationName || '';
   document.getElementById('booking-companion-count').value = b.companionCount ?? '';
@@ -4207,6 +4401,8 @@ function applyParsedToForm(parsed) {
   document.getElementById('booking-fee').value = formatMoneyValue(parsed.greenFeeAmount);
   document.getElementById('booking-cart-fee').value = formatMoneyValue(parsed.cartFeeAmount);
   document.getElementById('booking-caddy-fee').value = formatMoneyValue(parsed.caddyFeeAmount);
+  // 메시지에는 선입금이 나오는 경우가 거의 없어서(별도 안내) 조인 탭 컨텍스트일 때만 기본값을 채운다.
+  document.getElementById('booking-deposit').value = formatMoneyValue(parsed.depositAmount ?? (bookingDialogUiTab === '조인' ? 10000 : null));
   document.getElementById('booking-payment').value = parsed.paymentMethod || '';
   document.getElementById('booking-reservation-name').value = parsed.reservationName || '';
   document.getElementById('booking-companion-count').value = parsed.companionCount ?? '';
@@ -4231,7 +4427,25 @@ function toggleBookingMessageMode() {
 // 수정하러 연 경우엔 null로 둬서 메시지 재분석 시 굳이 강제하지 않는다.
 let bookingDialogTypeContext = null;
 
-function openBookingDialog(id, defaultType) {
+// 어느 UI 탭("조인"/"부킹")의 "＋ 추가"로 열었는지 - 예약처(booking-source) 선택지를 탭마다
+// 다르게 보여주는 데 쓴다(조인 탭은 카카오골프/골팡만, 부킹 탭은 골팡/홈페이지/동반자예약).
+// 기존 기록을 ✏️ 수정하러 연 경우엔 null로 둬서(applyBookingSourceOptions 참고) 그 기록이
+// 어느 값으로 저장돼 있든 항상 선택지에 나타나도록 네 가지를 모두 보여준다.
+let bookingDialogUiTab = null;
+
+const BOOKING_SOURCE_OPTIONS_BY_TAB = {
+  '조인': ['카카오골프', '골팡'],
+  '부킹': ['골팡', '홈페이지(본인예약)', '동반자예약'],
+};
+const BOOKING_SOURCE_OPTIONS_ALL = ['골팡', '홈페이지(본인예약)', '동반자예약', '카카오골프'];
+
+function applyBookingSourceOptions(uiTab) {
+  const select = document.getElementById('booking-source');
+  const values = BOOKING_SOURCE_OPTIONS_BY_TAB[uiTab] || BOOKING_SOURCE_OPTIONS_ALL;
+  select.innerHTML = values.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+}
+
+function openBookingDialog(id, defaultType, uiTab) {
   const dialog = document.getElementById('bookingDialog');
   document.getElementById('bookingForm').reset();
   document.getElementById('booking-id').value = '';
@@ -4244,6 +4458,8 @@ function openBookingDialog(id, defaultType) {
   setBookingMessageMode(false);
   document.getElementById('bookingDialogTitle').textContent = id ? '예약 기록 수정' : '예약 기록 추가';
   bookingDialogTypeContext = id ? null : (defaultType || null);
+  bookingDialogUiTab = id ? null : (uiTab || null);
+  applyBookingSourceOptions(bookingDialogUiTab);
   // "상태"는 기존 기록을 고칠 때만 보여준다(가예약→확정, 취소예정/취소완료 등으로 바꿀 일이
   // 있으니까). 새로 추가할 땐 어차피 항상 확정이라 화면에서 숨기고 값만 미리 넣어둔다.
   document.getElementById('booking-status-row').style.display = id ? '' : 'none';
@@ -4260,6 +4476,9 @@ function openBookingDialog(id, defaultType) {
     // 카트비/캐디피는 거의 항상 이 금액이라(사용자 피드백) 매번 직접 입력하지 않도록 기본값을 미리 넣어둔다.
     document.getElementById('booking-cart-fee').value = formatMoneyValue(120000);
     document.getElementById('booking-caddy-fee').value = formatMoneyValue(160000);
+    // 선입금은 조인 예약(카카오골프/골팡 조인)에서만 흔히 발생해서, 조인 탭에서 새로 추가할 때만
+    // 기본값 10,000원을 미리 넣는다(부킹 탭은 빈 값 - 필요하면 직접 입력).
+    document.getElementById('booking-deposit').value = bookingDialogUiTab === '조인' ? formatMoneyValue(10000) : '';
     if (defaultType) document.getElementById('booking-type').value = defaultType;
   }
   dialog.showModal();
@@ -4325,25 +4544,6 @@ async function parseBookingDialogMessage() {
   }
 }
 
-async function parseBookingMessage(inputId = 'booking-message-input', statusId = 'booking-message-status') {
-  const text = document.getElementById(inputId).value.trim();
-  if (!text) { showToast('메시지 내용을 입력해주세요'); return; }
-  const statusEl = document.getElementById(statusId);
-  statusEl.textContent = '분석 중...';
-  statusEl.style.color = '';
-  try {
-    const result = await api('/api/bookings/parse-message', { method: 'POST', body: JSON.stringify({ text }) });
-    statusEl.textContent = '';
-    // 이 카드는 "조인" 탭(본인예약 목록)에만 있는 카드라 항상 본인예약으로 강제한다 - 부킹탭
-    // 다이얼로그를 먼저 열어봤던 이력 때문에 엉뚱한 타입이 남아있는 걸 방지.
-    bookingDialogTypeContext = '본인';
-    openBookingReviewDialog(result.parsed, result.matchedBookingId, result.matchedBooking);
-  } catch (e) {
-    statusEl.textContent = describeBookingParseError(e.message);
-    statusEl.style.color = 'var(--danger)';
-  }
-}
-
 document.getElementById('bookingForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   // 골프장명은 필수인데, HTML의 required만 믿으면 브라우저 기본 검증 팝업이 사용자 눈에 안 띄는
@@ -4375,6 +4575,7 @@ document.getElementById('bookingForm').addEventListener('submit', async (e) => {
     greenFeeAmount: valOrNull('booking-fee'),
     cartFeeAmount: valOrNull('booking-cart-fee'),
     caddyFeeAmount: valOrNull('booking-caddy-fee'),
+    depositAmount: valOrNull('booking-deposit'),
     paymentMethod: document.getElementById('booking-payment').value,
     reservationName: document.getElementById('booking-reservation-name').value,
     companionCount: valOrNull('booking-companion-count'),
@@ -4387,14 +4588,12 @@ document.getElementById('bookingForm').addEventListener('submit', async (e) => {
     if (matchedId) {
       const result = await api(`/api/bookings/${matchedId}/confirm`, { method: 'POST', body: JSON.stringify(payload) });
       showToast(`확정으로 업데이트했습니다${result.siblingsUpdated ? ` (${result.siblingsUpdated}건 취소 검토 대상으로 표시)` : ''}`);
-      document.getElementById('booking-message-input').value = '';
     } else if (id) {
       await api(`/api/bookings/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
       showToast('예약 기록을 수정했습니다');
     } else {
       await api('/api/bookings', { method: 'POST', body: JSON.stringify(payload) });
       showToast('예약 기록을 추가했습니다');
-      document.getElementById('booking-message-input').value = '';
     }
     closeBookingDialog();
     await loadBookings();
