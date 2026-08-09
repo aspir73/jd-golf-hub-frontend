@@ -299,7 +299,7 @@
     text-align: center;
   }
   .hb-date-tile { background: #eef2ee; color: var(--green-dark); }
-  .hb-date-tile .hb-date { font-size: 18px; font-weight: 800; letter-spacing: -0.2px; line-height: 1.15; }
+  .hb-date-tile .hb-date { font-size: 16px; font-weight: 800; letter-spacing: -0.2px; line-height: 1.15; }
   .hb-date-tile .hb-dday {
     display: inline-block;
     font-size: 10px;
@@ -314,8 +314,7 @@
   .hb-weather-tile .hb-wt-icon { font-size: 30px; line-height: 1; }
   .hb-weather-tile .hb-wt-temp { font-size: 13px; font-weight: 800; margin-top: 6px; white-space: nowrap; }
   .home-booking-main { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; }
-  .home-booking-main .name-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
-  .home-booking-main .name { font-size: 15px; }
+  .home-booking-main .name { font-size: 15px; font-weight: 800; }
 
   /* 검색 결과 리스트(카카오 장소 검색) */
   .search-result {
@@ -1041,7 +1040,12 @@
   <div class="dialog-inner">
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <h2 id="bookingDialogTitle" style="margin:0;">예약 기록 추가</h2>
-      <button type="button" class="icon-btn" id="booking-message-toggle-btn" onclick="toggleBookingMessageMode()" title="메시지 붙여넣기로 자동 등록">📋</button>
+      <div>
+        <!-- 기존 기록을 수정할 때만 보임(openBookingDialog 참고) - 홈 카드에서 편집으로
+             들어온 뒤 여기서 바로 삭제까지 할 수 있게. -->
+        <button type="button" class="icon-btn" id="booking-delete-btn" onclick="deleteBookingFromDialog()" title="삭제" style="display:none;">🗑️</button>
+        <button type="button" class="icon-btn" id="booking-message-toggle-btn" onclick="toggleBookingMessageMode()" title="메시지 붙여넣기로 자동 등록">📋</button>
+      </div>
     </div>
     <div id="booking-match-notice" class="outfit-box" style="display:none; margin-bottom:10px;"></div>
 
@@ -3335,9 +3339,10 @@ function parseRoundDateLocal(str) {
 const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
 
 /** 취소완료·지난 날짜를 뺀 예약만 홈 화면에 카드로 보여준다(등록은 조인/부킹 탭에서 하고,
- * 홈에서는 "확인"만). 조인/부킹 탭의 예약 카드와는 다르게 여기는 [D-day 타일] [본문+편집]
- * [날씨 타일] 가로 배치 전용 레이아웃이라 renderBookingList를 재사용하지 않고 따로 그린다 -
- * 아이콘도 편집(✏️)만 남기고 복사/삭제는 뺐다(사용자 피드백: 홈은 "확인용"이라 그 둘은 안 씀). */
+ * 홈에서는 "확인"만). 조인/부킹 탭의 예약 카드와는 다르게 여기는 [D-day 타일] [본문]
+ * [날씨 타일] 가로 배치 전용 레이아웃이라 renderBookingList를 재사용하지 않고 따로 그린다.
+ * 카드 자체를 누르면 openBookingDialog가 열려서 상세 정보(=수정 폼에 이미 다 채워져 있음)를
+ * 보여주고, 거기서 편집·삭제까지 이어서 할 수 있다 - 카드에는 별도 아이콘을 안 둔다. */
 function renderHomeBookingList(bookings) {
   const card = document.getElementById('home-booking-card');
   if (!card) return;
@@ -3358,17 +3363,14 @@ function renderHomeBookingList(bookings) {
     const cost = estimatedPersonalCost(b);
     const costText = cost != null ? `💰 1인 예상 ${cost.toLocaleString('ko-KR')}원` : '';
     return `
-      <div class="home-booking-item">
+      <div class="home-booking-item" onclick="openBookingDialog('${b.id}')" style="cursor:pointer;">
         <div class="hb-tile hb-date-tile">
           <div class="hb-date">${escapeHtml(dateLabel)}</div>
           <div class="hb-dday">${escapeHtml(ddayText)}</div>
         </div>
         <div class="home-booking-main">
-          <div class="name-row">
-            <div class="name">${escapeHtml(b.courseName)}${subName ? ' · ' + escapeHtml(subName) : ''}</div>
-            <button class="icon-btn" onclick="openBookingDialog('${b.id}')" title="수정">✏️</button>
-          </div>
-          <div class="sub">${escapeHtml(b.roundTime || '-')} · ${escapeHtml(b.source)}</div>
+          <div class="name">${escapeHtml(b.courseName)}${subName ? ' · ' + escapeHtml(subName) : ''}</div>
+          <div class="sub">티타임 ${escapeHtml(b.roundTime || '-')}</div>
           ${travelText || costText ? `<div class="sub">${[travelText, costText].filter(Boolean).join(' · ')}</div>` : ''}
           <div class="tags"><span class="tag">${escapeHtml(b.status)}</span></div>
         </div>
@@ -3497,6 +3499,7 @@ function openBookingDialog(id, defaultType) {
   // "상태"는 기존 기록을 고칠 때만 보여준다(가예약→확정, 취소예정/취소완료 등으로 바꿀 일이
   // 있으니까). 새로 추가할 땐 어차피 항상 확정이라 화면에서 숨기고 값만 미리 넣어둔다.
   document.getElementById('booking-status-row').style.display = id ? '' : 'none';
+  document.getElementById('booking-delete-btn').style.display = id ? '' : 'none';
   if (id) {
     const b = bookingCache.find((x) => x.id === id);
     if (b) {
@@ -3533,6 +3536,7 @@ function openBookingReviewDialog(parsed, matchedBookingId, matchedBooking) {
   document.getElementById('booking-group-id').value = matchedBooking?.groupId || '';
   document.getElementById('bookingDialogTitle').textContent = '예약확정 메시지 검토';
   document.getElementById('booking-status-row').style.display = 'none';
+  document.getElementById('booking-delete-btn').style.display = 'none';
   setBookingMessageMode(false);
   applyParsedToForm(parsed);
   const notice = document.getElementById('booking-match-notice');
@@ -3651,14 +3655,25 @@ document.getElementById('bookingForm').addEventListener('submit', async (e) => {
   }
 });
 
+/** 예약 다이얼로그(수정 모드) 헤더의 🗑️ - 기존 기록 삭제를 removeBooking()에 위임하고,
+ * 실제로 지워졌을 때만 다이얼로그를 닫는다(취소를 누르면 다이얼로그는 그대로 열려있어야 함). */
+async function deleteBookingFromDialog() {
+  const id = document.getElementById('booking-id').value;
+  if (!id) return;
+  const deleted = await removeBooking(id);
+  if (deleted) closeBookingDialog();
+}
+
 async function removeBooking(id) {
-  if (!confirm('이 예약 기록을 삭제할까요?')) return;
+  if (!confirm('이 예약 기록을 삭제할까요?')) return false;
   try {
     await api(`/api/bookings/${id}`, { method: 'DELETE' });
     showToast('삭제했습니다');
     await loadBookings();
+    return true;
   } catch (e) {
     showToast('삭제 실패: ' + e.message);
+    return false;
   }
 }
 
