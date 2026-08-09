@@ -289,7 +289,7 @@
   .score-actions-stacked .mygolf-select-checkbox { width: 17px; height: 17px; }
 
   /* MY골프장 카드의 앞으로 7일 날씨 요약 줄 - 더 큼직하게(요청 반영) */
-  .week-weather-strip { display: flex; gap: 2px; margin-top: 8px; }
+  .week-weather-strip { display: flex; gap: 8px; margin-top: 8px; }
   .week-weather-strip .ww-day { flex: 1; min-width: 0; text-align: center; }
   .week-weather-strip .ww-dow { font-size: 12px; color: var(--muted); font-weight: 600; }
   .week-weather-strip .ww-icon { font-size: 22px; line-height: 1.5; }
@@ -298,7 +298,7 @@
   .week-weather-strip .ww-temp .min { color: #2b5db5; font-weight: 700; }
 
   /* 날씨 줄 바로 아래, 같은 요일 칸에 맞춰 나오는 요일별 최저 그린피 줄 */
-  .week-greenfee-strip { display: flex; gap: 2px; margin-top: 2px; }
+  .week-greenfee-strip { display: flex; gap: 8px; margin-top: 2px; }
   .week-greenfee-strip .gf-day { flex: 1; min-width: 0; text-align: center; font-size: 11px; color: var(--accent); font-weight: 700; }
   .tee-times .tt-row { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 0; border-top: 1px solid var(--border); }
   .tee-times .tt-row:first-child { border-top: none; margin-top: 6px; }
@@ -1669,10 +1669,7 @@ function renderCourseList(courses) {
           <div class="week-greenfee-strip" id="mygolf-greenfee-${c.id}"></div>
         </div>
         <div class="score-actions score-actions-stacked">
-          <div style="display:flex; gap:6px;">
-            <button class="icon-btn" onclick="openCourseWeather('${c.id}')" title="날씨">🌤</button>
-            <button class="icon-btn" onclick="openCourseDialog('${c.id}')" title="수정">✏️</button>
-          </div>
+          <button class="icon-btn" onclick="openCourseDialog('${c.id}')" title="수정">✏️</button>
           <input type="checkbox" class="mygolf-select-checkbox" data-id="${c.id}" ${mygolfSelectedIds.has(c.id) ? 'checked' : ''} onchange="onMygolfCheckboxChange(this)">
         </div>
       </div>
