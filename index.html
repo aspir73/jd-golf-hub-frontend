@@ -2848,7 +2848,7 @@ async function loadKakaoGolfTeeTimes(i, btn) {
           <label class="tt-row${isMin ? ' min-fee' : ''}" style="cursor:pointer;">
             <span style="display:flex; align-items:center; gap:6px;">
               <input type="checkbox" onclick="toggleKakaoGolfTeeTimeSelect(${i},${ti},this)">
-              ${escapeHtml(t.time)}${t.holes ? ' · ' + escapeHtml(t.holes) : ''}
+              ${escapeHtml(t.time)}${t.courseSubName ? ' · ' + escapeHtml(t.courseSubName) : ''}${t.holes ? ' · ' + escapeHtml(t.holes) : ''}
               ${roundSearchMergedGolfpang ? `<span class="source-badge${isGolfpang ? ' golfpang' : ''}">${t.source}</span>` : ''}
             </span>
             <span>${rightInfo ? escapeHtml(rightInfo) + ' · ' : ''}${t.greenFee != null ? t.greenFee.toLocaleString('ko-KR') + '원' : '-'}${isMin ? ' <span class="min-fee-badge">최저가</span>' : ''}</span>
