@@ -3234,6 +3234,18 @@ function groupBookingRounds(rounds) {
   }));
 }
 
+// ===== "예약 바로가기" 링크 =====
+// 골팡 조인/본인예약 게시글 상세는 클릭하면 showCon(idx) 같은 JS 함수(로그인 필요한 문의/신청
+// 모달로 추정)로 열려서, 우리가 임의로 게시글 하나를 콕 집어 딥링크할 방법이 없다(직접 확인함).
+// 그래서 골팡은 목록 페이지 자체로 보낸다. 카카오골프예약은 robots.txt/sitemap.xml로 확인한
+// "/golf/{id}" 골프장 상세 페이지가 로그인 없이도 공개돼 있어서(Allow: /golf/), 검색 결과의
+// golfInfoSeq(=idx)로 그 골프장 페이지에 바로 갈 수 있다 - 이쪽만 진짜 "바로가기"에 가깝다.
+const GOLFPANG_JOIN_LIST_URL = 'https://www.golfpang.com/web/round/join_list.do';
+const GOLFPANG_BOOKING_LIST_URL = 'https://www.golfpang.com/web/round/booking_list.do';
+function kakaoGolfCourseUrl(golfInfoSeq) {
+  return `https://www.kakao.golf/golf/${golfInfoSeq}`;
+}
+
 function renderBookingSearchResults(rounds) {
   const el = document.getElementById('booking-result-list');
   const groupBtn = document.getElementById('booking-group-btn');
@@ -3255,7 +3267,10 @@ function renderBookingSearchResults(rounds) {
           <div class="f"><span class="k">지역</span>${escapeHtml(g.region || '-')}</div>
           <div class="f"><span class="k">최저 그린피</span>${minFee != null ? minFee.toLocaleString('ko-KR') + '원' : '-'}</div>
         </div>
-        <button class="btn secondary" style="margin-top:8px; padding:5px 10px; font-size:12px;" onclick="toggleBookingGroupTeeTimes(${i}, this)">티타임 보기 (${g.postings.length}건)</button>
+        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+          <button class="btn secondary" style="padding:5px 10px; font-size:12px;" onclick="toggleBookingGroupTeeTimes(${i}, this)">티타임 보기 (${g.postings.length}건)</button>
+          <a class="btn secondary" style="padding:5px 10px; font-size:12px; text-decoration:none; text-align:center;" href="${GOLFPANG_JOIN_LIST_URL}" target="_blank" rel="noopener" title="골팡 조인 목록 페이지로 이동합니다(특정 매물 하나만 콕 집어 여는 링크는 골팡에서 지원하지 않아요 - 이동한 뒤 직접 찾아서 신청해주세요)">예약 바로가기 ↗</a>
+        </div>
         <div class="tee-times" id="booking-group-times-${i}" style="display:none;"></div>
       </div>
     </div>
@@ -4159,10 +4174,13 @@ function renderRoundSearchResults(rounds) {
             <div class="f${party.accent ? ' accent' : ''}"><span class="k">내장인원수</span>${escapeHtml(party.text)}</div>
             <div class="f${caddy.accent ? ' accent' : ''}"><span class="k">캐디유무</span>${escapeHtml(caddy.text)}</div>
           </div>
-          ${roundSearchPlatform === 'kakaogolf' ? `
-          <button class="btn secondary" style="margin-top:8px; padding:5px 10px; font-size:12px;" onclick="loadKakaoGolfTeeTimes(${i}, this)">티타임 보기${roundSearchMergedGolfpang ? '' : ` (${r.matchCount ?? 0}건)`}</button>
-          <div class="tee-times" id="tee-times-${i}"></div>
-          ` : ''}
+          <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+            ${roundSearchPlatform === 'kakaogolf' ? `<button class="btn secondary" style="padding:5px 10px; font-size:12px;" onclick="loadKakaoGolfTeeTimes(${i}, this)">티타임 보기${roundSearchMergedGolfpang ? '' : ` (${r.matchCount ?? 0}건)`}</button>` : ''}
+            ${roundSearchPlatform === 'kakaogolf'
+              ? `<a class="btn secondary" style="padding:5px 10px; font-size:12px; text-decoration:none; text-align:center;" href="${kakaoGolfCourseUrl(r.idx)}" target="_blank" rel="noopener">예약 바로가기 ↗</a>`
+              : `<a class="btn secondary" style="padding:5px 10px; font-size:12px; text-decoration:none; text-align:center;" href="${GOLFPANG_BOOKING_LIST_URL}" target="_blank" rel="noopener" title="골팡 본인예약 목록 페이지로 이동합니다(특정 매물 하나만 콕 집어 여는 링크는 골팡에서 지원하지 않아요 - 이동한 뒤 직접 찾아서 예약해주세요)">예약 바로가기 ↗</a>`}
+          </div>
+          ${roundSearchPlatform === 'kakaogolf' ? `<div class="tee-times" id="tee-times-${i}"></div>` : ''}
         </div>
       </div>
     </div>
