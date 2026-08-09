@@ -329,6 +329,22 @@
   .search-result .name { font-weight: 600; }
   .search-result .addr { color: var(--muted); font-size: 12px; }
 
+  /* 부킹 조건검색의 골프장명 자동완성 드롭다운(문체부 공식 DB 매칭) */
+  .course-suggestion-list {
+    position: absolute;
+    left: 0; right: 0; top: calc(100% + 2px);
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 20;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .course-suggestion-item { padding: 8px 10px; font-size: 13px; cursor: pointer; }
+  .course-suggestion-item:active, .course-suggestion-item:hover { background: #f0f4f0; }
+  .course-suggestion-item + .course-suggestion-item { border-top: 1px solid var(--border); }
+
   /* 칩(참가자 선택 등) */
   .chip-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   .chip {
@@ -570,6 +586,13 @@
       <label style="margin-top:10px;">날짜</label>
       <input type="date" id="round-search-date">
 
+      <label style="margin-top:10px;">골프장명 <span class="muted" style="font-size:11px;">(입력 시 해당 골프장만 검색)</span></label>
+      <div style="position:relative;">
+        <input type="text" id="booking-course-filter-input" placeholder="예: 세현CC" autocomplete="off"
+          oninput="onBookingCourseFilterInput()" onfocus="onBookingCourseFilterInput()">
+        <div id="booking-course-filter-suggestions" class="course-suggestion-list" style="display:none;"></div>
+      </div>
+
       <!-- 골팡+카카오골프예약 둘 다 선택했을 때(기본값)만 보이는 표준화된 옵션 -->
       <div id="round-fields-normalized">
         <label>티타임</label>
@@ -581,13 +604,13 @@
 
         <label>지역</label>
         <div class="chip-group" id="normalized-region-chips">
-          <span class="chip" onclick="toggleNormalizedChip('regions','hangang',this)">한강이남</span>
-          <span class="chip" onclick="toggleNormalizedChip('regions','gangbuk',this)">강북/경춘</span>
-          <span class="chip" onclick="toggleNormalizedChip('regions','gangwon',this)">강원</span>
-          <span class="chip" onclick="toggleNormalizedChip('regions','chungcheong',this)">충청</span>
-          <span class="chip" onclick="toggleNormalizedChip('regions','gyeongsang',this)">경상</span>
-          <span class="chip" onclick="toggleNormalizedChip('regions','jeolla',this)">전라</span>
-          <span class="chip" onclick="toggleNormalizedChip('regions','jeju',this)">제주</span>
+          <span class="chip" data-region-key="hangang" onclick="toggleNormalizedChip('regions','hangang',this)">한강이남</span>
+          <span class="chip" data-region-key="gangbuk" onclick="toggleNormalizedChip('regions','gangbuk',this)">강북/경춘</span>
+          <span class="chip" data-region-key="gangwon" onclick="toggleNormalizedChip('regions','gangwon',this)">강원</span>
+          <span class="chip" data-region-key="chungcheong" onclick="toggleNormalizedChip('regions','chungcheong',this)">충청</span>
+          <span class="chip" data-region-key="gyeongsang" onclick="toggleNormalizedChip('regions','gyeongsang',this)">경상</span>
+          <span class="chip" data-region-key="jeolla" onclick="toggleNormalizedChip('regions','jeolla',this)">전라</span>
+          <span class="chip" data-region-key="jeju" onclick="toggleNormalizedChip('regions','jeju',this)">제주</span>
         </div>
 
         <label>캐디</label>
@@ -2472,6 +2495,18 @@ const NORMALIZED_REGIONS = {
   jeju: { label: '제주', golfpang: '7', kakaoMajor: '46', kakaoSub: ['48'] },
 };
 
+/** 문체부 골프장 DB의 지역(시/도) 값 → 표준화된 지역 칩 키. 서울/경기/인천은 DB에 더 세부적인
+ * 좌표 정보가 없어서 한강이남/강북·경춘 어느 쪽인지 구분할 수 없으므로 둘 다 켜서(안전하게
+ * 넓게) 놓친 결과가 없도록 한다. */
+const DB_REGION_TO_NORMALIZED = {
+  '서울': ['hangang', 'gangbuk'], '경기': ['hangang', 'gangbuk'], '인천': ['hangang', 'gangbuk'],
+  '강원': ['gangwon'],
+  '충남': ['chungcheong'], '충북': ['chungcheong'], '대전': ['chungcheong'], '세종': ['chungcheong'],
+  '경남': ['gyeongsang'], '경북': ['gyeongsang'], '대구': ['gyeongsang'], '부산': ['gyeongsang'], '울산': ['gyeongsang'],
+  '전남': ['jeolla'], '전북': ['jeolla'], '광주': ['jeolla'],
+  '제주': ['jeju'],
+};
+
 // 표준화된 티타임 → 골팡 ampm(그대로 1:1) / 카카오골프예약 timeZone 비트마스크값(오전=새벽+오전 합산).
 const NORMALIZED_TIME_OF_DAY = {
   am: { label: '오전', golfpangAmpm: 'am', kakaoTimeZones: [1, 2] },
@@ -2727,11 +2762,85 @@ function openCreateGroupFromBookingSelection() {
   createComparisonGroup(title, candidates);
 }
 
+// ===== 부킹 조건검색: 골프장명 지정 검색(문체부 DB 자동완성 + 표준명 매칭) =====
+// 사용자가 검색 조건에서 특정 골프장을 지정할 수 있게 한다. 입력하는 동안 문체부 공식 DB에서
+// 후보를 찾아 보여주고, 후보를 고르면 표준 명칭으로 채워 넣는다(더 이상 골팡/카카오마다 표기가
+// 다른 이름을 직접 신경 쓸 필요가 없게).
+let bookingCourseFilter = null; // 후보를 선택해 확정된 { name, region, ... } - null이면 필터 없음
+let bookingCourseFilterDebounceTimer = null;
+
+function onBookingCourseFilterInput() {
+  bookingCourseFilter = null; // 사용자가 다시 타이핑하면 이전에 확정했던 매칭은 무효화
+  const box = document.getElementById('booking-course-filter-suggestions');
+  const q = document.getElementById('booking-course-filter-input').value.trim();
+  if (bookingCourseFilterDebounceTimer) clearTimeout(bookingCourseFilterDebounceTimer);
+  if (q.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  bookingCourseFilterDebounceTimer = setTimeout(async () => {
+    try {
+      const { courses } = await api(`/api/golf-db/search?query=${encodeURIComponent(q)}`);
+      if (!courses.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+      box.dataset.courses = JSON.stringify(courses.slice(0, 8));
+      box.innerHTML = courses.slice(0, 8).map((c, idx) =>
+        `<div class="course-suggestion-item" onclick="selectBookingCourseFilter(${idx})">${escapeHtml(c.name)} <span class="muted" style="font-size:11px;">${escapeHtml(c.region || '')}</span></div>`
+      ).join('');
+      box.style.display = 'block';
+    } catch {
+      box.style.display = 'none';
+    }
+  }, 300);
+}
+
+function selectBookingCourseFilter(idx) {
+  const box = document.getElementById('booking-course-filter-suggestions');
+  const courses = JSON.parse(box.dataset.courses || '[]');
+  const course = courses[idx];
+  if (!course) return;
+  bookingCourseFilter = course;
+  document.getElementById('booking-course-filter-input').value = course.name;
+  box.style.display = 'none';
+  applyBookingCourseFilterRegion(course);
+}
+
+/** 지정한 골프장이 속한 지역을 검색 조건(표준화 지역 칩 / 카카오단독 모드 지역)에 자동
+ * 반영한다 - 안 그러면 검색 자체가 그 골프장이 있는 지역을 안 훑어서 결과가 아예 안 나온다
+ * (카카오골프예약 API는 areas 미지정 시 기본값이 "서울/경기(대권역 1)"로 고정돼 있음). */
+function applyBookingCourseFilterRegion(course) {
+  const normKeys = DB_REGION_TO_NORMALIZED[course.region] || [];
+  if (!normKeys.length) return;
+  normalizedFilters.regions = new Set(normKeys);
+  document.querySelectorAll('#normalized-region-chips .chip').forEach((chip) => {
+    chip.classList.toggle('selected', normKeys.includes(chip.dataset.regionKey));
+  });
+  // 카카오골프예약 단독 모드는 "전체"가 없어 대권역을 항상 하나 골라야 한다 - 매칭된 지역의
+  // 대권역으로 맞춰주고, 세부지역은 모르니 비워서(=대권역 전체) 검색되게 한다.
+  const kakaoMajor = NORMALIZED_REGIONS[normKeys[0]]?.kakaoMajor;
+  if (kakaoMajor) {
+    document.getElementById('kakaogolf-region').value = kakaoMajor;
+    kakaoGolfFilters.subRegions.clear();
+    renderKakaoGolfSubRegions();
+  }
+}
+
+/** 검색 결과에서 지정한 골프장만 남긴다(정규화 이름 비교 - 표기가 달라도 매칭). DB에서 고른
+ * 표준명이 있으면 그걸, 없으면 사용자가 입력한 원문을 그대로 기준으로 쓴다. */
+function filterRoundsByCourseName(rounds) {
+  const target = bookingCourseFilter?.name || document.getElementById('booking-course-filter-input').value.trim();
+  if (!target) return rounds;
+  const normTarget = normalizeCourseName(target);
+  if (!normTarget) return rounds;
+  return rounds.filter((r) => {
+    if (bookingCourseFilter?.name && r.officialName === bookingCourseFilter.name) return true;
+    const norm = normalizeCourseName(r.courseName || r.officialName || '');
+    return norm && (norm === normTarget || norm.includes(normTarget) || normTarget.includes(norm));
+  });
+}
+
 async function searchRounds() {
   const date = document.getElementById('round-search-date').value;
   if (!date) { showToast('날짜를 선택해주세요'); return; }
   const platforms = getSelectedRoundSearchPlatforms();
   if (!platforms.length) { showToast('플랫폼을 하나 이상 선택해주세요'); return; }
+  document.getElementById('booking-course-filter-suggestions').style.display = 'none';
   try {
     let result, sourceLabel;
 
@@ -2769,12 +2878,16 @@ async function searchRounds() {
       sourceLabel = '카카오골프예약, 골프장 단위 요약';
     }
 
-    roundSearchResultCache = result.rounds;
+    const filteredRounds = filterRoundsByCourseName(result.rounds);
+    roundSearchResultCache = filteredRounds;
     kakaoGolfTeeTimesCache = {};
     kakaoGolfSelectedTeeTimes.clear();
+    const courseFilterNote = filteredRounds.length !== result.rounds.length
+      ? ` · "${bookingCourseFilter?.name || document.getElementById('booking-course-filter-input').value.trim()}" 검색`
+      : '';
     document.getElementById('golfpang-result-summary').textContent =
-      `총 ${result.totalCount != null ? result.totalCount.toLocaleString('ko-KR') : result.rounds.length}건 중 ${result.rounds.length}건 표시 (${sourceLabel})`;
-    renderRoundSearchResults(result.rounds);
+      `총 ${result.totalCount != null ? result.totalCount.toLocaleString('ko-KR') : result.rounds.length}건 중 ${filteredRounds.length}건 표시 (${sourceLabel}${courseFilterNote})`;
+    renderRoundSearchResults(filteredRounds);
   } catch (e) {
     showToast('검색 실패: ' + e.message);
   }
