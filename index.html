@@ -277,6 +277,34 @@
     font-size: 11px;
   }
 
+  /* 홈 탭 "예약 일정" 카드: [D-day 타일] [본문] [날씨 타일] 가로 배치 */
+  .home-booking-item {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .home-booking-item:last-child { border-bottom: none; }
+  .hb-tile {
+    flex: 0 0 58px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    padding: 6px 4px;
+    text-align: center;
+  }
+  .hb-date-tile { background: #eef2ee; color: var(--green-dark); }
+  .hb-date-tile .hb-date { font-size: 11px; font-weight: 600; }
+  .hb-date-tile .hb-dday { font-size: 16px; font-weight: 800; margin-top: 3px; }
+  .hb-weather-tile { background: #eef6fb; color: #2b5db5; }
+  .hb-weather-tile .hb-wt-icon { font-size: 22px; line-height: 1; }
+  .hb-weather-tile .hb-wt-temp { font-size: 11px; font-weight: 700; margin-top: 4px; white-space: nowrap; }
+  .home-booking-main { flex: 1; min-width: 0; }
+  .home-booking-main .name-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+
   /* 검색 결과 리스트(카카오 장소 검색) */
   .search-result {
     padding: 8px 10px;
@@ -3285,16 +3313,96 @@ function renderHomeReminders(bookings) {
   }).join('');
 }
 
+/** "YYYY-MM-DD"를 로컬 타임존 기준 Date로 파싱(parseDeadlineDate와 같은 방식 - UTC로
+ * 파싱하면 시간대에 따라 하루 밀리는 문제가 있어서 년/월/일을 분리해 로컬로 만든다). */
+function parseRoundDateLocal(str) {
+  const m = (str || '').match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+}
+
 /** 취소완료·지난 날짜를 뺀 예약만 홈 화면에 카드로 보여준다(등록은 조인/부킹 탭에서 하고,
- * 홈에서는 "확인"만 - 카드 자체는 renderBookingList를 그대로 재사용해서 예약일 날씨 표시까지
- * 부킹/조인 탭과 똑같이 나온다). */
+ * 홈에서는 "확인"만). 조인/부킹 탭의 예약 카드와는 다르게 여기는 [D-day 타일] [본문+편집]
+ * [날씨 타일] 가로 배치 전용 레이아웃이라 renderBookingList를 재사용하지 않고 따로 그린다 -
+ * 아이콘도 편집(✏️)만 남기고 복사/삭제는 뺐다(사용자 피드백: 홈은 "확인용"이라 그 둘은 안 씀). */
 function renderHomeBookingList(bookings) {
   const card = document.getElementById('home-booking-card');
   if (!card) return;
   const today = new Date().toISOString().slice(0, 10);
-  const upcoming = bookings.filter((b) => b.status !== '취소완료' && (!b.roundDate || b.roundDate >= today));
+  const upcoming = bookings
+    .filter((b) => b.status !== '취소완료' && (!b.roundDate || b.roundDate >= today))
+    .sort((a, b) => (a.roundDate < b.roundDate ? -1 : 1));
   card.style.display = upcoming.length ? 'block' : 'none';
-  if (upcoming.length) renderBookingList(upcoming, 'home-booking-list');
+  if (!upcoming.length) return;
+
+  document.getElementById('home-booking-list').innerHTML = upcoming.map((b) => {
+    const dateObj = parseRoundDateLocal(b.roundDate);
+    const days = dateObj ? daysUntil(dateObj) : null;
+    const ddayText = days == null ? '-' : days === 0 ? 'D-DAY' : days > 0 ? `D-${days}` : `D+${Math.abs(days)}`;
+    const dateLabel = dateObj ? `${dateObj.getMonth() + 1}/${dateObj.getDate()}` : '-';
+    const subName = displayableSubCourse(b.courseSubName);
+    const travelText = b.distanceKm != null ? `🚗 ${b.distanceKm}km (약 ${b.durationMin}분)` : '';
+    const cost = estimatedPersonalCost(b);
+    const costText = cost != null ? `💰 1인 예상 ${cost.toLocaleString('ko-KR')}원` : '';
+    return `
+      <div class="home-booking-item">
+        <div class="hb-tile hb-date-tile">
+          <div class="hb-date">${escapeHtml(dateLabel)}</div>
+          <div class="hb-dday">${escapeHtml(ddayText)}</div>
+        </div>
+        <div class="home-booking-main">
+          <div class="name-row">
+            <div class="name">${escapeHtml(b.courseName)}${subName ? ' · ' + escapeHtml(subName) : ''}</div>
+            <button class="icon-btn" onclick="openBookingDialog('${b.id}')" title="수정">✏️</button>
+          </div>
+          <div class="sub">${escapeHtml(b.roundTime || '-')} · ${escapeHtml(b.source)}</div>
+          ${travelText || costText ? `<div class="sub">${[travelText, costText].filter(Boolean).join(' · ')}</div>` : ''}
+          <div class="tags"><span class="tag">${escapeHtml(b.status)}</span></div>
+        </div>
+        <div class="hb-tile hb-weather-tile" id="home-weather-tile-${b.id}" style="display:none;">
+          <div class="hb-wt-icon">🌡️</div>
+          <div class="hb-wt-temp">-</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  loadHomeWeatherTiles(upcoming);
+}
+
+/** 홈 예약 카드 우측 날씨 타일을 채운다 - loadBookingWeatherBadges와 같은 데이터 소스지만
+ * "(라운딩 당일 예상)" 같은 부가 설명 없이 아이콘+기온만 큼직하게 타일에 넣는다. */
+async function loadHomeWeatherTiles(bookings) {
+  if (!courseCache.length) await loadCourses();
+  await Promise.all(bookings.map(async (b) => {
+    const tile = document.getElementById(`home-weather-tile-${b.id}`);
+    if (!tile || !b.roundDate) return;
+    const coords = findCourseCoordsByName(b.courseName);
+    if (!coords) return;
+    const offset = courseWeatherDayOffset(b.roundDate);
+    if (offset < 0 || offset > 10) return;
+    try {
+      let icon = '🌡️';
+      let tempMin, tempMax;
+      if (offset <= 2) {
+        const data = await api(`/api/weather?lat=${coords.lat}&lon=${coords.lon}&date=${b.roundDate}`);
+        if (!data.hourly.length) return;
+        const temps = data.hourly.map((h) => h.temp).filter((t) => t != null);
+        if (!temps.length) return;
+        icon = skyIcon(data.hourly[Math.floor(data.hourly.length / 2)]?.sky);
+        tempMin = Math.min(...temps);
+        tempMax = Math.max(...temps);
+      } else {
+        const data = await api(`/api/weather/midterm?lat=${coords.lat}&lon=${coords.lon}&date=${b.roundDate}`);
+        icon = skyIcon(data.periods?.[0]?.sky);
+        tempMin = data.tempMin ?? '-';
+        tempMax = data.tempMax ?? '-';
+      }
+      tile.querySelector('.hb-wt-icon').textContent = icon;
+      tile.querySelector('.hb-wt-temp').textContent = `${tempMin}~${tempMax}°C`;
+      tile.style.display = '';
+    } catch {
+      // 실패해도 조용히 생략 - 타일을 숨긴 채로 둔다
+    }
+  }));
 }
 
 function applyBookingToForm(b) {
