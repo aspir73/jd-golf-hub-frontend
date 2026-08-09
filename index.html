@@ -782,6 +782,17 @@
       </div>
     </dialog>
 
+    <!-- 같은 날짜에 묶인 워치들의 골프장별 상세 - renderWatchList의 요약 카드를 누르면 열림 -->
+    <dialog id="watchDetailDialog">
+      <div class="dialog-inner">
+        <h3 id="watchDetailTitle" style="margin:0 0 10px;">워치 상세</h3>
+        <div id="watch-detail-list"></div>
+        <div class="dialog-actions">
+          <button type="button" class="btn block" onclick="closeWatchDetailDialog()">닫기</button>
+        </div>
+      </div>
+    </dialog>
+
     <div class="card">
       <h2>🆚 동반예약(백업) 비교</h2>
       <div id="comparison-group-list" class="empty">아직 비교 그룹이 없습니다. 위 조건검색 결과에서 후보를 선택해 만들어보세요.</div>
@@ -2972,7 +2983,13 @@ async function loadWatches() {
 }
 
 const WATCH_TIME_LABELS = { am: '오전', pm: '오후', nt: '야간' };
+const WATCH_WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
+// 상세 다이얼로그가 지금 어느 날짜를 보여주고 있는지 - 새로고침/삭제 후 목록뿐 아니라 열려있는
+// 상세 다이얼로그도 같이 최신화하기 위해 기억해둔다(닫혀 있으면 null).
+let watchDetailOpenDate = null;
 
+/** 같은 날짜에 여러 골프장을 워치해도 목록이 늘어지지 않도록, 날짜별로 하나의 요약 카드로
+ * 묶어서 보여준다. 카드를 누르면 그 날짜에 걸린 골프장들의 상세 정보(다이얼로그)를 연다. */
 function renderWatchList(watches) {
   const el = document.getElementById('watch-list');
   if (!watches.length) {
@@ -2980,39 +2997,95 @@ function renderWatchList(watches) {
     return;
   }
   const today = new Date().toISOString().slice(0, 10);
-  const sorted = [...watches].sort((a, b) => (a.date < b.date ? -1 : 1));
-  el.innerHTML = sorted.map((w) => {
-    const expired = w.date < today;
-    const timeLabel = w.timeOfDay?.length ? w.timeOfDay.map((t) => WATCH_TIME_LABELS[t]).join('/') : '전체 시간대';
-    const results = w.lastResults || [];
-    const newCount = results.filter((r) => r.isNew).length;
-    let resultHtml;
-    if (w.lastError) {
-      resultHtml = `<div class="sub" style="color:var(--danger);">조회 실패: ${escapeHtml(w.lastError)}</div>`;
-    } else if (!results.length) {
-      resultHtml = `<div class="sub">${w.lastCheckedAt ? '현재 빈자리 없음' : '아직 검색 전입니다 - 새로고침을 눌러보세요'}</div>`;
-    } else {
-      const items = results.slice(0, 6).map((r) =>
-        `<span class="tag"${r.isNew ? ' style="background:#fff4e5;color:#8a5a00;"' : ''}>${r.isNew ? '🆕 ' : ''}${escapeHtml(r.time)}${r.courseSubName ? ' ' + escapeHtml(r.courseSubName) : ''} · ${r.greenFee != null ? r.greenFee.toLocaleString('ko-KR') + '원' : '-'}</span>`
-      ).join('');
-      resultHtml = `<div class="tags" style="margin-top:6px;">${items}</div>${results.length > 6 ? `<div class="sub" style="margin-top:4px;">외 ${results.length - 6}건 더</div>` : ''}`;
-      if (newCount) resultHtml = `<div class="sub" style="color:var(--accent); font-weight:700;">🆕 새로 발견된 자리 ${newCount}건</div>` + resultHtml;
-    }
+  const groups = new Map();
+  watches.forEach((w) => {
+    if (!groups.has(w.date)) groups.set(w.date, []);
+    groups.get(w.date).push(w);
+  });
+  const sortedDates = [...groups.keys()].sort();
+
+  el.innerHTML = sortedDates.map((date) => {
+    const group = groups.get(date);
+    const expired = date < today;
+    const dateObj = parseRoundDateLocal(date);
+    const dateLabel = dateObj ? `${dateObj.getMonth() + 1}/${dateObj.getDate()}(${WATCH_WEEKDAY_KO[dateObj.getDay()]})` : date;
+    const totalNew = group.reduce((sum, w) => sum + (w.lastResults || []).filter((r) => r.isNew).length, 0);
+    const totalResults = group.reduce((sum, w) => sum + (w.lastResults || []).length, 0);
+    const anyUnchecked = group.some((w) => !w.lastCheckedAt);
+    const courseNames = group.map((w) => w.courseName).join(', ');
+    let statusText;
+    if (totalNew > 0) statusText = `🆕 새로 발견 ${totalNew}건`;
+    else if (totalResults > 0) statusText = `현재 ${totalResults}건 확인됨`;
+    else if (anyUnchecked) statusText = '아직 검색 전인 골프장 있음';
+    else statusText = '현재 빈자리 없음';
     return `
-      <div class="list-item">
+      <div class="list-item" style="cursor:pointer;" onclick="openWatchDetailDialog('${date}')">
         <div>
-          <div class="name">${escapeHtml(w.courseName)}${expired ? ' <span class="muted" style="font-size:11px;">(지난 날짜)</span>' : ''}</div>
-          <div class="sub">${escapeHtml(w.date)} · ${escapeHtml(timeLabel)}</div>
-          <div class="sub">${escapeHtml(formatRelativeTime(w.lastCheckedAt))}</div>
-          ${resultHtml}
+          <div class="name">📅 ${escapeHtml(dateLabel)}${expired ? ' <span class="muted" style="font-size:11px;">(지난 날짜)</span>' : ''}</div>
+          <div class="sub">${group.length}개 골프장 · ${escapeHtml(courseNames)}</div>
+          <div class="sub"${totalNew > 0 ? ' style="color:var(--accent); font-weight:700;"' : ''}>${escapeHtml(statusText)}</div>
         </div>
-        <div class="score-actions">
-          <button class="icon-btn" onclick="refreshWatchNow('${w.id}')" title="지금 새로고침">🔄</button>
-          <button class="icon-btn" onclick="deleteWatchItem('${w.id}')" title="삭제">🗑️</button>
-        </div>
+        <div class="score-actions" style="font-size:20px; color:var(--muted); align-self:center;">›</div>
       </div>
     `;
   }).join('');
+}
+
+/** 워치 카드(≒ 골프장 하나) 상세 항목 - 상세 다이얼로그 안에서 재사용. */
+function renderWatchItemDetail(w) {
+  const timeLabel = w.timeOfDay?.length ? w.timeOfDay.map((t) => WATCH_TIME_LABELS[t]).join('/') : '전체 시간대';
+  const results = w.lastResults || [];
+  const newCount = results.filter((r) => r.isNew).length;
+  let resultHtml;
+  if (w.lastError) {
+    resultHtml = `<div class="sub" style="color:var(--danger);">조회 실패: ${escapeHtml(w.lastError)}</div>`;
+  } else if (!results.length) {
+    resultHtml = `<div class="sub">${w.lastCheckedAt ? '현재 빈자리 없음' : '아직 검색 전입니다 - 새로고침을 눌러보세요'}</div>`;
+  } else {
+    const items = results.slice(0, 6).map((r) =>
+      `<span class="tag"${r.isNew ? ' style="background:#fff4e5;color:#8a5a00;"' : ''}>${r.isNew ? '🆕 ' : ''}${escapeHtml(r.time)}${r.courseSubName ? ' ' + escapeHtml(r.courseSubName) : ''} · ${r.greenFee != null ? r.greenFee.toLocaleString('ko-KR') + '원' : '-'}</span>`
+    ).join('');
+    resultHtml = `<div class="tags" style="margin-top:6px;">${items}</div>${results.length > 6 ? `<div class="sub" style="margin-top:4px;">외 ${results.length - 6}건 더</div>` : ''}`;
+    if (newCount) resultHtml = `<div class="sub" style="color:var(--accent); font-weight:700;">🆕 새로 발견된 자리 ${newCount}건</div>` + resultHtml;
+  }
+  return `
+    <div class="list-item">
+      <div>
+        <div class="name">${escapeHtml(w.courseName)}</div>
+        <div class="sub">${escapeHtml(timeLabel)}</div>
+        <div class="sub">${escapeHtml(formatRelativeTime(w.lastCheckedAt))}</div>
+        ${resultHtml}
+      </div>
+      <div class="score-actions">
+        <button class="icon-btn" onclick="refreshWatchNow('${w.id}')" title="지금 새로고침">🔄</button>
+        <button class="icon-btn" onclick="deleteWatchItem('${w.id}')" title="삭제">🗑️</button>
+      </div>
+    </div>
+  `;
+}
+
+function openWatchDetailDialog(date) {
+  watchDetailOpenDate = date;
+  const dateObj = parseRoundDateLocal(date);
+  const dateLabel = dateObj ? `${dateObj.getMonth() + 1}/${dateObj.getDate()}(${WATCH_WEEKDAY_KO[dateObj.getDay()]})` : date;
+  document.getElementById('watchDetailTitle').textContent = `${dateLabel} 워치 상세`;
+  renderWatchDetailList();
+  document.getElementById('watchDetailDialog').showModal();
+}
+
+function renderWatchDetailList() {
+  const group = watchCache.filter((w) => w.date === watchDetailOpenDate);
+  const el = document.getElementById('watch-detail-list');
+  if (!group.length) {
+    el.innerHTML = '<div class="empty">이 날짜에 남은 워치가 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = group.map(renderWatchItemDetail).join('');
+}
+
+function closeWatchDetailDialog() {
+  watchDetailOpenDate = null;
+  document.getElementById('watchDetailDialog').close();
 }
 
 async function refreshWatchNow(id) {
@@ -3020,6 +3093,7 @@ async function refreshWatchNow(id) {
   try {
     await api(`/api/watches/${id}/refresh`, { method: 'POST' });
     await loadWatches();
+    if (watchDetailOpenDate) renderWatchDetailList();
     showToast('최신 결과로 갱신했습니다');
   } catch (e) {
     showToast('재검색 실패: ' + e.message);
@@ -3032,6 +3106,11 @@ async function deleteWatchItem(id) {
     await api(`/api/watches/${id}`, { method: 'DELETE' });
     showToast('삭제했습니다');
     await loadWatches();
+    if (watchDetailOpenDate) {
+      const stillHasAny = watchCache.some((w) => w.date === watchDetailOpenDate);
+      if (stillHasAny) renderWatchDetailList();
+      else closeWatchDetailDialog();
+    }
   } catch (e) {
     showToast('삭제 실패: ' + e.message);
   }
