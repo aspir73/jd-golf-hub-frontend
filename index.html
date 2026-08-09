@@ -281,17 +281,25 @@
   .drag-list-item.dragging .drag-handle { cursor: grabbing; }
   .drag-list-item .list-item { flex: 1; min-width: 0; padding: 12px 0; border-bottom: none; }
   .drag-list-item .drag-handle.disabled { opacity: .25; cursor: default; touch-action: auto; }
-  .drag-list-item .mygolf-select-checkbox { flex: 0 0 18px; align-self: center; width: 16px; height: 16px; }
   .list-item .name.name-left { text-align: left; }
+  .list-item .sub.sub-left { text-align: left; }
+  /* 선택 체크박스는 오른쪽 열(🌤✏️) 바로 아래에 - onMygolfCheckboxChange 등에서 참조하는
+     클래스명은 그대로 두고 위치만 score-actions-stacked 안으로 옮김 */
+  .score-actions.score-actions-stacked { flex-direction: column; align-items: center; gap: 8px; }
+  .score-actions-stacked .mygolf-select-checkbox { width: 17px; height: 17px; }
 
-  /* MY골프장 카드의 앞으로 7일 날씨 요약 줄 */
-  .week-weather-strip { display: flex; gap: 2px; margin-top: 6px; }
+  /* MY골프장 카드의 앞으로 7일 날씨 요약 줄 - 더 큼직하게(요청 반영) */
+  .week-weather-strip { display: flex; gap: 2px; margin-top: 8px; }
   .week-weather-strip .ww-day { flex: 1; min-width: 0; text-align: center; }
-  .week-weather-strip .ww-dow { font-size: 10px; color: var(--muted); }
-  .week-weather-strip .ww-icon { font-size: 14px; line-height: 1.4; }
-  .week-weather-strip .ww-temp { font-size: 9px; color: var(--muted); white-space: nowrap; }
-  .week-weather-strip .ww-temp .max { color: var(--danger); }
-  .week-weather-strip .ww-temp .min { color: #2b5db5; }
+  .week-weather-strip .ww-dow { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .week-weather-strip .ww-icon { font-size: 22px; line-height: 1.5; }
+  .week-weather-strip .ww-temp { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .week-weather-strip .ww-temp .max { color: var(--danger); font-weight: 700; }
+  .week-weather-strip .ww-temp .min { color: #2b5db5; font-weight: 700; }
+
+  /* 날씨 줄 바로 아래, 같은 요일 칸에 맞춰 나오는 요일별 최저 그린피 줄 */
+  .week-greenfee-strip { display: flex; gap: 2px; margin-top: 2px; }
+  .week-greenfee-strip .gf-day { flex: 1; min-width: 0; text-align: center; font-size: 11px; color: var(--accent); font-weight: 700; }
   .tee-times .tt-row { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 0; border-top: 1px solid var(--border); }
   .tee-times .tt-row:first-child { border-top: none; margin-top: 6px; }
   .tee-times .tt-row.min-fee { color: var(--accent); font-weight: 700; }
@@ -1652,22 +1660,20 @@ function renderCourseList(courses) {
         : '';
       return `
     <div class="drag-list-item" data-id="${c.id}">
-      <input type="checkbox" class="mygolf-select-checkbox" data-id="${c.id}" ${mygolfSelectedIds.has(c.id) ? 'checked' : ''} onchange="onMygolfCheckboxChange(this)">
       <div class="drag-handle${dragEnabled ? '' : ' disabled'}" title="${dragEnabled ? '눌러서 위아래로 끌면 순서가 바뀝니다' : '"전체" 필터에서만 순서를 바꿀 수 있어요'}">≡</div>
       <div class="list-item">
         <div>
           <div class="name name-left">${escapeHtml(c.name)}</div>
-          ${travelText ? `<div class="sub">${travelText}</div>` : ''}
+          ${travelText ? `<div class="sub sub-left">${travelText}</div>` : ''}
           <div class="week-weather-strip" id="mygolf-weather-${c.id}"></div>
-          <div class="tags">
-            ${(c.courseList || []).map((cn) => `<span class="tag">${escapeHtml(cn)}</span>`).join('')}
-            ${c.cartFee != null ? `<span class="tag">카트비 ${Number(c.cartFee).toLocaleString('ko-KR')}원</span>` : ''}
-            ${c.caddyFee != null ? `<span class="tag">캐디피 ${Number(c.caddyFee).toLocaleString('ko-KR')}원</span>` : ''}
-          </div>
+          <div class="week-greenfee-strip" id="mygolf-greenfee-${c.id}"></div>
         </div>
-        <div class="score-actions">
-          <button class="icon-btn" onclick="openCourseWeather('${c.id}')" title="날씨">🌤</button>
-          <button class="icon-btn" onclick="openCourseDialog('${c.id}')" title="수정">✏️</button>
+        <div class="score-actions score-actions-stacked">
+          <div style="display:flex; gap:6px;">
+            <button class="icon-btn" onclick="openCourseWeather('${c.id}')" title="날씨">🌤</button>
+            <button class="icon-btn" onclick="openCourseDialog('${c.id}')" title="수정">✏️</button>
+          </div>
+          <input type="checkbox" class="mygolf-select-checkbox" data-id="${c.id}" ${mygolfSelectedIds.has(c.id) ? 'checked' : ''} onchange="onMygolfCheckboxChange(this)">
         </div>
       </div>
     </div>
@@ -1678,6 +1684,7 @@ function renderCourseList(courses) {
   if (dragEnabled) initCourseDragReorder(el);
   updateMygolfSelectionUI();
   loadMygolfWeekWeather(filtered);
+  loadMygolfWeekGreenFees(filtered);
 }
 
 function onMygolfCheckboxChange(checkbox) {
@@ -1745,6 +1752,25 @@ async function loadMygolfWeekWeather(courses) {
       // 실패해도 조용히 생략 - 카드 목록 자체를 막지 않는다
     }
   }));
+}
+
+/** 날씨 줄 바로 아래에 요일별 최저 그린피를 채운다. 카드마다 따로 부르지 않고 한 번에 전체를
+ * 조회하는 엔드포인트(/api/courses/week-greenfees - 지역별로 묶어서 서버가 효율적으로 처리)를
+ * 호출해서 결과를 각 카드에 나눠 채운다. */
+async function loadMygolfWeekGreenFees(courses) {
+  try {
+    const { greenFees } = await api('/api/courses/week-greenfees');
+    courses.forEach((c) => {
+      const el = document.getElementById(`mygolf-greenfee-${c.id}`);
+      const fees = greenFees[c.id];
+      if (!el || !fees) return;
+      el.innerHTML = fees.map((fee) =>
+        `<div class="gf-day">${fee != null ? Math.round(fee / 10000) + '만' : '-'}</div>`
+      ).join('');
+    });
+  } catch {
+    // 실패해도 조용히 생략 - 카드 목록 자체를 막지 않는다
+  }
 }
 
 // ===== MY골프장 드래그 재정렬(Pointer Events - 마우스/터치 공용) =====
