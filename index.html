@@ -1652,12 +1652,19 @@ function renderCourseList(courses) {
   // 드래그 재정렬은 "전체" 필터에서만 켠다 - 필터가 걸리면 화면엔 인접해 보여도 실제 저장
   // 배열에서는 안 붙어있는 항목들일 수 있어서, 그 상태로 드래그하면 기대와 다르게 움직인다.
   const dragEnabled = !mygolfRegionFilter;
+  // 지난번에 캐시해둔 날씨/그린피가 있으면 API 응답을 기다리지 않고 바로 보여주기 위해 미리 읽어둠.
+  const mygolfWeatherCache = loadMygolfCache(MYGOLF_WEATHER_CACHE_KEY);
+  const mygolfGreenFeeCache = loadMygolfCache(MYGOLF_GREENFEE_CACHE_KEY);
   const html = !filtered.length
     ? `<div class="empty">${courses.length ? '이 지역에 등록된 골프장이 없습니다.' : '등록된 골프장이 없습니다.'}</div>`
     : filtered.map((c) => {
       const travelText = c.homeDistanceKm != null
         ? `🚗 ${c.homeDistanceKm}km${c.homeDurationMin != null ? ' (약 ' + c.homeDurationMin + '분)' : ''}`
         : '';
+      // 새로 받아오는 동안 빈 칸으로 기다리게 하지 않도록, 지난번에 캐시해둔 값이 있으면 바로
+      // 채워서 그린다 - loadMygolfWeekWeather/loadMygolfWeekGreenFees가 최신 값으로 갈아끼움.
+      const cachedDays = mygolfWeatherCache[c.id];
+      const cachedFees = mygolfGreenFeeCache[c.id];
       return `
     <div class="drag-list-item" data-id="${c.id}">
       <div class="drag-handle${dragEnabled ? '' : ' disabled'}" title="${dragEnabled ? '눌러서 위아래로 끌면 순서가 바뀝니다' : '"전체" 필터에서만 순서를 바꿀 수 있어요'}">≡</div>
@@ -1665,8 +1672,8 @@ function renderCourseList(courses) {
         <div>
           <div class="name name-left">${escapeHtml(c.name)}</div>
           ${travelText ? `<div class="sub sub-left">${travelText}</div>` : ''}
-          <div class="week-weather-strip" id="mygolf-weather-${c.id}"></div>
-          <div class="week-greenfee-strip" id="mygolf-greenfee-${c.id}"></div>
+          <div class="week-weather-strip" id="mygolf-weather-${c.id}">${cachedDays ? renderWeekWeatherHtml(cachedDays) : ''}</div>
+          <div class="week-greenfee-strip" id="mygolf-greenfee-${c.id}">${cachedFees ? renderWeekGreenFeeHtml(cachedFees) : ''}</div>
         </div>
         <div class="score-actions score-actions-stacked">
           <button class="icon-btn" onclick="openCourseDialog('${c.id}')" title="수정">✏️</button>
@@ -1729,31 +1736,66 @@ async function deleteSelectedCourses() {
 const WEEK_WEATHER_DOW = ['일', '월', '화', '수', '목', '금', '토'];
 const SKY_ICON_EXT = { '맑음': '☀️', '구름많음': '⛅', '흐림': '☁️', '비': '🌧️', '눈': '❄️', '비/눈': '🌨️', '소나기': '🌦️' };
 
+// 날씨/그린피 조회가 매번 몇 초씩 걸리기 때문에(외부 API 여러 번 호출), 진입하자마자 빈 칸을
+// 보여주고 기다리게 하는 대신 마지막으로 받아온 값을 localStorage에 저장해뒀다가 즉시 먼저
+// 보여주고, 그 사이에 최신 값을 다시 받아오면 그걸로 조용히 갈아끼운다(값이 같아도 그냥
+// 다시 채움 - 비교해서 "달라졌을 때만" 갱신하는 건 과한 최적화라 생략).
+const MYGOLF_WEATHER_CACHE_KEY = 'jdgh_mygolf_weather_cache';
+const MYGOLF_GREENFEE_CACHE_KEY = 'jdgh_mygolf_greenfee_cache';
+
+function loadMygolfCache(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function saveMygolfCacheEntry(key, courseId, data) {
+  const cache = loadMygolfCache(key);
+  cache[courseId] = data;
+  try {
+    localStorage.setItem(key, JSON.stringify(cache));
+  } catch {
+    // 저장 공간 초과 등으로 실패해도 무시 - 캐시는 어디까지나 부가 기능
+  }
+}
+
+function renderWeekWeatherHtml(days) {
+  return days.map((d) => {
+    const dow = WEEK_WEATHER_DOW[new Date(d.date).getDay()];
+    const icon = SKY_ICON_EXT[d.sky] || '-';
+    const temp = d.tempMax != null && d.tempMin != null
+      ? `<span class="max">${d.tempMax}</span>/<span class="min">${d.tempMin}</span>`
+      : '-';
+    return `<div class="ww-day"><div class="ww-dow">${dow}</div><div class="ww-icon">${icon}</div><div class="ww-temp">${temp}</div></div>`;
+  }).join('');
+}
+
+function renderWeekGreenFeeHtml(fees) {
+  return fees.map((fee) => `<div class="gf-day">${fee != null ? Math.round(fee / 10000) + '만' : '-'}</div>`).join('');
+}
+
 /** MY골프장 카드에 앞으로 7일 날씨를 한 줄 요약으로 채운다 - 좌표 있는 카드만, /api/weather/week
- * 를 카드별로 병렬 호출(개인 목록이라 몇 개 안 되므로 순차 대신 병렬로도 충분히 가벼움). */
+ * 를 카드별로 병렬 호출(개인 목록이라 몇 개 안 되므로 순차 대신 병렬로도 충분히 가벼움). 받아온
+ * 값은 다음에 곧바로 보여줄 수 있게 캐시에도 저장해둔다. */
 async function loadMygolfWeekWeather(courses) {
   await Promise.all(courses.map(async (c) => {
     const el = document.getElementById(`mygolf-weather-${c.id}`);
     if (!el || c.lat == null || c.lon == null) return;
     try {
       const { days } = await api(`/api/weather/week?lat=${c.lat}&lon=${c.lon}`);
-      el.innerHTML = days.map((d) => {
-        const dow = WEEK_WEATHER_DOW[new Date(d.date).getDay()];
-        const icon = SKY_ICON_EXT[d.sky] || '-';
-        const temp = d.tempMax != null && d.tempMin != null
-          ? `<span class="max">${d.tempMax}</span>/<span class="min">${d.tempMin}</span>`
-          : '-';
-        return `<div class="ww-day"><div class="ww-dow">${dow}</div><div class="ww-icon">${icon}</div><div class="ww-temp">${temp}</div></div>`;
-      }).join('');
+      el.innerHTML = renderWeekWeatherHtml(days);
+      saveMygolfCacheEntry(MYGOLF_WEATHER_CACHE_KEY, c.id, days);
     } catch {
-      // 실패해도 조용히 생략 - 카드 목록 자체를 막지 않는다
+      // 실패해도 조용히 생략 - 캐시로 채워둔 값(있다면)이 그대로 남아있게 둔다
     }
   }));
 }
 
 /** 날씨 줄 바로 아래에 요일별 최저 그린피를 채운다. 카드마다 따로 부르지 않고 한 번에 전체를
  * 조회하는 엔드포인트(/api/courses/week-greenfees - 지역별로 묶어서 서버가 효율적으로 처리)를
- * 호출해서 결과를 각 카드에 나눠 채운다. */
+ * 호출해서 결과를 각 카드에 나눠 채운다. 받아온 값은 캐시에도 저장. */
 async function loadMygolfWeekGreenFees(courses) {
   try {
     const { greenFees } = await api('/api/courses/week-greenfees');
@@ -1761,12 +1803,11 @@ async function loadMygolfWeekGreenFees(courses) {
       const el = document.getElementById(`mygolf-greenfee-${c.id}`);
       const fees = greenFees[c.id];
       if (!el || !fees) return;
-      el.innerHTML = fees.map((fee) =>
-        `<div class="gf-day">${fee != null ? Math.round(fee / 10000) + '만' : '-'}</div>`
-      ).join('');
+      el.innerHTML = renderWeekGreenFeeHtml(fees);
+      saveMygolfCacheEntry(MYGOLF_GREENFEE_CACHE_KEY, c.id, fees);
     });
   } catch {
-    // 실패해도 조용히 생략 - 카드 목록 자체를 막지 않는다
+    // 실패해도 조용히 생략 - 캐시로 채워둔 값(있다면)이 그대로 남아있게 둔다
   }
 }
 
