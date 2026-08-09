@@ -943,9 +943,34 @@
 
   <!-- 맛집 -->
   <section id="tab-food" class="tab-panel">
+    <!-- 확정된 예약의 골프장을 자동으로 카드로 보여준다 - "선택"을 누르면 그 골프장 좌표 기준으로
+         바로 주변 맛집 검색까지 이어진다(loadBookings가 채워둔 bookingCache 재사용, 별도
+         API 호출 없음). renderFoodCourseList 참고. -->
+    <div class="card" id="food-course-card" style="display:none;">
+      <h2>⛳ 예약된 골프장</h2>
+      <div class="muted" style="margin-top:2px; font-size:12px;">확정된 예약의 골프장이에요. "선택"을 누르면 그 주변 맛집을 바로 검색합니다.</div>
+      <div id="food-course-list" style="margin-top:10px;"></div>
+    </div>
+
     <div class="card">
       <h2>🍚 골프장 주변 맛집</h2>
       <button class="btn block" onclick="locateAndSearchFood()">📍 내 위치 주변 맛집 찾기</button>
+
+      <label style="margin-top:10px;">골프장 이름으로 검색</label>
+      <div style="display:flex; gap:6px;">
+        <input type="text" id="food-course-search-input" placeholder="예: 세현CC" autocomplete="off"
+          onkeydown="if(event.key==='Enter'){event.preventDefault(); searchFoodByCourseName();}">
+        <button type="button" class="btn secondary" onclick="searchFoodByCourseName()">검색</button>
+      </div>
+      <div id="food-search-context" class="muted" style="margin-top:6px; font-size:12px; display:none;"></div>
+
+      <label style="margin-top:10px;">검색 반경</label>
+      <div class="chip-group" id="food-radius-chips">
+        <span class="chip" onclick="setFoodRadius(3000,this)">3km 이내</span>
+        <span class="chip selected" onclick="setFoodRadius(5000,this)">5km 이내</span>
+        <span class="chip" onclick="setFoodRadius(10000,this)">10km 이내</span>
+      </div>
+
       <div class="filter-row">
         <button class="filter-btn active" data-timing="before" onclick="setFoodTiming('before')">🌅 라운딩 전(해장)</button>
         <button class="filter-btn" data-timing="after" onclick="setFoodTiming('after')">🍖 라운딩 후(한끼)</button>
@@ -1412,7 +1437,7 @@ function showTab(name) {
   if (name === 'booking') { loadCourses(); loadBookings(); loadComparisonGroups(); }
   if (name === 'join') { loadCourses(); loadComparisonGroups(); loadBookings(); }
   if (name === 'mygolf') { loadCourses(); }
-  if (name === 'food') { loadFavoriteRestaurants(); }
+  if (name === 'food') { loadFavoriteRestaurants(); renderFoodCourseList(bookingCache); }
 }
 
 // ===== 홈 화면 우측상단 햄버거 메뉴 (MY 골프장 / 국내 골프장 찾기) =====
@@ -2679,6 +2704,9 @@ function copySettlementMessage() {
 
 // ===== 맛집 =====
 let currentFoodTiming = 'before';
+// 골프장은 시내보다 외곽에 있는 경우가 많아 "내 위치 주변" 기본 검색 반경(3km)보다 넉넉하게
+// 5km를 기본값으로 둔다(3/5/10km 칩으로 사용자가 바로 바꿀 수 있음).
+let currentFoodRadius = 5000;
 let foodResultCache = [];
 let favoriteRestaurantCache = [];
 let lastFoodCoords = null;
@@ -2689,6 +2717,20 @@ function setFoodTiming(timing) {
   if (lastFoodCoords) searchFood(lastFoodCoords.lat, lastFoodCoords.lon);
 }
 
+function setFoodRadius(radius, el) {
+  currentFoodRadius = radius;
+  document.querySelectorAll('#food-radius-chips .chip').forEach((c) => c.classList.remove('selected'));
+  el.classList.add('selected');
+  if (lastFoodCoords) searchFood(lastFoodCoords.lat, lastFoodCoords.lon);
+}
+
+function setFoodSearchContext(text) {
+  const el = document.getElementById('food-search-context');
+  if (!el) return;
+  if (text) { el.textContent = text; el.style.display = 'block'; }
+  else { el.style.display = 'none'; el.textContent = ''; }
+}
+
 function locateAndSearchFood() {
   if (!navigator.geolocation) {
     showToast('이 브라우저는 위치 정보를 지원하지 않습니다');
@@ -2697,6 +2739,7 @@ function locateAndSearchFood() {
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       lastFoodCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      setFoodSearchContext('');
       searchFood(lastFoodCoords.lat, lastFoodCoords.lon);
     },
     (err) => showToast('위치 확인 실패: ' + err.message),
@@ -2706,11 +2749,68 @@ function locateAndSearchFood() {
 
 async function searchFood(lat, lon) {
   try {
-    const { restaurants } = await api(`/api/restaurants/search?lat=${lat}&lon=${lon}&timing=${currentFoodTiming}`);
+    const { restaurants } = await api(`/api/restaurants/search?lat=${lat}&lon=${lon}&timing=${currentFoodTiming}&radius=${currentFoodRadius}`);
     foodResultCache = restaurants;
     renderFoodResults(restaurants);
   } catch (e) {
     showToast('맛집 검색 실패: ' + e.message);
+  }
+}
+
+// ===== 확정 예약 골프장 자동 연동 =====
+// 홈 탭 등에서 이미 채워둔 bookingCache를 그대로 재사용한다(맛집 탭 전용 API 호출 없음).
+function renderFoodCourseList(bookings) {
+  const card = document.getElementById('food-course-card');
+  const el = document.getElementById('food-course-list');
+  if (!card || !el) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const confirmed = (bookings || [])
+    .filter((b) => b.status === '확정' && (!b.roundDate || b.roundDate >= today))
+    .sort((a, b) => (a.roundDate < b.roundDate ? -1 : 1));
+  card.style.display = confirmed.length ? 'block' : 'none';
+  if (!confirmed.length) return;
+  el.innerHTML = confirmed.map((b) => `
+    <div class="list-item">
+      <div>
+        <div class="name">${escapeHtml(b.courseName)}</div>
+        <div class="sub">${escapeHtml(b.roundDate || '-')} ${escapeHtml(b.roundTime || '')}</div>
+      </div>
+      <button type="button" class="btn secondary" style="padding:6px 14px; font-size:12px;" onclick="selectFoodCourse('${jsAttrEscape(b.courseName)}')">선택</button>
+    </div>
+  `).join('');
+}
+
+/** 예약된 골프장 카드의 "선택" - MY골프장에 좌표가 있으면 바로, 없으면 카카오 장소검색으로
+ * 좌표를 찾아서 그 주변 맛집을 검색한다. */
+async function selectFoodCourse(courseName) {
+  await searchFoodAroundCourseName(courseName);
+}
+
+async function searchFoodByCourseName() {
+  const name = document.getElementById('food-course-search-input').value.trim();
+  if (!name) { showToast('골프장명을 입력해주세요'); return; }
+  await searchFoodAroundCourseName(name);
+}
+
+async function searchFoodAroundCourseName(name) {
+  try {
+    if (!courseCache.length) await loadCourses();
+    const cached = findCourseCoordsByName(name);
+    if (cached) {
+      lastFoodCoords = cached;
+      setFoodSearchContext(`📍 ${name} 주변 검색 중`);
+      await searchFood(cached.lat, cached.lon);
+      return;
+    }
+    // MY골프장에 없는 골프장이면 카카오 장소검색으로 좌표를 찾는다(골프장 등록 때와 같은 API).
+    const { places } = await api(`/api/places/search?query=${encodeURIComponent(name)}`);
+    const best = places?.[0];
+    if (!best || best.lat == null || best.lon == null) { showToast(`"${name}" 골프장 위치를 찾을 수 없습니다`); return; }
+    lastFoodCoords = { lat: best.lat, lon: best.lon };
+    setFoodSearchContext(`📍 ${best.name} 주변 검색 중`);
+    await searchFood(best.lat, best.lon);
+  } catch (e) {
+    showToast('골프장 검색 실패: ' + e.message);
   }
 }
 
@@ -4482,6 +4582,7 @@ async function loadBookings() {
     renderBookingList(bookings, 'join-booking-list');
     renderHomeReminders(bookings);
     renderHomeBookingList(bookings);
+    renderFoodCourseList(bookings);
   } catch (e) {
     showToast('예약 기록 조회 실패: ' + e.message);
   }
