@@ -538,19 +538,13 @@
       <div id="home-booking-list"></div>
     </div>
 
-    <!-- 부킹/조인 탭에 등록된 티타임 워치를 홈에서도 한눈에 볼 수 있게 보여준다. 각 탭의
-         renderWatchList를 그대로 재사용(watchCache를 mode로 나눠서 렌더링)해서 카드 모양·
-         D-day 타일·클릭 시 상세 다이얼로그까지 동일하게 맞춘다. -->
+    <!-- 부킹/조인 탭에 등록된 티타임 워치를 홈에서 하나로 통합해서 보여준다(날짜순으로 부킹/조인
+         섞어서 정렬 - renderHomeWatchGroups 참고). 탭 안의 워치 목록(골프장별 D-day 카드)과 달리
+         여기는 (모드+날짜) 단위로 묶어서 "N개 골프장 모니터링 중" 요약 + 새로 발견된 자리 +
+         해당 날짜 날씨를 한 카드에서 보여주는 모니터링 대시보드 형태다. -->
     <div class="card" id="home-watch-card" style="display:none;">
       <h2>⏰ 티타임 워치</h2>
-      <div id="home-watch-booking-section" style="display:none;">
-        <div class="muted" style="font-size:12px; font-weight:600;">부킹 워치</div>
-        <div id="home-watch-booking-list" style="margin-top:6px;"></div>
-      </div>
-      <div id="home-watch-join-section" style="display:none; margin-top:12px;">
-        <div class="muted" style="font-size:12px; font-weight:600;">조인 워치</div>
-        <div id="home-watch-join-list" style="margin-top:6px;"></div>
-      </div>
+      <div id="home-watch-groups"></div>
     </div>
 
     <div class="card">
@@ -1000,6 +994,13 @@
       <span class="chip" onclick="toggleWatchTimeOfDay('am',this)">오전</span>
       <span class="chip" onclick="toggleWatchTimeOfDay('pm',this)">오후</span>
       <span class="chip" onclick="toggleWatchTimeOfDay('nt',this)">야간</span>
+    </div>
+    <label style="margin-top:10px;">캐디</label>
+    <div class="chip-group" id="watch-caddy-chips">
+      <span class="chip selected" onclick="selectWatchCaddy('general',this)">일반캐디</span>
+      <span class="chip" onclick="selectWatchCaddy('drive',this)">운전캐디</span>
+      <span class="chip" onclick="selectWatchCaddy('intern',this)">인턴캐디</span>
+      <span class="chip" onclick="selectWatchCaddy('none',this)">노캐디</span>
     </div>
     <div class="dialog-actions">
       <button type="button" class="btn secondary block" onclick="document.getElementById('watchDialog').close()">취소</button>
@@ -3360,6 +3361,9 @@ function filterRoundsByCourseName(rounds) {
 // 담당한다. =====
 let watchDialogCourse = null; // 자동완성으로 선택된 { name, region } - null이면 입력창 텍스트를 그대로 씀
 let watchDialogTimeOfDay = new Set();
+// 부킹/조인 조건검색의 캐디 칩과 같은 표준키(general/drive/intern/none) - watches.js의
+// WATCH_CADDY_TO_GOLFPANG과 동일 매핑을 프론트에서도 쓴다.
+let watchDialogCaddy = 'general';
 let watchCourseDebounceTimer = null;
 let watchCache = [];
 // 이 다이얼로그가 지금 어느 탭에서 열렸는지("booking"=부킹 탭/골팡부킹+카카오골프, "join"=조인
@@ -3463,6 +3467,12 @@ function toggleWatchTimeOfDay(value, el) {
   else { watchDialogTimeOfDay.add(value); el.classList.add('selected'); }
 }
 
+function selectWatchCaddy(value, el) {
+  watchDialogCaddy = value;
+  el.parentElement.querySelectorAll('.chip').forEach((c) => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
 function openWatchDialog(mode) {
   watchDialogMode = mode === 'join' ? 'join' : 'booking';
   document.getElementById('watch-course-input').value = '';
@@ -3471,6 +3481,8 @@ function openWatchDialog(mode) {
   watchDialogCourse = null;
   watchDialogTimeOfDay = new Set();
   document.querySelectorAll('#watch-timeofday-chips .chip').forEach((c) => c.classList.remove('selected'));
+  watchDialogCaddy = 'general';
+  document.querySelectorAll('#watch-caddy-chips .chip').forEach((c, idx) => c.classList.toggle('selected', idx === 0));
   watchMygolfSelectedIds = new Set();
   watchMygolfRegionFilter = '';
   document.querySelectorAll('#watch-mygolf-region-chips .chip').forEach((c, idx) => c.classList.toggle('selected', idx === 0));
@@ -3488,7 +3500,7 @@ async function submitWatch() {
     const selected = courseCache.filter((c) => watchMygolfSelectedIds.has(c.id));
     if (!selected.length) { showToast('MY골프장에서 하나 이상 선택해주세요'); return; }
     try {
-      const items = selected.map((c) => ({ courseName: c.name, region: c.region || '', date, timeOfDay, mode: watchDialogMode }));
+      const items = selected.map((c) => ({ courseName: c.name, region: c.region || '', date, timeOfDay, mode: watchDialogMode, caddyType: watchDialogCaddy }));
       await api('/api/watches/bulk', { method: 'POST', body: JSON.stringify({ items }) });
       showToast(`${selected.length}개 골프장에 워치를 추가했습니다 - 30분마다 자동으로 재검색됩니다`);
       document.getElementById('watchDialog').close();
@@ -3510,6 +3522,7 @@ async function submitWatch() {
         date,
         timeOfDay,
         mode: watchDialogMode,
+        caddyType: watchDialogCaddy,
       }),
     });
     showToast('워치를 추가했습니다 - 30분마다 자동으로 재검색됩니다');
@@ -3542,13 +3555,7 @@ async function loadWatches() {
     const joinWatches = watchCache.filter((w) => (w.mode || 'booking') === 'join');
     renderWatchList(bookingWatches, 'watch-list', 'booking');
     renderWatchList(joinWatches, 'joinwatch-list', 'join');
-    // 홈 탭에도 같은 목록을 그대로 재사용해서 보여준다(부킹/조인 워치가 하나라도 있을 때만
-    // 카드/섹션을 노출 - "예약 일정" 카드와 같은 show-only-if-any 패턴).
-    renderWatchList(bookingWatches, 'home-watch-booking-list', 'booking');
-    renderWatchList(joinWatches, 'home-watch-join-list', 'join');
-    document.getElementById('home-watch-card').style.display = (bookingWatches.length || joinWatches.length) ? 'block' : 'none';
-    document.getElementById('home-watch-booking-section').style.display = bookingWatches.length ? 'block' : 'none';
-    document.getElementById('home-watch-join-section').style.display = joinWatches.length ? 'block' : 'none';
+    renderHomeWatchGroups();
   } catch (e) {
     showToast('워치 목록 조회 실패: ' + e.message);
   }
@@ -3556,6 +3563,93 @@ async function loadWatches() {
 
 const WATCH_TIME_LABELS = { am: '오전', pm: '오후', nt: '야간' };
 const WATCH_WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
+const WATCH_MODE_LABELS = { booking: '부킹', join: '조인' };
+
+/** 그룹 안 워치들이 전부 같은 시간대를 감시 중이면 "(오전)"처럼 보여주고, 섞여 있거나 전체
+ * 시간대(빈 배열)면 표시하지 않는다. */
+function describeWatchGroupTimeOfDay(group) {
+  const key = (w) => JSON.stringify([...(w.timeOfDay || [])].sort());
+  const firstKey = key(group[0]);
+  if (!group.every((w) => key(w) === firstKey)) return '';
+  const tods = group[0].timeOfDay || [];
+  return tods.length ? `(${tods.map((t) => WATCH_TIME_LABELS[t]).join('/')}) ` : '';
+}
+
+/** 그룹 안에서 가장 최근에 재검색된 시각을 "M/D HH:MM 업데이트"로 보여준다. */
+function latestWatchCheckedLabel(group) {
+  const times = group.map((w) => w.lastCheckedAt).filter(Boolean).map((t) => new Date(t).getTime());
+  if (!times.length) return '아직 업데이트 전';
+  const latest = new Date(Math.max(...times));
+  const hh = String(latest.getHours()).padStart(2, '0');
+  const mi = String(latest.getMinutes()).padStart(2, '0');
+  return `${latest.getMonth() + 1}/${latest.getDate()} ${hh}:${mi} 업데이트`;
+}
+
+/** 홈 탭 "⏰ 티타임 워치" 카드 - 부킹/조인 워치를 (모드+날짜) 단위로 묶어서 날짜순 하나의
+ * 목록으로 통합해서 보여준다(부킹/조인은 카드 안 라벨로만 구분). 탭 안의 워치 목록(골프장별
+ * D-day 카드 - renderWatchList)과 달리 여기는 "N개 골프장 모니터링 중" 요약 한 줄 + 골프장별
+ * 확인 건수 + 새로 발견된 자리 + 그 날짜 날씨까지 한 카드에서 바로 보여주는 대시보드 형태다. */
+function renderHomeWatchGroups() {
+  const card = document.getElementById('home-watch-card');
+  const el = document.getElementById('home-watch-groups');
+  if (!card || !el) return;
+
+  const byKey = new Map();
+  watchCache.forEach((w) => {
+    const mode = w.mode === 'join' ? 'join' : 'booking';
+    const key = `${mode}|${w.date}`;
+    if (!byKey.has(key)) byKey.set(key, { mode, date: w.date, watches: [] });
+    byKey.get(key).watches.push(w);
+  });
+  const groups = [...byKey.values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.mode.localeCompare(b.mode)));
+
+  card.style.display = groups.length ? 'block' : 'none';
+  if (!groups.length) return;
+
+  el.innerHTML = groups.map((g) => {
+    const group = g.watches;
+    const dateObj = parseRoundDateLocal(g.date);
+    const days = dateObj ? daysUntil(dateObj) : null;
+    const ddayText = days == null ? '-' : days === 0 ? 'D-DAY' : days > 0 ? `D-${days}` : `D+${Math.abs(days)}`;
+    const dateLabel = dateObj ? `${dateObj.getMonth() + 1}/${dateObj.getDate()}(${WATCH_WEEKDAY_KO[dateObj.getDay()]})` : g.date;
+
+    const courseSummary = group.map((w) => `${w.courseName}(${(w.lastResults || []).length})`).join(', ');
+    const newFoundCourses = [...new Set(group.filter((w) => (w.lastResults || []).some((r) => r.isNew)).map((w) => w.courseName))];
+    const newFoundCount = group.reduce((sum, w) => sum + (w.lastResults || []).filter((r) => r.isNew).length, 0);
+    const tileId = `home-watch-weather-tile-${g.mode}-${g.date}`;
+
+    return `
+      <div class="home-booking-item" onclick="openWatchDetailDialog('${g.date}','${g.mode}')" style="cursor:pointer;">
+        <div class="hb-tile hb-date-tile">
+          <div class="hb-date">${escapeHtml(dateLabel)}</div>
+          <div class="hb-dday">${escapeHtml(ddayText)}</div>
+        </div>
+        <div class="home-booking-main">
+          <div class="name"><span class="tag" style="margin-right:4px; vertical-align:middle;">${escapeHtml(WATCH_MODE_LABELS[g.mode])}</span>${escapeHtml(describeWatchGroupTimeOfDay(group))}${group.length}개 골프장 모니터링 중</div>
+          <div class="sub">${escapeHtml(latestWatchCheckedLabel(group))}</div>
+          <div class="sub" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(courseSummary)}">${escapeHtml(courseSummary)}</div>
+          ${newFoundCount ? `<div class="sub" style="color:var(--accent); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(newFoundCourses.join(', '))}">🆕 새로 발견 ${newFoundCount}건 (${escapeHtml(newFoundCourses.join(', '))})</div>` : ''}
+        </div>
+        <div class="hb-tile hb-weather-tile" id="${tileId}" style="display:none;">
+          <div class="hb-wt-icon">🌡️</div>
+          <div class="hb-wt-temp">-</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  loadHomeWatchWeatherTiles(groups);
+}
+
+/** 각 워치 그룹의 대표 골프장(첫 번째) 좌표로 그 라운딩 날짜의 날씨를 채운다 - "예약 일정" 카드의
+ * loadHomeWeatherTiles와 같은 로직(loadWeatherTilesGeneric)을 그대로 재사용. */
+async function loadHomeWatchWeatherTiles(groups) {
+  await loadWeatherTilesGeneric(groups.map((g) => ({
+    tileId: `home-watch-weather-tile-${g.mode}-${g.date}`,
+    courseName: g.watches[0]?.courseName,
+    date: g.date,
+  })));
+}
 // 상세 다이얼로그가 지금 어느 날짜/모드를 보여주고 있는지 - 새로고침/삭제 후 목록뿐 아니라
 // 열려있는 상세 다이얼로그도 같이 최신화하기 위해 기억해둔다(닫혀 있으면 null).
 let watchDetailOpenDate = null;
@@ -4456,30 +4550,31 @@ function renderHomeBookingList(bookings) {
   loadHomeWeatherTiles(upcoming);
 }
 
-/** 홈 예약 카드 우측 날씨 타일을 채운다 - loadBookingWeatherBadges와 같은 데이터 소스지만
- * "(라운딩 당일 예상)" 같은 부가 설명 없이 아이콘+기온만 큼직하게 타일에 넣는다. */
-async function loadHomeWeatherTiles(bookings) {
+/** 홈 탭 [날씨 타일]을 채우는 공통 로직 - "예약 일정" 카드(라운딩 날짜)와 "티타임 워치" 카드
+ * (감시 날짜) 둘 다 골프장명+날짜만 있으면 같은 방식으로 아이콘+기온을 채워 넣을 수 있어서
+ * 하나로 합쳤다. targets: [{tileId, courseName, date}]. */
+async function loadWeatherTilesGeneric(targets) {
   if (!courseCache.length) await loadCourses();
-  await Promise.all(bookings.map(async (b) => {
-    const tile = document.getElementById(`home-weather-tile-${b.id}`);
-    if (!tile || !b.roundDate) return;
-    const coords = findCourseCoordsByName(b.courseName);
+  await Promise.all(targets.map(async (t) => {
+    const tile = document.getElementById(t.tileId);
+    if (!tile || !t.date || !t.courseName) return;
+    const coords = findCourseCoordsByName(t.courseName);
     if (!coords) return;
-    const offset = courseWeatherDayOffset(b.roundDate);
+    const offset = courseWeatherDayOffset(t.date);
     if (offset < 0 || offset > 10) return;
     try {
       let icon = '🌡️';
       let tempMin, tempMax;
       if (offset <= 2) {
-        const data = await api(`/api/weather?lat=${coords.lat}&lon=${coords.lon}&date=${b.roundDate}`);
+        const data = await api(`/api/weather?lat=${coords.lat}&lon=${coords.lon}&date=${t.date}`);
         if (!data.hourly.length) return;
-        const temps = data.hourly.map((h) => h.temp).filter((t) => t != null);
+        const temps = data.hourly.map((h) => h.temp).filter((v) => v != null);
         if (!temps.length) return;
         icon = skyIcon(data.hourly[Math.floor(data.hourly.length / 2)]?.sky);
         tempMin = Math.min(...temps);
         tempMax = Math.max(...temps);
       } else {
-        const data = await api(`/api/weather/midterm?lat=${coords.lat}&lon=${coords.lon}&date=${b.roundDate}`);
+        const data = await api(`/api/weather/midterm?lat=${coords.lat}&lon=${coords.lon}&date=${t.date}`);
         icon = skyIcon(data.periods?.[0]?.sky);
         tempMin = data.tempMin ?? '-';
         tempMax = data.tempMax ?? '-';
@@ -4491,6 +4586,12 @@ async function loadHomeWeatherTiles(bookings) {
       // 실패해도 조용히 생략 - 타일을 숨긴 채로 둔다
     }
   }));
+}
+
+/** 홈 예약 카드 우측 날씨 타일을 채운다 - loadBookingWeatherBadges와 같은 데이터 소스지만
+ * "(라운딩 당일 예상)" 같은 부가 설명 없이 아이콘+기온만 큼직하게 타일에 넣는다. */
+async function loadHomeWeatherTiles(bookings) {
+  await loadWeatherTilesGeneric(bookings.map((b) => ({ tileId: `home-weather-tile-${b.id}`, courseName: b.courseName, date: b.roundDate })));
 }
 
 function applyBookingToForm(b) {
