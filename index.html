@@ -3614,8 +3614,9 @@ function latestWatchCheckedLabel(group) {
 /** (모드+날짜) 단위로 묶인 워치 그룹 카드 하나를 그린다 - 홈 탭 "티타임 모니터링" 카드와
  * 부킹/조인 탭 자체 카드가 완전히 같은 압축 UI를 쓴다(showWeatherTile만 홈에서 true).
  * 골프장은 풀네임 대신 두음자(첫 글자) 원형 배지 + 확인건수로 표시하고("태광컨트리클럽(회원제)"
- * 5건 -> 원 안에 "태" + "(5)", 풀네임은 title 툴팁으로만 남김), "마지막 업데이트 시각"은
- * 별도 줄 대신 새로 발견된 자리 줄(또는 새로 발견된 게 없으면 그 자리)에 함께 보여준다. */
+ * 5건 -> 원 안에 "태" + "(5)", 풀네임은 title 툴팁으로만 남김), 티타임이 많이 잡힌 골프장이
+ * 먼저 보이도록 확인건수 내림차순으로 정렬한다. "마지막 업데이트 시각"은 별도 줄 대신 새로
+ * 발견된 자리 줄(또는 새로 발견된 게 없으면 그 자리)의 오른쪽 끝에 맞춰서 함께 보여준다. */
 function renderWatchGroupCard(g, { showWeatherTile = false } = {}) {
   const group = g.watches;
   const dateObj = parseRoundDateLocal(g.date);
@@ -3624,7 +3625,10 @@ function renderWatchGroupCard(g, { showWeatherTile = false } = {}) {
   const dateLabel = dateObj ? `${dateObj.getMonth() + 1}/${dateObj.getDate()}(${WATCH_WEEKDAY_KO[dateObj.getDay()]})` : g.date;
   const timeIcon = describeWatchGroupTimeOfDayIcon(group);
 
-  const courseBadges = group.map((w) => {
+  // 티타임이 많이 잡힌 골프장을 앞쪽에 보여준다(원본 group 순서는 건드리지 않음 - g.watches[0]을
+  // 다른 곳(날씨 타일 좌표 조회)에서도 쓰기 때문에 복사본만 정렬한다).
+  const sortedByResults = [...group].sort((a, b) => (b.lastResults || []).length - (a.lastResults || []).length);
+  const courseBadges = sortedByResults.map((w) => {
     const initial = (w.courseName || '').trim().charAt(0) || '?';
     const count = (w.lastResults || []).length;
     const hasNew = (w.lastResults || []).some((r) => r.isNew);
@@ -3638,13 +3642,18 @@ function renderWatchGroupCard(g, { showWeatherTile = false } = {}) {
   }).join('');
   const newFoundCount = group.reduce((sum, w) => sum + (w.lastResults || []).filter((r) => r.isNew).length, 0);
   const updateLabel = latestWatchCheckedLabel(group);
-  const statusLine = newFoundCount
-    ? `<div class="sub" style="color:var(--accent); font-weight:700; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">🆕 새로 발견 ${newFoundCount}건 ${newFoundBadges}<span style="font-weight:400; font-size:11px; color:var(--muted);">· ${escapeHtml(updateLabel)}</span></div>`
-    : `<div class="sub">${escapeHtml(updateLabel)}</div>`;
+  const statusLine = `
+    <div class="sub" style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+      <span style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;${newFoundCount ? ' color:var(--accent); font-weight:700;' : ''}">${newFoundCount ? `🆕 ${newFoundCount}건 ${newFoundBadges}` : ''}</span>
+      <span style="font-size:11px; color:var(--muted); white-space:nowrap;">${escapeHtml(updateLabel)}</span>
+    </div>`;
 
   const tileId = `home-watch-weather-tile-${g.mode}-${g.date}`;
+  // 예보 범위 밖(10일 초과)이거나 아직 못 불러왔어도 카드 레이아웃이 흔들리지 않도록 자리를
+  // 계속 차지해둔다(display:none로 숨기지 않음 - loadWeatherTilesGeneric이 값을 얻으면 텍스트만
+  // 갈아끼우고, 못 얻으면 기본 placeholder "🌡️ -"가 그대로 보임).
   const weatherTileHtml = showWeatherTile ? `
-        <div class="hb-tile hb-weather-tile" id="${tileId}" style="display:none;">
+        <div class="hb-tile hb-weather-tile" id="${tileId}">
           <div class="hb-wt-icon">🌡️</div>
           <div class="hb-wt-temp">-</div>
         </div>` : '';
@@ -3656,7 +3665,7 @@ function renderWatchGroupCard(g, { showWeatherTile = false } = {}) {
           <div class="hb-dday">${escapeHtml(ddayText)}</div>
         </div>
         <div class="home-booking-main">
-          <div class="name"><span class="tag" style="margin-right:4px; vertical-align:middle;">${escapeHtml(WATCH_MODE_LABELS[g.mode])}</span>${timeIcon ? timeIcon + ' ' : ''}🔭 ${group.length}개</div>
+          <div class="name"><span class="tag" style="margin-right:4px; vertical-align:middle;">${escapeHtml(WATCH_MODE_LABELS[g.mode])}</span>${timeIcon ? timeIcon + ' ' : ''}${group.length}개 골프장</div>
           <div class="sub" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${courseBadges}</div>
           ${statusLine}
         </div>${weatherTileHtml}
