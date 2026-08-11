@@ -891,7 +891,15 @@
 
     <div class="card">
       <h2>골프장별 추이</h2>
-      <select id="pricedash-course-select" onchange="selectPriceDashCourse(this.value)" style="width:100%; margin-top:6px; padding:10px; border-radius:8px; border:1px solid var(--border);">
+      <label>지역으로 좁혀서 찾기</label>
+      <div class="chip-group" id="pricedash-course-region-chips">
+        <span class="chip selected" onclick="setPriceDashCourseRegion('',this)">전체</span>
+        <span class="chip" onclick="setPriceDashCourseRegion('hangang',this)">한강이남</span>
+        <span class="chip" onclick="setPriceDashCourseRegion('gangbuk',this)">강북/경춘</span>
+        <span class="chip" onclick="setPriceDashCourseRegion('gangwon',this)">강원</span>
+        <span class="chip" onclick="setPriceDashCourseRegion('chungcheong',this)">충청</span>
+      </div>
+      <select id="pricedash-course-select" onchange="selectPriceDashCourse(this.value)" style="width:100%; margin-top:10px; padding:10px; border-radius:8px; border:1px solid var(--border);">
         <option value="">골프장을 선택하세요</option>
       </select>
 
@@ -899,10 +907,7 @@
         <div class="muted" style="font-size:12px;">라운드일별 최저가 추이 (최근 90일 관측)</div>
         <div id="pricedash-history-chart" style="margin-top:6px;"></div>
 
-        <div class="muted" style="font-size:12px; margin-top:18px;">시간대별 평균 그린피</div>
-        <div id="pricedash-timebucket-chart" style="margin-top:6px;"></div>
-
-        <div class="muted" style="font-size:12px; margin-top:18px;">요일별 평균 그린피</div>
+        <div class="muted" style="font-size:12px; margin-top:18px;">요일 × 시간대별 평균 그린피</div>
         <div id="pricedash-weekday-chart" style="margin-top:6px;"></div>
 
         <div class="muted" style="font-size:12px; margin-top:18px;">예약 시점(라운드일까지 남은 일수)별 평균 그린피</div>
@@ -2552,8 +2557,12 @@ async function removeFavoriteRestaurant(id) {
 // 조회만 한다(수집 자체는 이 앱이 하지 않음). 차트는 외부 라이브러리 없이 순수 SVG/DOM으로 직접
 // 그린다 - 이 앱 전체에 차트 라이브러리 의존성이 없는 것과 일관성을 맞췄다. =====
 let priceDashRegion = '';
+let priceDashCourseRegion = '';
 const PRICE_DASH_REGION_LABELS = { hangang: '한강이남', gangbuk: '강북/경춘', gangwon: '강원', chungcheong: '충청' };
 const PRICE_DASH_WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+// 오전->오후->야간으로 갈수록 짙어지는 그린 계열 - 새 색을 끌어오지 않고 기존 팔레트(--green/
+// --green-dark) 안에서만 톤을 나눴다.
+const PRICE_DASH_TIME_BUCKET_COLORS = { 오전: '#8fc9a5', 오후: 'var(--green)', 야간: 'var(--green-dark)' };
 
 /** 그린피를 만원 단위로 표시("119,000원" -> "11.9만원"). 소수점은 필요할 때만(딱 떨어지면 "9만원"). */
 function formatManwon(won, { withUnit = true } = {}) {
@@ -2604,14 +2613,26 @@ async function loadPriceDashLowest() {
   }
 }
 
+function setPriceDashCourseRegion(region, el) {
+  priceDashCourseRegion = region;
+  document.querySelectorAll('#pricedash-course-region-chips .chip').forEach((c) => c.classList.remove('selected'));
+  el.classList.add('selected');
+  // 지역이 바뀌면 이전에 고른 골프장이 새 목록에 없을 수 있으니 선택을 초기화한다.
+  document.getElementById('pricedash-course-select').value = '';
+  document.getElementById('pricedash-course-detail').style.display = 'none';
+  loadPriceDashCourseList();
+}
+
 async function loadPriceDashCourseList() {
   const select = document.getElementById('pricedash-course-select');
   const emptyNote = document.getElementById('pricedash-empty-note');
   try {
-    const { courses } = await api('/api/price-dashboard/courses');
+    const params = new URLSearchParams();
+    if (priceDashCourseRegion) params.set('region', priceDashCourseRegion);
+    const { courses } = await api(`/api/price-dashboard/courses?${params.toString()}`);
     if (!courses.length) {
       emptyNote.style.display = 'block';
-      emptyNote.textContent = '아직 수집된 데이터가 없습니다.';
+      emptyNote.textContent = priceDashCourseRegion ? '이 지역에서 수집된 데이터가 없습니다.' : '아직 수집된 데이터가 없습니다.';
       select.innerHTML = '<option value="">골프장을 선택하세요</option>';
       document.getElementById('pricedash-course-detail').style.display = 'none';
       return;
@@ -2634,21 +2655,13 @@ async function selectPriceDashCourse(courseName) {
   }
   detail.style.display = 'block';
   try {
-    const [{ history }, { timeBucket }, { weekday }, { leadtime }] = await Promise.all([
+    const [{ history }, { weekday }, { leadtime }] = await Promise.all([
       api(`/api/price-dashboard/course/${encodeURIComponent(courseName)}/history?days=90`),
-      api(`/api/price-dashboard/course/${encodeURIComponent(courseName)}/timebucket`),
       api(`/api/price-dashboard/course/${encodeURIComponent(courseName)}/weekday`),
       api(`/api/price-dashboard/course/${encodeURIComponent(courseName)}/leadtime`),
     ]);
     renderPriceDashHistoryChart(history);
-    renderPriceDashBarChart('pricedash-timebucket-chart', timeBucket, {
-      valueKey: 'avgGreenFee',
-      labelOf: (it) => it.timeBucket,
-    });
-    renderPriceDashBarChart('pricedash-weekday-chart', weekday, {
-      valueKey: 'avgGreenFee',
-      labelOf: (it) => PRICE_DASH_WEEKDAY_LABELS[it.weekday],
-    });
+    renderPriceDashWeekdayBucketChart(weekday);
     renderPriceDashBarChart('pricedash-leadtime-chart', leadtime, {
       valueKey: 'avgGreenFee',
       labelOf: (it) => it.label,
@@ -2695,7 +2708,55 @@ function renderPriceDashHistoryChart(history) {
   `;
 }
 
-/** 요일별/리드타임별 평균 그린피 막대차트 - 공용 렌더러(labelOf로 항목별 라벨만 다르게 준다). */
+/** 요일(7) × 시간대(오전/오후/야간) 그룹 막대차트. 요일마다 얇은 막대 3개를 색으로 구분해서
+ * 붙여 그린다 - 전체 21칸 중 최댓값 하나로 높이를 맞춰야 요일 간·시간대 간 비교가 다 정확하다. */
+function renderPriceDashWeekdayBucketChart(items) {
+  const el = document.getElementById('pricedash-weekday-chart');
+  const withData = (items || []).filter((it) => it.avgGreenFee != null);
+  if (!withData.length) {
+    el.innerHTML = '<div class="empty" style="padding:12px 0;">데이터 없음</div>';
+    return;
+  }
+  const maxV = Math.max(...withData.map((it) => it.avgGreenFee));
+  const MAX_BAR_HEIGHT = 64;
+  const buckets = ['오전', '오후', '야간'];
+  const byWeekday = Array.from({ length: 7 }, (_, w) => items.filter((it) => it.weekday === w));
+
+  const groups = byWeekday
+    .map((dayItems, w) => {
+      const bars = buckets
+        .map((b) => {
+          const it = dayItems.find((x) => x.timeBucket === b);
+          const has = it && it.avgGreenFee != null;
+          const h = has ? Math.max(3, (it.avgGreenFee / maxV) * MAX_BAR_HEIGHT) : 0;
+          const title = has ? `${b} 평균 ${formatManwon(it.avgGreenFee)} (${it.sampleCount}건)` : `${b} 데이터 없음`;
+          return `<div title="${escapeHtml(title)}" style="flex:1; height:${h}px; background:${has ? PRICE_DASH_TIME_BUCKET_COLORS[b] : 'transparent'}; border-radius:2px 2px 0 0;"></div>`;
+        })
+        .join('');
+      return `
+      <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;">
+        <div style="width:100%; display:flex; align-items:flex-end; gap:2px; height:${MAX_BAR_HEIGHT}px;">${bars}</div>
+        <div style="font-size:10px; color:var(--muted);">${PRICE_DASH_WEEKDAY_LABELS[w]}</div>
+      </div>`;
+    })
+    .join('');
+
+  const legend = buckets
+    .map(
+      (b) => `
+    <span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--muted);">
+      <span style="width:9px; height:9px; border-radius:2px; background:${PRICE_DASH_TIME_BUCKET_COLORS[b]}; display:inline-block;"></span>${b}
+    </span>`
+    )
+    .join('');
+
+  el.innerHTML = `
+    <div style="display:flex; gap:6px;">${groups}</div>
+    <div style="display:flex; gap:14px; margin-top:8px;">${legend}</div>
+  `;
+}
+
+/** 리드타임별 평균 그린피 막대차트 - 공용 렌더러(labelOf로 항목별 라벨만 다르게 준다). */
 function renderPriceDashBarChart(containerId, items, { valueKey, labelOf }) {
   const el = document.getElementById(containerId);
   const withData = (items || []).filter((it) => it[valueKey] != null);
