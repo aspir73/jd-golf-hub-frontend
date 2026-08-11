@@ -907,7 +907,7 @@
         <div class="muted" style="font-size:12px;">라운드일별 최저가 추이 (최근 90일 관측)</div>
         <div id="pricedash-history-chart" style="margin-top:6px;"></div>
 
-        <div class="muted" style="font-size:12px; margin-top:18px;">요일 × 시간대별 평균 그린피</div>
+        <div class="muted" style="font-size:12px; margin-top:18px;">요일×시간대별 평균 그린피 (단위: 만원)</div>
         <div id="pricedash-weekday-chart" style="margin-top:6px;"></div>
 
         <div class="muted" style="font-size:12px; margin-top:18px;">예약 시점(라운드일까지 남은 일수)별 평균 그린피</div>
@@ -2560,9 +2560,10 @@ let priceDashRegion = '';
 let priceDashCourseRegion = '';
 const PRICE_DASH_REGION_LABELS = { hangang: '한강이남', gangbuk: '강북/경춘', gangwon: '강원', chungcheong: '충청' };
 const PRICE_DASH_WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
-// 오전->오후->야간으로 갈수록 짙어지는 그린 계열 - 새 색을 끌어오지 않고 기존 팔레트(--green/
-// --green-dark) 안에서만 톤을 나눴다.
-const PRICE_DASH_TIME_BUCKET_COLORS = { 오전: '#8fc9a5', 오후: 'var(--green)', 야간: 'var(--green-dark)' };
+// 색조 자체가 다른 3색이라야 한눈에 구분된다(비슷한 톤의 그린 3단계는 구분이 잘 안 됐음) - 이 앱에
+// 이미 쓰이고 있는 색만 재사용: 오전=--accent(주황/골드), 오후=--green(메인 그린), 야간=파란색
+// (날씨 탭 강수확률·야간 관련 표시에 쓰던 #2b5db5와 동일).
+const PRICE_DASH_TIME_BUCKET_COLORS = { 오전: 'var(--accent)', 오후: 'var(--green)', 야간: '#2b5db5' };
 
 /** 그린피를 만원 단위로 표시("119,000원" -> "11.9만원"). 소수점은 필요할 때만(딱 떨어지면 "9만원"). */
 function formatManwon(won, { withUnit = true } = {}) {
@@ -2708,8 +2709,9 @@ function renderPriceDashHistoryChart(history) {
   `;
 }
 
-/** 요일(7) × 시간대(오전/오후/야간) 그룹 막대차트. 요일마다 얇은 막대 3개를 색으로 구분해서
- * 붙여 그린다 - 전체 21칸 중 최댓값 하나로 높이를 맞춰야 요일 간·시간대 간 비교가 다 정확하다. */
+/** 요일(7) × 시간대(오전/오후/야간) 그룹 막대차트. 요일마다 얇은 막대 3개를 색으로 뚜렷하게
+ * 구분해서 붙여 그리고, 막대마다 가격(만원, 숫자만)을 바로 위에 표시한다 - 전체 21칸 중 최댓값
+ * 하나로 높이를 맞춰야 요일 간·시간대 간 비교가 다 정확하다. */
 function renderPriceDashWeekdayBucketChart(items) {
   const el = document.getElementById('pricedash-weekday-chart');
   const withData = (items || []).filter((it) => it.avgGreenFee != null);
@@ -2719,6 +2721,8 @@ function renderPriceDashWeekdayBucketChart(items) {
   }
   const maxV = Math.max(...withData.map((it) => it.avgGreenFee));
   const MAX_BAR_HEIGHT = 64;
+  const LABEL_SPACE = 12; // 막대 위 가격 숫자 자리
+  const COL_HEIGHT = MAX_BAR_HEIGHT + LABEL_SPACE;
   const buckets = ['오전', '오후', '야간'];
   const byWeekday = Array.from({ length: 7 }, (_, w) => items.filter((it) => it.weekday === w));
 
@@ -2730,12 +2734,16 @@ function renderPriceDashWeekdayBucketChart(items) {
           const has = it && it.avgGreenFee != null;
           const h = has ? Math.max(3, (it.avgGreenFee / maxV) * MAX_BAR_HEIGHT) : 0;
           const title = has ? `${b} 평균 ${formatManwon(it.avgGreenFee)} (${it.sampleCount}건)` : `${b} 데이터 없음`;
-          return `<div title="${escapeHtml(title)}" style="flex:1; height:${h}px; background:${has ? PRICE_DASH_TIME_BUCKET_COLORS[b] : 'transparent'}; border-radius:2px 2px 0 0;"></div>`;
+          return `
+        <div title="${escapeHtml(title)}" style="flex:1; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:2px; min-width:0;">
+          <div style="font-size:8px; color:var(--muted); white-space:nowrap; line-height:1;">${has ? formatManwon(it.avgGreenFee, { withUnit: false }) : ''}</div>
+          <div style="width:100%; height:${h}px; background:${has ? PRICE_DASH_TIME_BUCKET_COLORS[b] : 'transparent'}; border-radius:2px 2px 0 0;"></div>
+        </div>`;
         })
         .join('');
       return `
       <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;">
-        <div style="width:100%; display:flex; align-items:flex-end; gap:2px; height:${MAX_BAR_HEIGHT}px;">${bars}</div>
+        <div style="width:100%; display:flex; align-items:flex-end; gap:2px; height:${COL_HEIGHT}px;">${bars}</div>
         <div style="font-size:10px; color:var(--muted);">${PRICE_DASH_WEEKDAY_LABELS[w]}</div>
       </div>`;
     })
