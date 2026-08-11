@@ -874,7 +874,7 @@
   <section id="tab-pricedashboard" class="tab-panel">
     <div class="card">
       <h2>📊 가격 대시보드</h2>
-      <div class="muted" style="margin-top:2px; font-size:12px;">매일 새벽 수집되는 조인/부킹 가격을 바탕으로 골프장별 추세를 보여줍니다. 데이터가 쌓일수록 정확해집니다.</div>
+      <div class="muted" style="margin-top:2px; font-size:12px;">매일 새벽 수집되는 골팡 부킹 + 카카오골프예약 가격을 바탕으로 골프장별 추세를 보여줍니다. 데이터가 쌓일수록 정확해집니다.</div>
 
       <label style="margin-top:10px;">지역</label>
       <div class="chip-group" id="pricedash-region-chips">
@@ -885,7 +885,7 @@
         <span class="chip" onclick="setPriceDashRegion('chungcheong',this)">충청</span>
       </div>
 
-      <label style="margin-top:10px;">오늘 라운드 매물 중 최저가 Top 10</label>
+      <label style="margin-top:10px;">가까운 라운드 매물 중 최저가 Top 10</label>
       <div id="pricedash-lowest-list" class="empty" style="margin-top:6px;">불러오는 중...</div>
     </div>
 
@@ -2552,6 +2552,14 @@ let priceDashRegion = '';
 const PRICE_DASH_REGION_LABELS = { hangang: '한강이남', gangbuk: '강북/경춘', gangwon: '강원', chungcheong: '충청' };
 const PRICE_DASH_WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
+/** 그린피를 만원 단위로 표시("119,000원" -> "11.9만원"). 소수점은 필요할 때만(딱 떨어지면 "9만원"). */
+function formatManwon(won, { withUnit = true } = {}) {
+  if (won == null) return '-';
+  const man = Math.round((Number(won) / 10000) * 10) / 10;
+  const text = Number.isInteger(man) ? String(man) : man.toFixed(1);
+  return withUnit ? `${text}만원` : `${text}만`;
+}
+
 async function loadPriceDashboard() {
   await Promise.all([loadPriceDashLowest(), loadPriceDashCourseList()]);
 }
@@ -2571,7 +2579,7 @@ async function loadPriceDashLowest() {
     const { results } = await api(`/api/price-dashboard/lowest-today?${params.toString()}`);
     if (!results.length) {
       el.classList.add('empty');
-      el.innerHTML = '오늘 라운드 가능한 매물 중 수집된 가격이 아직 없습니다.';
+      el.innerHTML = '수집된 가격이 아직 없습니다.';
       return;
     }
     el.classList.remove('empty');
@@ -2581,9 +2589,9 @@ async function loadPriceDashLowest() {
       <div class="list-item">
         <div>
           <div class="name">${i + 1}. ${escapeHtml(r.courseName)}</div>
-          <div class="sub">${escapeHtml(PRICE_DASH_REGION_LABELS[r.regionGroup] || r.regionGroup)}</div>
+          <div class="sub">${escapeHtml(PRICE_DASH_REGION_LABELS[r.regionGroup] || r.regionGroup)} · ${escapeHtml(r.roundDate)}</div>
         </div>
-        <div class="score-actions"><span style="font-weight:700; color:var(--green);">${Number(r.minGreenFee).toLocaleString()}원</span></div>
+        <div class="score-actions"><span style="font-weight:700; color:var(--green);">${formatManwon(r.minGreenFee)}</span></div>
       </div>`
       )
       .join('');
@@ -2608,7 +2616,7 @@ async function loadPriceDashCourseList() {
     emptyNote.style.display = 'none';
     select.innerHTML =
       '<option value="">골프장을 선택하세요</option>' +
-      courses.map((c) => `<option value="${escapeHtml(c.courseName)}">${escapeHtml(c.courseName)} (최저 ${Number(c.minGreenFee).toLocaleString()}원)</option>`).join('');
+      courses.map((c) => `<option value="${escapeHtml(c.courseName)}">${escapeHtml(c.courseName)} (최저 ${formatManwon(c.minGreenFee)})</option>`).join('');
   } catch (e) {
     emptyNote.style.display = 'block';
     emptyNote.textContent = '불러오기 실패: ' + e.message;
@@ -2672,9 +2680,9 @@ function renderPriceDashHistoryChart(history) {
       ${dots}
     </svg>
     <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:2px;">
-      <span>${escapeHtml(first.roundDate)} · ${Number(first.minGreenFee).toLocaleString()}원</span>
-      <span>최저 ${Number(minV).toLocaleString()}원</span>
-      <span>${escapeHtml(last.roundDate)} · ${Number(last.minGreenFee).toLocaleString()}원</span>
+      <span>${escapeHtml(first.roundDate)} · ${formatManwon(first.minGreenFee)}</span>
+      <span>최저 ${formatManwon(minV)}</span>
+      <span>${escapeHtml(last.roundDate)} · ${formatManwon(last.minGreenFee)}</span>
     </div>
   `;
 }
@@ -2700,7 +2708,7 @@ function renderPriceDashBarChart(containerId, items, { valueKey, labelOf }) {
           const h = has ? Math.max(4, (it[valueKey] / maxV) * MAX_BAR_HEIGHT) : 2;
           return `
         <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;">
-          <div style="font-size:10px; color:var(--muted); white-space:nowrap;">${has ? Math.round(it[valueKey] / 1000) + '천' : '-'}</div>
+          <div style="font-size:10px; color:var(--muted); white-space:nowrap;">${has ? formatManwon(it[valueKey], { withUnit: false }) : '-'}</div>
           <div style="width:100%; height:${h}px; background:${has ? 'var(--green)' : 'var(--border)'}; border-radius:3px 3px 0 0;"></div>
           <div style="font-size:10px; color:var(--muted); white-space:nowrap;">${escapeHtml(String(labelOf(it)))}</div>
         </div>`;
