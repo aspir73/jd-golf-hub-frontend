@@ -548,7 +548,10 @@
          여기는 (모드+날짜) 단위로 묶어서 "N개 골프장 모니터링 중" 요약 + 새로 발견된 자리 +
          해당 날짜 날씨를 한 카드에서 보여주는 모니터링 대시보드 형태다. -->
     <div class="card" id="home-watch-card" style="display:none;">
-      <h2>⏰ 티타임 모니터링</h2>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;">
+        <h2 style="margin:0;">⏰ 티타임 모니터링</h2>
+        <button type="button" class="btn secondary" id="home-watch-refresh-all-btn" style="padding:5px 10px; font-size:12px; white-space:nowrap;" onclick="refreshAllHomeWatches(this)">🔄 전체 업데이트</button>
+      </div>
       <div id="home-watch-groups"></div>
     </div>
 
@@ -3945,6 +3948,24 @@ async function refreshWatchNow(id) {
     showToast('최신 결과로 갱신했습니다');
   } catch (e) {
     showToast('재검색 실패: ' + e.message);
+  }
+}
+
+/** 홈 탭 "⏰ 티타임 모니터링" 카드의 "🔄 전체 업데이트" - 등록된 모니터링을 개별적으로 하나씩
+ * 새로고침(refreshWatchNow, 최대 10페이지)하지 않고, 크론이 30분마다 쓰는 것과 동일한
+ * refreshAllWatches(활성 워치 최대 15개·페이지 1개)를 서버에서 한 번에 돌린다 - 워치를 전부
+ * 개별 요청으로 돌리면 서브리퀘스트 한도를 넘겨 버튼을 누른 자리에서 실패할 수 있어서다. */
+async function refreshAllHomeWatches(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '업데이트 중...'; }
+  showToast('등록된 골프장을 모두 재검색합니다...');
+  try {
+    const { refreshedCount } = await api('/api/watches/refresh-all', { method: 'POST' });
+    await loadWatches();
+    showToast(`${refreshedCount}개 모니터링을 갱신했습니다`);
+  } catch (e) {
+    showToast('전체 업데이트 실패: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 전체 업데이트'; }
   }
 }
 
