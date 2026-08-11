@@ -899,6 +899,9 @@
         <div class="muted" style="font-size:12px;">라운드일별 최저가 추이 (최근 90일 관측)</div>
         <div id="pricedash-history-chart" style="margin-top:6px;"></div>
 
+        <div class="muted" style="font-size:12px; margin-top:18px;">시간대별 평균 그린피</div>
+        <div id="pricedash-timebucket-chart" style="margin-top:6px;"></div>
+
         <div class="muted" style="font-size:12px; margin-top:18px;">요일별 평균 그린피</div>
         <div id="pricedash-weekday-chart" style="margin-top:6px;"></div>
 
@@ -2631,12 +2634,17 @@ async function selectPriceDashCourse(courseName) {
   }
   detail.style.display = 'block';
   try {
-    const [{ history }, { weekday }, { leadtime }] = await Promise.all([
+    const [{ history }, { timeBucket }, { weekday }, { leadtime }] = await Promise.all([
       api(`/api/price-dashboard/course/${encodeURIComponent(courseName)}/history?days=90`),
+      api(`/api/price-dashboard/course/${encodeURIComponent(courseName)}/timebucket`),
       api(`/api/price-dashboard/course/${encodeURIComponent(courseName)}/weekday`),
       api(`/api/price-dashboard/course/${encodeURIComponent(courseName)}/leadtime`),
     ]);
     renderPriceDashHistoryChart(history);
+    renderPriceDashBarChart('pricedash-timebucket-chart', timeBucket, {
+      valueKey: 'avgGreenFee',
+      labelOf: (it) => it.timeBucket,
+    });
     renderPriceDashBarChart('pricedash-weekday-chart', weekday, {
       valueKey: 'avgGreenFee',
       labelOf: (it) => PRICE_DASH_WEEKDAY_LABELS[it.weekday],
