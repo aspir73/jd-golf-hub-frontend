@@ -980,8 +980,8 @@
          바로 주변 맛집 검색까지 이어진다(loadBookings가 채워둔 bookingCache 재사용, 별도
          API 호출 없음). renderFoodCourseList 참고. -->
     <div class="card" id="food-course-card" style="display:none;">
-      <h2>⛳ 예약된 골프장</h2>
-      <div class="muted" style="margin-top:2px; font-size:12px;">확정된 예약의 골프장이에요. "선택"을 누르면 그 주변 맛집을 바로 검색합니다.</div>
+      <h2>⛳ 예약중인 골프장</h2>
+      <div class="muted" style="margin-top:2px; font-size:12px;">가예약·확정된 예약의 골프장이에요. "선택"을 누르면 그 주변 맛집을 바로 검색합니다.</div>
       <div id="food-course-list" style="margin-top:10px;"></div>
     </div>
 
@@ -2403,16 +2403,18 @@ function renderFoodCourseList(bookings) {
   const el = document.getElementById('food-course-list');
   if (!card || !el) return;
   const today = new Date().toISOString().slice(0, 10);
-  const confirmed = (bookings || [])
-    .filter((b) => b.status === '확정' && (!b.roundDate || b.roundDate >= today))
+  // 확정된 예약만이 아니라 가예약(아직 확정 전이지만 예약을 진행 중인) 상태도 "예약중"으로
+  // 같이 보여준다 - 취소예정/취소완료는 실제로 라운딩할 가능성이 없어져서 제외.
+  const active = (bookings || [])
+    .filter((b) => (b.status === '확정' || b.status === '가예약') && (!b.roundDate || b.roundDate >= today))
     .sort((a, b) => (a.roundDate < b.roundDate ? -1 : 1));
-  card.style.display = confirmed.length ? 'block' : 'none';
-  if (!confirmed.length) return;
-  el.innerHTML = confirmed.map((b) => `
+  card.style.display = active.length ? 'block' : 'none';
+  if (!active.length) return;
+  el.innerHTML = active.map((b) => `
     <div class="list-item">
       <div>
         <div class="name">${escapeHtml(b.courseName)}</div>
-        <div class="sub">${escapeHtml(b.roundDate || '-')} ${escapeHtml(b.roundTime || '')}</div>
+        <div class="sub">${escapeHtml(b.roundDate || '-')} ${escapeHtml(b.roundTime || '')} <span class="tag" style="margin-left:4px;">${escapeHtml(b.status)}</span></div>
       </div>
       <button type="button" class="btn secondary" style="padding:6px 14px; font-size:12px;" onclick="selectFoodCourse('${jsAttrEscape(b.courseName)}')">선택</button>
     </div>
