@@ -488,6 +488,7 @@
   <div id="hamburgerMenu" class="hamburger-menu">
     <button type="button" onclick="hamburgerGoMyGolf()">⭐ MY 골프장</button>
     <button type="button" onclick="hamburgerGoGolfDb()">🔍 국내 골프장 찾기</button>
+    <button type="button" onclick="hamburgerGoPriceDashboard()">📊 가격 대시보드</button>
     <button type="button" onclick="hamburgerGoSettings()">⚙️ 설정</button>
   </div>
 </header>
@@ -864,6 +865,47 @@
         <button class="btn danger" id="mygolf-delete-selected-btn" style="display:none;" onclick="deleteSelectedCourses()">🗑️ 선택 삭제 (<span id="mygolf-selected-count">0</span>)</button>
       </div>
       <div id="mygolf-course-list" class="empty" style="margin-top:10px;">등록된 골프장이 없습니다.</div>
+    </div>
+  </section>
+
+  <!-- 가격 대시보드: 하단 탭이 아니라 햄버거 메뉴에서 진입. 집에 있는 NAS가 매일 새벽 1시에
+       골팡 조인/부킹 가격을 수집해서 D1(PRICE_DB)에 쌓아둔 것을 시각화한다(nas-collector/README.md
+       참고) - 처음엔 데이터가 없거나 적어서 차트가 비어보일 수 있고, 매일 쌓일수록 정확해진다. -->
+  <section id="tab-pricedashboard" class="tab-panel">
+    <div class="card">
+      <h2>📊 가격 대시보드</h2>
+      <div class="muted" style="margin-top:2px; font-size:12px;">매일 새벽 수집되는 조인/부킹 가격을 바탕으로 골프장별 추세를 보여줍니다. 데이터가 쌓일수록 정확해집니다.</div>
+
+      <label style="margin-top:10px;">지역</label>
+      <div class="chip-group" id="pricedash-region-chips">
+        <span class="chip selected" onclick="setPriceDashRegion('',this)">전체</span>
+        <span class="chip" onclick="setPriceDashRegion('hangang',this)">한강이남</span>
+        <span class="chip" onclick="setPriceDashRegion('gangbuk',this)">강북/경춘</span>
+        <span class="chip" onclick="setPriceDashRegion('gangwon',this)">강원</span>
+        <span class="chip" onclick="setPriceDashRegion('chungcheong',this)">충청</span>
+      </div>
+
+      <label style="margin-top:10px;">오늘 라운드 매물 중 최저가 Top 10</label>
+      <div id="pricedash-lowest-list" class="empty" style="margin-top:6px;">불러오는 중...</div>
+    </div>
+
+    <div class="card">
+      <h2>골프장별 추이</h2>
+      <select id="pricedash-course-select" onchange="selectPriceDashCourse(this.value)" style="width:100%; margin-top:6px; padding:10px; border-radius:8px; border:1px solid var(--border);">
+        <option value="">골프장을 선택하세요</option>
+      </select>
+
+      <div id="pricedash-course-detail" style="margin-top:14px; display:none;">
+        <div class="muted" style="font-size:12px;">라운드일별 최저가 추이 (최근 90일 관측)</div>
+        <div id="pricedash-history-chart" style="margin-top:6px;"></div>
+
+        <div class="muted" style="font-size:12px; margin-top:18px;">요일별 평균 그린피</div>
+        <div id="pricedash-weekday-chart" style="margin-top:6px;"></div>
+
+        <div class="muted" style="font-size:12px; margin-top:18px;">예약 시점(라운드일까지 남은 일수)별 평균 그린피</div>
+        <div id="pricedash-leadtime-chart" style="margin-top:6px;"></div>
+      </div>
+      <div id="pricedash-empty-note" class="empty" style="margin-top:10px;">아직 수집된 데이터가 없습니다.</div>
     </div>
   </section>
 
@@ -1358,6 +1400,7 @@ function showTab(name) {
   if (name === 'join') { loadCourses(); loadComparisonGroups(); loadBookings(); }
   if (name === 'mygolf') { loadCourses(); }
   if (name === 'food') { loadFavoriteRestaurants(); renderFoodCourseList(bookingCache); }
+  if (name === 'pricedashboard') { loadPriceDashboard(); }
 }
 
 // ===== 홈 화면 우측상단 햄버거 메뉴 (MY 골프장 / 국내 골프장 찾기) =====
@@ -1378,6 +1421,11 @@ function hamburgerGoMyGolf() {
 function hamburgerGoGolfDb() {
   closeHamburgerMenu();
   openGolfDbBrowse();
+}
+
+function hamburgerGoPriceDashboard() {
+  closeHamburgerMenu();
+  showTab('pricedashboard');
 }
 
 function hamburgerGoSettings() {
@@ -2395,28 +2443,37 @@ async function searchFoodAroundCourseName(name) {
 }
 
 /** 카카오 카테고리("음식점 > 한식 > 국밥") 중 가장 구체적인 마지막 항목만 뽑아서 짧게
- * 보여준다("국밥"). 별점은 카카오 로컬 API 응답 자체에 없는 값이라(공식 문서 기준 - 리뷰/평점은
- * 카카오맵 웹페이지에만 있고 API로는 내려주지 않음) 우리 쪽에서 임의로 만들어 보여주는 대신,
- * "상세보기" 링크(placeUrl)로 카카오맵 페이지에 보내서 실제 별점·리뷰를 거기서 보게 한다. */
+ * 보여준다("국밥"). 카카오 로컬 API 응답 자체엔 별점이 없어서(공식 문서 기준 - 리뷰/평점은
+ * 카카오맵 웹페이지에만 있고 API로는 안 내려줌) 백엔드에서 구글 Places API로 이름+좌표를
+ * 매칭해 rating/reviewCount를 별도로 보강해서 내려준다(googlePlaces.js findGoogleRating).
+ * 매칭 실패/구글 API 키 미설정 시 rating이 null로 오므로 그 경우엔 배지를 아예 안 띄운다. */
 function formatFoodCategory(category) {
   if (!category) return '';
   const parts = category.split('>').map((p) => p.trim()).filter(Boolean);
   return parts[parts.length - 1] || '';
 }
 
+function foodRatingBadge(r) {
+  if (r.rating == null) return '';
+  const count = r.reviewCount != null ? ` (${r.reviewCount})` : '';
+  return `<span class="tag" style="margin-right:4px; color:var(--accent);">★${r.rating.toFixed(1)}${count}</span>`;
+}
+
 function renderFoodResults(list) {
   const el = document.getElementById('food-result-list');
   if (!list.length) {
+    el.classList.add('empty');
     el.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>';
     return;
   }
+  el.classList.remove('empty');
   el.innerHTML = list.map((r, i) => {
     const categoryLabel = formatFoodCategory(r.category);
     return `
     <div class="list-item">
       <div>
         <div class="name"${r.placeUrl ? ` style="cursor:pointer;" onclick="window.open('${r.placeUrl}','_blank')" title="상세보기(카카오맵 - 별점·리뷰 확인)"` : ''}>${escapeHtml(r.name)}</div>
-        <div class="sub">${categoryLabel ? `<span class="tag" style="margin-right:4px;">${escapeHtml(categoryLabel)}</span>` : ''}${escapeHtml(r.address)}${r.distanceMeters ? ' · ' + Math.round(r.distanceMeters) + 'm' : ''}</div>
+        <div class="sub">${foodRatingBadge(r)}${categoryLabel ? `<span class="tag" style="margin-right:4px;">${escapeHtml(categoryLabel)}</span>` : ''}${escapeHtml(r.address)}${r.distanceMeters ? ' · ' + Math.round(r.distanceMeters) + 'm' : ''}</div>
       </div>
       <div class="score-actions">
         <a class="icon-btn" href="${r.directionsUrl}" target="_blank" rel="noopener" title="길찾기">🧭</a>
@@ -2433,7 +2490,7 @@ async function addFoodFavorite(index) {
   try {
     await api('/api/restaurants/favorites', {
       method: 'POST',
-      body: JSON.stringify({ name: r.name, address: r.address, phone: r.phone, lat: r.lat, lon: r.lon, category: r.category, placeUrl: r.placeUrl }),
+      body: JSON.stringify({ name: r.name, address: r.address, phone: r.phone, lat: r.lat, lon: r.lon, category: r.category, placeUrl: r.placeUrl, rating: r.rating, reviewCount: r.reviewCount }),
     });
     showToast('즐겨찾기에 추가했습니다');
     await loadFavoriteRestaurants();
@@ -2455,16 +2512,18 @@ async function loadFavoriteRestaurants() {
 function renderFavoriteRestaurants(list) {
   const el = document.getElementById('food-favorite-list');
   if (!list.length) {
+    el.classList.add('empty');
     el.innerHTML = '<div class="empty">즐겨찾기한 맛집이 없습니다.</div>';
     return;
   }
+  el.classList.remove('empty');
   el.innerHTML = list.map((r) => {
     const categoryLabel = formatFoodCategory(r.category);
     return `
     <div class="list-item">
       <div>
         <div class="name"${r.placeUrl ? ` style="cursor:pointer;" onclick="window.open('${r.placeUrl}','_blank')" title="상세보기(카카오맵 - 별점·리뷰 확인)"` : ''}>${escapeHtml(r.name)}</div>
-        <div class="sub">${categoryLabel ? `<span class="tag" style="margin-right:4px;">${escapeHtml(categoryLabel)}</span>` : ''}${escapeHtml(r.address || '')}</div>
+        <div class="sub">${foodRatingBadge(r)}${categoryLabel ? `<span class="tag" style="margin-right:4px;">${escapeHtml(categoryLabel)}</span>` : ''}${escapeHtml(r.address || '')}</div>
       </div>
       <div class="score-actions">
         ${r.lat && r.lon ? `<a class="icon-btn" href="https://map.kakao.com/link/to/${encodeURIComponent(r.name)},${r.lat},${r.lon}" target="_blank" rel="noopener" title="길찾기">🧭</a>` : ''}
@@ -2484,6 +2543,171 @@ async function removeFavoriteRestaurant(id) {
   } catch (e) {
     showToast('삭제 실패: ' + e.message);
   }
+}
+
+// ===== 가격 대시보드 (햄버거 메뉴 진입) - nas-collector/가 매일 새벽 1시에 쌓아둔 D1 데이터를
+// 조회만 한다(수집 자체는 이 앱이 하지 않음). 차트는 외부 라이브러리 없이 순수 SVG/DOM으로 직접
+// 그린다 - 이 앱 전체에 차트 라이브러리 의존성이 없는 것과 일관성을 맞췄다. =====
+let priceDashRegion = '';
+const PRICE_DASH_REGION_LABELS = { hangang: '한강이남', gangbuk: '강북/경춘', gangwon: '강원', chungcheong: '충청' };
+const PRICE_DASH_WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+
+async function loadPriceDashboard() {
+  await Promise.all([loadPriceDashLowest(), loadPriceDashCourseList()]);
+}
+
+function setPriceDashRegion(region, el) {
+  priceDashRegion = region;
+  document.querySelectorAll('#pricedash-region-chips .chip').forEach((c) => c.classList.remove('selected'));
+  el.classList.add('selected');
+  loadPriceDashLowest();
+}
+
+async function loadPriceDashLowest() {
+  const el = document.getElementById('pricedash-lowest-list');
+  try {
+    const params = new URLSearchParams();
+    if (priceDashRegion) params.set('region', priceDashRegion);
+    const { results } = await api(`/api/price-dashboard/lowest-today?${params.toString()}`);
+    if (!results.length) {
+      el.classList.add('empty');
+      el.innerHTML = '오늘 라운드 가능한 매물 중 수집된 가격이 아직 없습니다.';
+      return;
+    }
+    el.classList.remove('empty');
+    el.innerHTML = results
+      .map(
+        (r, i) => `
+      <div class="list-item">
+        <div>
+          <div class="name">${i + 1}. ${escapeHtml(r.courseName)}</div>
+          <div class="sub">${escapeHtml(PRICE_DASH_REGION_LABELS[r.regionGroup] || r.regionGroup)}</div>
+        </div>
+        <div class="score-actions"><span style="font-weight:700; color:var(--green);">${Number(r.minGreenFee).toLocaleString()}원</span></div>
+      </div>`
+      )
+      .join('');
+  } catch (e) {
+    el.classList.add('empty');
+    el.innerHTML = '불러오기 실패: ' + escapeHtml(e.message);
+  }
+}
+
+async function loadPriceDashCourseList() {
+  const select = document.getElementById('pricedash-course-select');
+  const emptyNote = document.getElementById('pricedash-empty-note');
+  try {
+    const { courses } = await api('/api/price-dashboard/courses');
+    if (!courses.length) {
+      emptyNote.style.display = 'block';
+      emptyNote.textContent = '아직 수집된 데이터가 없습니다.';
+      select.innerHTML = '<option value="">골프장을 선택하세요</option>';
+      document.getElementById('pricedash-course-detail').style.display = 'none';
+      return;
+    }
+    emptyNote.style.display = 'none';
+    select.innerHTML =
+      '<option value="">골프장을 선택하세요</option>' +
+      courses.map((c) => `<option value="${escapeHtml(c.courseName)}">${escapeHtml(c.courseName)} (최저 ${Number(c.minGreenFee).toLocaleString()}원)</option>`).join('');
+  } catch (e) {
+    emptyNote.style.display = 'block';
+    emptyNote.textContent = '불러오기 실패: ' + e.message;
+  }
+}
+
+async function selectPriceDashCourse(courseName) {
+  const detail = document.getElementById('pricedash-course-detail');
+  if (!courseName) {
+    detail.style.display = 'none';
+    return;
+  }
+  detail.style.display = 'block';
+  try {
+    const [{ history }, { weekday }, { leadtime }] = await Promise.all([
+      api(`/api/price-dashboard/course/${encodeURIComponent(courseName)}/history?days=90`),
+      api(`/api/price-dashboard/course/${encodeURIComponent(courseName)}/weekday`),
+      api(`/api/price-dashboard/course/${encodeURIComponent(courseName)}/leadtime`),
+    ]);
+    renderPriceDashHistoryChart(history);
+    renderPriceDashBarChart('pricedash-weekday-chart', weekday, {
+      valueKey: 'avgGreenFee',
+      labelOf: (it) => PRICE_DASH_WEEKDAY_LABELS[it.weekday],
+    });
+    renderPriceDashBarChart('pricedash-leadtime-chart', leadtime, {
+      valueKey: 'avgGreenFee',
+      labelOf: (it) => it.label,
+    });
+  } catch (e) {
+    showToast('가격 추이를 불러오지 못했습니다: ' + e.message);
+  }
+}
+
+/** 라운드일별 최저가 라인차트. 관측치가 있는 라운드일만 좌우로 고르게 펼쳐서 꺾은선으로 잇는다
+ * (날짜 간격이 균등하지 않아도 된다 - 축이 시간축이 아니라 "관측된 라운드일 순서"이기 때문). */
+function renderPriceDashHistoryChart(history) {
+  const el = document.getElementById('pricedash-history-chart');
+  const points = (history || []).filter((p) => p.minGreenFee != null);
+  if (!points.length) {
+    el.innerHTML = '<div class="empty" style="padding:12px 0;">데이터 없음</div>';
+    return;
+  }
+  const W = 320, H = 110, PAD = 10;
+  const values = points.map((p) => p.minGreenFee);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const range = maxV - minV || 1;
+  const stepX = points.length > 1 ? (W - PAD * 2) / (points.length - 1) : 0;
+  const coords = points.map((p, i) => {
+    const x = PAD + i * stepX;
+    const y = H - PAD - ((p.minGreenFee - minV) / range) * (H - PAD * 2);
+    return { x, y };
+  });
+  const polyline = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+  const dots = coords.map((c) => `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="2.5" fill="var(--green)" />`).join('');
+  const first = points[0];
+  const last = points[points.length - 1];
+  el.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:110px; display:block;">
+      <polyline points="${polyline}" fill="none" stroke="var(--green)" stroke-width="2" />
+      ${dots}
+    </svg>
+    <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:2px;">
+      <span>${escapeHtml(first.roundDate)} · ${Number(first.minGreenFee).toLocaleString()}원</span>
+      <span>최저 ${Number(minV).toLocaleString()}원</span>
+      <span>${escapeHtml(last.roundDate)} · ${Number(last.minGreenFee).toLocaleString()}원</span>
+    </div>
+  `;
+}
+
+/** 요일별/리드타임별 평균 그린피 막대차트 - 공용 렌더러(labelOf로 항목별 라벨만 다르게 준다). */
+function renderPriceDashBarChart(containerId, items, { valueKey, labelOf }) {
+  const el = document.getElementById(containerId);
+  const withData = (items || []).filter((it) => it[valueKey] != null);
+  if (!withData.length) {
+    el.innerHTML = '<div class="empty" style="padding:12px 0;">데이터 없음</div>';
+    return;
+  }
+  // 컨테이너 높이(96px) 안에 막대(최대치) + 위아래 라벨(각 10px 폰트 + 4px gap씩)이 다 들어가야
+  // 막대가 위쪽 형제 요소(제목 텍스트)를 침범하지 않는다 - 라벨 자리(위 14px+아래 14px)를 뺀
+  // 나머지만 막대 최대 높이로 쓴다(예전엔 이 여백을 안 빼서 막대가 가득 찼을 때 제목과 겹쳤었다).
+  const maxV = Math.max(...withData.map((it) => it[valueKey]));
+  const MAX_BAR_HEIGHT = 64;
+  el.innerHTML = `
+    <div style="display:flex; align-items:flex-end; gap:6px; height:96px;">
+      ${(items || [])
+        .map((it) => {
+          const has = it[valueKey] != null;
+          const h = has ? Math.max(4, (it[valueKey] / maxV) * MAX_BAR_HEIGHT) : 2;
+          return `
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;">
+          <div style="font-size:10px; color:var(--muted); white-space:nowrap;">${has ? Math.round(it[valueKey] / 1000) + '천' : '-'}</div>
+          <div style="width:100%; height:${h}px; background:${has ? 'var(--green)' : 'var(--border)'}; border-radius:3px 3px 0 0;"></div>
+          <div style="font-size:10px; color:var(--muted); white-space:nowrap;">${escapeHtml(String(labelOf(it)))}</div>
+        </div>`;
+        })
+        .join('')}
+    </div>
+  `;
 }
 
 // ===== 설정 (집 주소 / 선호 시간대) - 우측상단 ⚙️ 아이콘으로 여는 다이얼로그 =====
