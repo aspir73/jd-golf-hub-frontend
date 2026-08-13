@@ -2031,7 +2031,7 @@ async function onCourseDragEnd(e) {
 }
 
 /** "YYYY-MM-DD" 문자열이 오늘부터 며칠 뒤인지(음수면 과거) - 워치/예약 카드의 날씨 타일이
- * 단기예보(0~2일)/중기예보(3~10일) 중 어느 쪽을 불러야 할지 판단하는 데 쓴다. */
+ * 단기예보(0~3일)/중기예보(4~10일) 중 어느 쪽을 불러야 할지 판단하는 데 쓴다. */
 function courseWeatherDayOffset(dateStr) {
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
@@ -4674,7 +4674,7 @@ async function loadWeatherTilesGeneric(targets) {
     try {
       let icon = '🌡️';
       let tempMin, tempMax;
-      if (offset <= 2) {
+      if (offset <= 3) {
         const data = await api(`/api/weather?lat=${coords.lat}&lon=${coords.lon}&date=${t.date}`);
         if (!data.hourly.length) return;
         const temps = data.hourly.map((h) => h.temp).filter((v) => v != null);
@@ -5012,7 +5012,7 @@ function skyIcon(sky) {
 }
 
 /** 예약 카드 목록에 라운딩 날짜 기준 예상 날씨를 비동기로 채워넣는다(등록된 즐겨찾기 골프장만 -
- * 좌표가 없으면 조용히 생략). 오늘~모레는 단기예보, 3~10일 뒤는 중기예보, 그 이상은 표시 안 함. */
+ * 좌표가 없으면 조용히 생략). 오늘~+3일은 단기예보, 4~10일 뒤는 중기예보, 그 이상은 표시 안 함. */
 async function loadBookingWeatherBadges(bookings) {
   if (!courseCache.length) await loadCourses();
   const targets = bookings.filter((b) => b.roundDate && b.status !== '취소완료' && b.status !== '취소예정');
@@ -5024,7 +5024,7 @@ async function loadBookingWeatherBadges(bookings) {
     const offset = courseWeatherDayOffset(b.roundDate);
     if (offset < 0 || offset > 10) return;
     try {
-      if (offset <= 2) {
+      if (offset <= 3) {
         const data = await api(`/api/weather?lat=${coords.lat}&lon=${coords.lon}&date=${b.roundDate}`);
         if (!data.hourly.length) return;
         const temps = data.hourly.map((h) => h.temp).filter((t) => t != null);
