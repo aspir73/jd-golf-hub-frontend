@@ -620,11 +620,18 @@
       <div id="home-weather-summary" class="muted">날씨 탭에서 위치를 확인해주세요.</div>
     </div>
 
+    <!-- 사용자 위치 권한 없이 항상 뜨는 고정 3권역(경기·강원·충청, 도청 소재지 대표 좌표) 일주일
+         예보 - "오늘 날씨"(내 위치 기반, 권한 필요)와는 별개로 라운드 지역을 미리 가늠하는 용도. -->
     <div class="card">
-      <h2>바로가기</h2>
-      <div class="grid-2">
-        <button class="btn secondary" onclick="showTab('score')">＋ 스코어 입력</button>
-        <button class="btn secondary" onclick="showTab('weather')">🌤 날씨 확인</button>
+      <h2>🌦 주간 골프 기상도</h2>
+      <div class="muted" style="font-size:12px; margin-top:2px;">경기·강원·충청 대표지점(도청 소재지) 기준입니다. 4일 뒤부터는 기상청 중기예보 특성상 바람·습도가 제공되지 않아요.</div>
+      <div class="chip-group" id="golf-weather-board-region-chips" style="margin-top:8px;">
+        <span class="chip selected" onclick="selectGolfWeatherBoardRegion('gyeonggi', this)">경기도</span>
+        <span class="chip" onclick="selectGolfWeatherBoardRegion('gangwon', this)">강원도</span>
+        <span class="chip" onclick="selectGolfWeatherBoardRegion('chungcheong', this)">충청도</span>
+      </div>
+      <div class="scorecard-wrap" style="margin-top:8px;">
+        <table class="scorecard-table" id="golf-weather-board-table"></table>
       </div>
     </div>
 
@@ -1651,7 +1658,7 @@ function showTab(name) {
     b.classList.toggle('active', b.dataset.tab === name);
   });
   if (name === 'score') { loadScores(); loadStats(); }
-  if (name === 'home') { loadStats(true); loadSettings(); loadBookings(); }
+  if (name === 'home') { loadStats(true); loadSettings(); loadBookings(); loadGolfWeatherBoard(); }
   if (name === 'booking') { loadCourses(); loadBookings(); loadComparisonGroups(); }
   if (name === 'join') { loadCourses(); loadComparisonGroups(); loadBookings(); }
   if (name === 'mygolf') { loadCourses(); }
@@ -1760,6 +1767,58 @@ function renderWeather(data) {
 
   document.getElementById('home-weather-summary').innerHTML =
     `<strong>${data.outfit.summary}</strong><br><span class="muted">${data.outfit.items[0] || ''}</span>`;
+}
+
+// ===== 홈 탭 "주간 골프 기상도"(경기·강원·충청 고정 3권역, 위치 권한 불필요) =====
+let golfWeatherBoardData = null; // GET /api/weather/board 결과 { regions: [{key,label,days,error?}] }
+let golfWeatherBoardRegion = 'gyeonggi';
+
+async function loadGolfWeatherBoard() {
+  try {
+    golfWeatherBoardData = await api('/api/weather/board');
+    renderGolfWeatherBoard();
+  } catch (e) {
+    const table = document.getElementById('golf-weather-board-table');
+    if (table) table.innerHTML = `<tr><td class="muted" style="padding:8px; font-size:12px;">날씨 조회 실패: ${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+function selectGolfWeatherBoardRegion(key, el) {
+  golfWeatherBoardRegion = key;
+  document.querySelectorAll('#golf-weather-board-region-chips .chip').forEach((c) => c.classList.remove('selected'));
+  el.classList.add('selected');
+  renderGolfWeatherBoard();
+}
+
+const GOLF_WEATHER_SKY_ICON = { '맑음': '☀️', '구름많음': '⛅', '흐림': '☁️', '비': '🌧', '비/눈': '🌨', '눈': '❄️', '소나기': '🌦' };
+const GOLF_WEATHER_WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
+
+function renderGolfWeatherBoard() {
+  const table = document.getElementById('golf-weather-board-table');
+  if (!table || !golfWeatherBoardData) return;
+  const region = golfWeatherBoardData.regions.find((r) => r.key === golfWeatherBoardRegion);
+  if (!region || !region.days.length) {
+    table.innerHTML = `<tr><td class="muted" style="padding:8px; font-size:12px;">${region?.error ? '조회 실패: ' + escapeHtml(region.error) : '데이터가 없습니다.'}</td></tr>`;
+    return;
+  }
+  const days = region.days;
+  const headRow = days.map((d) => {
+    const wd = GOLF_WEATHER_WEEKDAY[new Date(`${d.date}T00:00:00`).getDay()];
+    const label = d.dayOffset === 0 ? '오늘' : `${d.date.slice(5).replace('-', '/')}(${wd})`;
+    return `<th>${label}</th>`;
+  }).join('');
+  const row = (fn) => days.map((d) => `<td>${fn(d)}</td>`).join('');
+
+  table.innerHTML = `
+    <thead><tr><th></th>${headRow}</tr></thead>
+    <tbody>
+      <tr><td class="hole-label"></td>${row((d) => `<span style="font-size:17px;">${GOLF_WEATHER_SKY_ICON[d.sky] || '-'}</span>`)}</tr>
+      <tr><td class="hole-label">온도</td>${row((d) => `${d.tempMin ?? '-'}° / ${d.tempMax ?? '-'}°`)}</tr>
+      <tr><td class="hole-label">강우</td>${row((d) => (d.pop != null ? `${d.pop}%` : '-'))}</tr>
+      <tr><td class="hole-label">바람</td>${row((d) => (d.wind != null ? `${d.wind}m/s` : '-'))}</tr>
+      <tr><td class="hole-label">습도</td>${row((d) => (d.humidity != null ? `${d.humidity}%` : '-'))}</tr>
+    </tbody>
+  `;
 }
 
 // ===== 스코어 =====
@@ -6390,6 +6449,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   loadBookings();
   loadWatches();
+  loadGolfWeatherBoard();
   onRoundSearchPlatformChange();
   const lat = localStorage.getItem('jdgh_lat');
   const lon = localStorage.getItem('jdgh_lon');
