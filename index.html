@@ -605,7 +605,7 @@
     <!-- 사용자 위치 권한 없이 항상 뜨는 고정 5권역(경기남부/북부·경춘·강원·충청, 대표 좌표) 일주일
          예보 - 라운드 지역을 미리 가늠하는 용도. Open-Meteo 전환 후로는 바람·습도도 7일 내내 채워져
          온도·강우와 함께 보여준다. 권역이 5개로 늘어난 만큼 칩으로 원하는 권역만 골라 세로로 나란히
-         비교해 볼 수 있게 한다(기본값: 전체 선택). -->
+         비교해 볼 수 있게 한다(기본값: 경기 남부만 선택). -->
     <div class="card">
       <h2>🌦 주간 골프 기상도</h2>
       <div class="muted" style="font-size:12px; margin-top:2px;">대표지점 기준 7일 온도·강우·바람·습도 예보입니다. 비교하고 싶은 권역을 골라보세요.</div>
@@ -1786,9 +1786,10 @@ let golfWeatherBoardSelectedRegions = null; // Set<key> - 칩으로 고른 표�
 async function loadGolfWeatherBoard() {
   try {
     golfWeatherBoardData = await api('/api/weather/board');
-    // 최초 로드 시에만 전체 선택으로 초기화 - 이후 재로드(탭 재방문 등)에서는 사용자가 고른 선택을 유지.
+    // 최초 로드 시에만 기본값(경기 남부만)으로 초기화 - 이후 재로드(탭 재방문 등)에서는 사용자가 고른 선택을 유지.
     if (!golfWeatherBoardSelectedRegions) {
-      golfWeatherBoardSelectedRegions = new Set(golfWeatherBoardData.regions.map((r) => r.key));
+      const hasGyeonggiSouth = golfWeatherBoardData.regions.some((r) => r.key === 'gyeonggi_south');
+      golfWeatherBoardSelectedRegions = new Set(hasGyeonggiSouth ? ['gyeonggi_south'] : [golfWeatherBoardData.regions[0]?.key].filter(Boolean));
     }
     renderGolfWeatherBoardChips();
     renderGolfWeatherBoard();
