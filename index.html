@@ -615,13 +615,8 @@
       <div id="home-watch-groups"></div>
     </div>
 
-    <div class="card">
-      <h2>오늘 날씨</h2>
-      <div id="home-weather-summary" class="muted">날씨 탭에서 위치를 확인해주세요.</div>
-    </div>
-
     <!-- 사용자 위치 권한 없이 항상 뜨는 고정 3권역(경기·강원·충청, 도청 소재지 대표 좌표) 일주일
-         예보 - "오늘 날씨"(내 위치 기반, 권한 필요)와는 별개로 라운드 지역을 미리 가늠하는 용도. -->
+         예보 - 라운드 지역을 미리 가늠하는 용도. -->
     <div class="card">
       <h2>🌦 주간 골프 기상도</h2>
       <div class="muted" style="font-size:12px; margin-top:2px;">경기·강원·충청 대표지점(도청 소재지) 기준입니다. 4일 뒤부터는 기상청 중기예보 특성상 바람·습도가 제공되지 않아요.</div>
@@ -1764,9 +1759,6 @@ function renderWeather(data) {
     <div><strong>${data.outfit.summary}</strong></div>
     <ul>${data.outfit.items.map((i) => `<li>${i}</li>`).join('')}</ul>
   `;
-
-  document.getElementById('home-weather-summary').innerHTML =
-    `<strong>${data.outfit.summary}</strong><br><span class="muted">${data.outfit.items[0] || ''}</span>`;
 }
 
 // ===== 홈 탭 "주간 골프 기상도"(경기·강원·충청 고정 3권역, 위치 권한 불필요) =====
