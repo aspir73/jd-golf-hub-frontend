@@ -1365,12 +1365,14 @@
     <button type="button" class="btn block" id="hole-entry-finish-btn" style="margin-top:8px; display:none;" onclick="finishRound()">🏁 라운드 종료</button>
 
     <div style="margin-top:14px; text-align:center;">
-      <a href="#" style="font-size:12px; color:var(--muted);" onclick="toggleHoleEntryExtra(event)">＋ 동반자·평점·메모 (선택)</a>
+      <a href="#" style="font-size:12px; color:var(--muted);" onclick="toggleHoleEntryExtra(event)">＋ 동반자 스코어·코스평점·메모 (선택)</a>
     </div>
     <div id="hole-entry-extra" style="display:none; margin-top:8px;">
-      <label>동반자 <span class="muted" style="font-size:11px;">(콤마로 구분)</span></label>
-      <input type="text" id="hole-entry-companions" placeholder="예: 홍길동, 김철수" onchange="scheduleHoleEntryAutosave()">
-      <label style="margin-top:8px;">평점</label>
+      <label>동반자 <span class="muted" id="hole-entry-companion-count" style="font-size:11px;">0명</span></label>
+      <div id="hole-entry-companions-list"></div>
+      <button type="button" class="btn secondary block" style="margin-top:6px;" onclick="addHoleEntryCompanion()">＋ 동반자 추가</button>
+
+      <label style="margin-top:10px;">코스평점</label>
       <select id="hole-entry-rating">
         <option value="">-</option>
         <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
@@ -2225,6 +2227,7 @@ let holeEntryHoles = []; // [{ no, subCourseName, par, shots, putts, score }]
 let holeEntryMeta = {}; // { courseName, courseSubName, outCourseName, inCourseName, date }
 let currentHoleIndex = 0;
 let holeEntryAutosaveTimer = null;
+let holeEntryCompanions = []; // [{ name, score }] - 동반자 이름 + 그날 동반자의 최종 스코어(선택)
 
 function holeScoreTerm(par, score) {
   const d = score - par;
@@ -2281,7 +2284,8 @@ function openHoleEntryForRecord(record, startIndex) {
   if (record.kgaCourseRating != null) subTitle += ` · CR ${record.kgaCourseRating}`;
   if (record.kgaSlopeRating != null) subTitle += ` / SR ${record.kgaSlopeRating}`;
   document.getElementById('holeEntrySubTitle').textContent = subTitle;
-  document.getElementById('hole-entry-companions').value = (record.companions || []).join(', ');
+  holeEntryCompanions = (record.companions || []).map((c) => ({ ...c }));
+  renderHoleEntryCompanions();
   document.getElementById('hole-entry-rating').value = record.courseRating ?? '';
   document.getElementById('hole-entry-memo').value = record.memo ?? '';
   document.getElementById('hole-entry-extra').style.display = 'none';
@@ -2336,6 +2340,10 @@ function renderScorecardTable() {
     const filled = list.filter((h) => h.score != null);
     return filled.length ? filled.reduce((s, h) => s + h.score, 0) : null;
   };
+  const sumPutts = (list) => {
+    const filled = list.filter((h) => h.putts != null);
+    return filled.length ? filled.reduce((s, h) => s + h.putts, 0) : null;
+  };
 
   const headRow = cols.map((c) => `<th class="${c.subtotal ? 'subtotal' : ''}">${c.subtotal ? c.label : c.h.no}</th>`).join('');
   const parRow = cols.map((c) => `<td class="${c.subtotal ? 'subtotal' : ''}">${c.subtotal ? sumPar(c.subtotal) : c.h.par}</td>`).join('');
@@ -2354,12 +2362,22 @@ function renderScorecardTable() {
       : `<span class="score-mark">${h.score}</span>`;
     return `<td class="${cellCls}" onclick="goToHole(${c.idx})">${markSpan}${h.mulligan ? '<span class="mulligan-mark">✓</span>' : ''}</td>`;
   }).join('');
+  const puttRow = cols.map((c) => {
+    if (c.subtotal) {
+      const val = sumPutts(c.subtotal);
+      return `<td class="subtotal">${val ?? '-'}</td>`;
+    }
+    const h = c.h;
+    const isCurrent = c.idx === currentHoleIndex;
+    return `<td class="score-cell${isCurrent ? ' current' : ''}" onclick="goToHole(${c.idx})">${h.putts ?? '-'}</td>`;
+  }).join('');
 
   document.getElementById('scorecard-table').innerHTML = `
     <thead><tr><th></th>${headRow}</tr></thead>
     <tbody>
       <tr><td class="hole-label">PAR</td>${parRow}</tr>
       <tr><td class="hole-label">SCORE</td>${scoreRow}</tr>
+      <tr><td class="hole-label">PUTT</td>${puttRow}</tr>
     </tbody>
   `;
 
@@ -2449,6 +2467,30 @@ function toggleHoleEntryExtra(e) {
   el.style.display = el.style.display === 'none' ? '' : 'none';
 }
 
+function renderHoleEntryCompanions() {
+  document.getElementById('hole-entry-companion-count').textContent = `${holeEntryCompanions.length}명`;
+  document.getElementById('hole-entry-companions-list').innerHTML = holeEntryCompanions.map((c, i) => `
+    <div style="display:flex; gap:6px; align-items:center; margin-top:6px;">
+      <input type="text" placeholder="이름" value="${escapeHtml(c.name)}" style="flex:1; min-width:0;"
+        oninput="holeEntryCompanions[${i}].name = this.value" onblur="scheduleHoleEntryAutosave()">
+      <input type="number" placeholder="최종 스코어" value="${c.score ?? ''}" style="width:70px; flex:0 0 auto;"
+        oninput="holeEntryCompanions[${i}].score = this.value === '' ? null : Number(this.value)" onblur="scheduleHoleEntryAutosave()">
+      <button type="button" class="icon-btn" onclick="removeHoleEntryCompanion(${i})" title="삭제">🗑️</button>
+    </div>
+  `).join('');
+}
+
+function addHoleEntryCompanion() {
+  holeEntryCompanions.push({ name: '', score: null });
+  renderHoleEntryCompanions();
+}
+
+function removeHoleEntryCompanion(i) {
+  holeEntryCompanions.splice(i, 1);
+  renderHoleEntryCompanions();
+  scheduleHoleEntryAutosave();
+}
+
 function buildHoleEntryPayload(status) {
   const filled = holeEntryHoles.filter((h) => h.score != null);
   return {
@@ -2463,7 +2505,7 @@ function buildHoleEntryPayload(status) {
     putts: holeEntryHoles.filter((h) => h.putts != null).reduce((s, h) => s + h.putts, 0),
     ...computeFirGir(),
     courseRating: valOrNull('hole-entry-rating'),
-    companions: document.getElementById('hole-entry-companions').value.split(',').map((s) => s.trim()).filter(Boolean),
+    companions: holeEntryCompanions.filter((c) => c.name.trim()).map((c) => ({ name: c.name.trim(), score: c.score })),
     memo: document.getElementById('hole-entry-memo').value,
     status,
   };
