@@ -445,15 +445,28 @@
 
   /* 스코어 탭 - 라운딩중 홀별 실시간 입력(holeEntryDialog). 필드에서 한 손으로 빠르게 누르는 게
      핵심이라 버튼을 크게, 입력창 대신 +/- 스테퍼로 구성했다. */
-  .hole-dots { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; justify-content: center; }
-  .hole-dot {
-    width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; border: 1px solid var(--border); color: var(--muted); cursor: pointer;
-    background: var(--card); font-variant-numeric: tabular-nums;
-  }
-  .hole-dot.filled { background: var(--green); color: #fff; border-color: var(--green); }
-  .hole-dot.current { border-color: var(--accent); border-width: 2px; }
-  .hole-dot.filled.current { background: var(--green-dark); border-color: var(--green-dark); }
+
+  /* 상단 스코어카드 요약(총타수/파/오버파) + 전체 홀 스코어카드 표 - 지금까지 기록한 타수를 한눈에 */
+  .scorecard-summary { display: flex; align-items: baseline; justify-content: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .scorecard-summary .total { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+  .scorecard-summary .sub { font-size: 12.5px; color: var(--muted); font-weight: 700; }
+
+  .scorecard-wrap { overflow-x: auto; margin-top: 10px; }
+  .scorecard-table { border-collapse: collapse; width: 100%; }
+  .scorecard-table th, .scorecard-table td { padding: 4px 6px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; font-size: 12px; }
+  .scorecard-table th { color: var(--muted); font-weight: 700; font-size: 11px; }
+  .scorecard-table td.hole-label { color: var(--muted); text-align: left; font-weight: 600; font-size: 11px; }
+  .scorecard-table th.subtotal, .scorecard-table td.subtotal { background: #f2f5f2; font-weight: 700; }
+  .scorecard-table td.score-cell { position: relative; cursor: pointer; }
+  .scorecard-table td.score-cell.current { background: #eef2ee; }
+
+  /* 버디=원, 이글이하=이중원, 보기=사각, 더블보기이상=이중사각. 파는 그냥 숫자만(표시 없음) */
+  .score-mark { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .score-mark.m-birdie { border-radius: 50%; border: 1.5px solid var(--green); color: var(--green); }
+  .score-mark.m-eagle { border-radius: 50%; border: 3px double #8a5a00; color: #8a5a00; }
+  .score-mark.m-bogey { border-radius: 3px; border: 1.5px solid var(--accent); color: var(--accent); }
+  .score-mark.m-doublebogey { border-radius: 3px; border: 3px double var(--danger); color: var(--danger); }
+  .mulligan-mark { position: absolute; top: 0; right: 1px; font-size: 8px; color: var(--green-dark); font-weight: 700; }
 
   .hole-entry-main { text-align: center; margin-top: 18px; }
   .hole-entry-header { display: flex; justify-content: center; align-items: baseline; gap: 8px; }
@@ -1284,7 +1297,13 @@
       <button type="button" class="icon-btn" onclick="closeHoleEntryDialog()" title="닫기(자동 저장됨)">✕</button>
     </div>
 
-    <div class="hole-dots" id="hole-dots"></div>
+    <div class="scorecard-summary">
+      <div class="total" id="scorecard-total">-</div>
+      <div class="sub" id="scorecard-sub">PAR - · 0/18홀</div>
+    </div>
+    <div class="scorecard-wrap">
+      <table class="scorecard-table" id="scorecard-table"></table>
+    </div>
 
     <div class="hole-entry-main">
       <div class="hole-entry-header">
@@ -1309,6 +1328,18 @@
           <button type="button" onclick="adjustHoleValue('putts', 1)">＋</button>
         </div>
       </div>
+      <div class="stepper-row">
+        <span class="stepper-label">페널티</span>
+        <div class="stepper">
+          <button type="button" onclick="adjustHoleValue('penalty', -1)">−</button>
+          <span class="stepper-value" id="hole-entry-penalty">0</span>
+          <button type="button" onclick="adjustHoleValue('penalty', 1)">＋</button>
+        </div>
+      </div>
+      <label style="display:flex; align-items:center; justify-content:center; gap:6px; margin-top:12px; font-size:13px; font-weight:600; cursor:pointer;">
+        <input type="checkbox" id="hole-entry-mulligan" onchange="toggleHoleMulligan(this.checked)" style="width:auto;">
+        멀리건 사용
+      </label>
 
       <div class="hole-entry-score-box">
         <span class="score-num" id="hole-entry-score">4</span>
@@ -1930,7 +1961,8 @@ function renderRoundStartKgaSection() {
     comboPick.style.display = 'none';
     const combo = findRoundStartKgaCombo();
     if (combo) {
-      hint.textContent = combos.length === 1 ? '' : `✅ ${combo.comboLabel} 코스레이팅을 찾았어요`;
+      // 매칭에 성공하면 굳이 안내 문구를 안 띄운다(티세트 선택지·레이팅 표시가 이미 결과를 보여줌).
+      hint.textContent = '';
     } else {
       const { outName, inName } = outInNamesFromRoundStartPickers();
       hint.textContent = `"${outName}${inName ? ' + ' + inName : ''}" 조합과 일치하는 KGA 코스레이팅을 못 찾았어요. 위 코스정보의 OUT/IN 이름을 KGA 코스명과 맞춰보세요.`;
@@ -2220,12 +2252,27 @@ function holeScoreColor(d) {
   return 'var(--danger)';
 }
 
+/** 홀 하나의 점수 대비 파 차이에 따른 스코어카드 표기 - 버디=원, 이글이하=이중원, 보기=사각,
+ * 더블보기이상=이중사각, 파는 표시 없음(빈 텍스트). */
+function scoreMarkClass(par, score) {
+  if (par == null || score == null) return '';
+  const d = score - par;
+  if (d <= -2) return 'm-eagle';
+  if (d === -1) return 'm-birdie';
+  if (d === 0) return '';
+  if (d === 1) return 'm-bogey';
+  return 'm-doublebogey';
+}
+
 /** score 레코드(홀 배열 포함)를 받아 홀별 입력 다이얼로그를 연다. startIndex를 안 주면 아직
  * 입력 안 된 첫 홀(없으면 마지막 홀)부터 보여준다 - "이어서 입력하기"와 새 라운드 시작 둘 다 재사용. */
 function openHoleEntryForRecord(record, startIndex) {
   holeEntryRecordId = record.id;
   holeEntryHoles = record.holes.map((h) => ({
     ...h,
+    // 이 기능 추가 전에 저장된 라운드는 penalty/mulligan이 없을 수 있어 기본값을 채워준다.
+    penalty: h.penalty ?? 0,
+    mulligan: !!h.mulligan,
     subCourseName: h.no <= 9 ? (record.outCourseName || '') : (record.inCourseName || record.outCourseName || ''),
   }));
   holeEntryMeta = {
@@ -2265,21 +2312,72 @@ function goToHole(i) {
   if (h.shots == null || h.putts == null) {
     h.shots = Math.max(1, h.par - 2);
     h.putts = 2;
-    h.score = h.shots + h.putts;
+    h.penalty = 0;
+    h.mulligan = false;
+    h.score = h.shots + h.putts + h.penalty;
   }
-  renderHoleDots();
+  renderScorecardTable();
   renderCurrentHole();
   scheduleHoleEntryAutosave();
 }
 
-function renderHoleDots() {
-  const el = document.getElementById('hole-dots');
-  el.innerHTML = holeEntryHoles.map((h, i) => {
-    const cls = ['hole-dot'];
-    if (h.score != null) cls.push('filled');
-    if (i === currentHoleIndex) cls.push('current');
-    return `<div class="${cls.join(' ')}" onclick="goToHole(${i})">${h.no}</div>`;
+/** 지금까지 기록한 모든 홀을 한눈에 보여주는 스코어카드 표(1~9/OUT/10~18/IN/TOT) + 상단 합계.
+ * 각 칸을 탭하면 그 홀로 바로 이동(기존 점 네비게이션을 대체) - 파 정보와 버디/보기 표기까지
+ * 한 화면에서 누적으로 볼 수 있게 했다. */
+function renderScorecardTable() {
+  const holes = holeEntryHoles;
+  const front = holes.slice(0, 9);
+  const back = holes.slice(9, 18);
+  const hasBack = back.length > 0;
+
+  const cols = front.map((h, i) => ({ h, idx: i }));
+  if (hasBack) cols.push({ subtotal: front, label: 'OUT' });
+  back.forEach((h, i) => cols.push({ h, idx: i + 9 }));
+  if (hasBack) cols.push({ subtotal: back, label: 'IN' });
+  cols.push({ subtotal: holes, label: 'TOT' });
+
+  const sumPar = (list) => list.reduce((s, h) => s + (h.par || 0), 0);
+  const sumScore = (list) => {
+    const filled = list.filter((h) => h.score != null);
+    return filled.length ? filled.reduce((s, h) => s + h.score, 0) : null;
+  };
+
+  const headRow = cols.map((c) => `<th class="${c.subtotal ? 'subtotal' : ''}">${c.subtotal ? c.label : c.h.no}</th>`).join('');
+  const parRow = cols.map((c) => `<td class="${c.subtotal ? 'subtotal' : ''}">${c.subtotal ? sumPar(c.subtotal) : c.h.par}</td>`).join('');
+  const scoreRow = cols.map((c) => {
+    if (c.subtotal) {
+      const val = sumScore(c.subtotal);
+      return `<td class="subtotal">${val ?? '-'}</td>`;
+    }
+    const h = c.h;
+    const isCurrent = c.idx === currentHoleIndex;
+    const cellCls = `score-cell${isCurrent ? ' current' : ''}`;
+    if (h.score == null) return `<td class="${cellCls}" onclick="goToHole(${c.idx})">-</td>`;
+    const markClass = scoreMarkClass(h.par, h.score);
+    const markSpan = markClass
+      ? `<span class="score-mark ${markClass}">${h.score}</span>`
+      : `<span class="score-mark">${h.score}</span>`;
+    return `<td class="${cellCls}" onclick="goToHole(${c.idx})">${markSpan}${h.mulligan ? '<span class="mulligan-mark">✓</span>' : ''}</td>`;
   }).join('');
+
+  document.getElementById('scorecard-table').innerHTML = `
+    <thead><tr><th></th>${headRow}</tr></thead>
+    <tbody>
+      <tr><td class="hole-label">PAR</td>${parRow}</tr>
+      <tr><td class="hole-label">SCORE</td>${scoreRow}</tr>
+    </tbody>
+  `;
+
+  const filled = holes.filter((h) => h.score != null);
+  const totalPar = sumPar(holes);
+  document.getElementById('scorecard-total').textContent = filled.length ? sumScore(holes) : '-';
+  let subText = `PAR ${totalPar}`;
+  if (filled.length) {
+    const toPar = sumScore(filled) - filled.reduce((s, h) => s + h.par, 0);
+    subText += ` · ${toPar === 0 ? 'E' : (toPar > 0 ? `+${toPar}` : `${toPar}`)}`;
+  }
+  subText += ` · ${filled.length}/${holes.length}홀`;
+  document.getElementById('scorecard-sub').textContent = subText;
 }
 
 function renderCurrentHole() {
@@ -2289,6 +2387,8 @@ function renderCurrentHole() {
   document.getElementById('hole-entry-subcourse').textContent = h.subCourseName || '';
   document.getElementById('hole-entry-shots').textContent = h.shots;
   document.getElementById('hole-entry-putts').textContent = h.putts;
+  document.getElementById('hole-entry-penalty').textContent = h.penalty ?? 0;
+  document.getElementById('hole-entry-mulligan').checked = !!h.mulligan;
 
   const scoreEl = document.getElementById('hole-entry-score');
   const termEl = document.getElementById('hole-entry-term');
@@ -2306,12 +2406,20 @@ function renderCurrentHole() {
 
 function adjustHoleValue(field, delta) {
   const h = holeEntryHoles[currentHoleIndex];
-  const min = field === 'putts' ? 0 : 1;
-  const max = field === 'putts' ? 10 : 15;
+  const ranges = { shots: [1, 15], putts: [0, 10], penalty: [0, 10] };
+  const [min, max] = ranges[field];
   h[field] = Math.min(max, Math.max(min, (h[field] ?? 0) + delta));
-  h.score = h.shots + h.putts;
+  h.score = h.shots + h.putts + (h.penalty || 0);
   renderCurrentHole();
-  renderHoleDots();
+  renderScorecardTable();
+  scheduleHoleEntryAutosave();
+}
+
+/** 멀리건은 스코어 계산에 관여하지 않고 스코어카드에 체크 표시만 남기는 참고 기록. */
+function toggleHoleMulligan(checked) {
+  const h = holeEntryHoles[currentHoleIndex];
+  h.mulligan = checked;
+  renderScorecardTable();
   scheduleHoleEntryAutosave();
 }
 
@@ -2329,7 +2437,7 @@ function buildHoleEntryPayload(status) {
     courseSubName: holeEntryMeta.inCourseName ? `${holeEntryMeta.outCourseName} → ${holeEntryMeta.inCourseName}` : holeEntryMeta.outCourseName,
     outCourseName: holeEntryMeta.outCourseName,
     inCourseName: holeEntryMeta.inCourseName,
-    holes: holeEntryHoles.map(({ no, par, shots, putts, score }) => ({ no, par, shots, putts, score })),
+    holes: holeEntryHoles.map(({ no, par, shots, putts, penalty, mulligan, score }) => ({ no, par, shots, putts, penalty, mulligan, score })),
     totalScore: filled.reduce((s, h) => s + h.score, 0),
     putts: holeEntryHoles.filter((h) => h.putts != null).reduce((s, h) => s + h.putts, 0),
     fir: valOrNull('hole-entry-fir'),
