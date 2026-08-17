@@ -1336,10 +1336,20 @@
           <button type="button" onclick="adjustHoleValue('penalty', 1)">＋</button>
         </div>
       </div>
-      <label style="display:flex; align-items:center; justify-content:center; gap:6px; margin-top:12px; font-size:13px; font-weight:600; cursor:pointer;">
-        <input type="checkbox" id="hole-entry-mulligan" onchange="toggleHoleMulligan(this.checked)" style="width:auto;">
-        멀리건 사용
-      </label>
+      <div style="display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin-top:14px;">
+        <label id="hole-entry-fairway-label" style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
+          <input type="checkbox" id="hole-entry-fairway" onchange="toggleHoleCheck('fairwayHit', this.checked)" style="width:auto;">
+          페어웨이 안착
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
+          <input type="checkbox" id="hole-entry-green" onchange="toggleHoleCheck('greenHit', this.checked)" style="width:auto;">
+          그린 적중
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
+          <input type="checkbox" id="hole-entry-mulligan" onchange="toggleHoleCheck('mulligan', this.checked)" style="width:auto;">
+          멀리건 사용
+        </label>
+      </div>
 
       <div class="hole-entry-score-box">
         <span class="score-num" id="hole-entry-score">4</span>
@@ -1355,20 +1365,16 @@
     <button type="button" class="btn block" id="hole-entry-finish-btn" style="margin-top:8px; display:none;" onclick="finishRound()">🏁 라운드 종료</button>
 
     <div style="margin-top:14px; text-align:center;">
-      <a href="#" style="font-size:12px; color:var(--muted);" onclick="toggleHoleEntryExtra(event)">＋ FIR/GIR·평점·메모 (선택)</a>
+      <a href="#" style="font-size:12px; color:var(--muted);" onclick="toggleHoleEntryExtra(event)">＋ 동반자·평점·메모 (선택)</a>
     </div>
     <div id="hole-entry-extra" style="display:none; margin-top:8px;">
-      <div class="grid-3">
-        <div><label>FIR(%)</label><input type="number" id="hole-entry-fir" min="0" max="100"></div>
-        <div><label>GIR(%)</label><input type="number" id="hole-entry-gir" min="0" max="100"></div>
-        <div>
-          <label>평점</label>
-          <select id="hole-entry-rating">
-            <option value="">-</option>
-            <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
-          </select>
-        </div>
-      </div>
+      <label>동반자 <span class="muted" style="font-size:11px;">(콤마로 구분)</span></label>
+      <input type="text" id="hole-entry-companions" placeholder="예: 홍길동, 김철수" onchange="scheduleHoleEntryAutosave()">
+      <label style="margin-top:8px;">평점</label>
+      <select id="hole-entry-rating">
+        <option value="">-</option>
+        <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
+      </select>
       <label>메모</label>
       <textarea id="hole-entry-memo" rows="2" placeholder="특이사항 (선택)" onchange="scheduleHoleEntryAutosave()"></textarea>
     </div>
@@ -2256,9 +2262,11 @@ function openHoleEntryForRecord(record, startIndex) {
   holeEntryRecordId = record.id;
   holeEntryHoles = record.holes.map((h) => ({
     ...h,
-    // 이 기능 추가 전에 저장된 라운드는 penalty/mulligan이 없을 수 있어 기본값을 채워준다.
+    // 이 기능 추가 전에 저장된 라운드는 penalty/mulligan/fairwayHit/greenHit이 없을 수 있어 기본값을 채워준다.
     penalty: h.penalty ?? 0,
     mulligan: !!h.mulligan,
+    fairwayHit: h.par === 3 ? null : !!h.fairwayHit,
+    greenHit: !!h.greenHit,
     subCourseName: h.no <= 9 ? (record.outCourseName || '') : (record.inCourseName || record.outCourseName || ''),
   }));
   holeEntryMeta = {
@@ -2273,8 +2281,7 @@ function openHoleEntryForRecord(record, startIndex) {
   if (record.kgaCourseRating != null) subTitle += ` · CR ${record.kgaCourseRating}`;
   if (record.kgaSlopeRating != null) subTitle += ` / SR ${record.kgaSlopeRating}`;
   document.getElementById('holeEntrySubTitle').textContent = subTitle;
-  document.getElementById('hole-entry-fir').value = record.fir ?? '';
-  document.getElementById('hole-entry-gir').value = record.gir ?? '';
+  document.getElementById('hole-entry-companions').value = (record.companions || []).join(', ');
   document.getElementById('hole-entry-rating').value = record.courseRating ?? '';
   document.getElementById('hole-entry-memo').value = record.memo ?? '';
   document.getElementById('hole-entry-extra').style.display = 'none';
@@ -2300,6 +2307,8 @@ function goToHole(i) {
     h.putts = 2;
     h.penalty = 0;
     h.mulligan = false;
+    h.fairwayHit = h.par === 3 ? null : false;
+    h.greenHit = false;
     h.score = h.shots + h.putts + h.penalty;
   }
   renderScorecardTable();
@@ -2363,7 +2372,23 @@ function renderScorecardTable() {
     subText += ` · ${toPar === 0 ? 'E' : (toPar > 0 ? `+${toPar}` : `${toPar}`)}`;
   }
   subText += ` · ${filled.length}/${holes.length}홀`;
+  const { fir, gir } = computeFirGir();
+  if (fir != null) subText += ` · FIR ${fir}%`;
+  if (gir != null) subText += ` · GIR ${gir}%`;
   document.getElementById('scorecard-sub').textContent = subText;
+}
+
+/** 페어웨이 안착률(FIR)·그린 적중률(GIR)을 지금까지 플레이한 홀 기준으로 자동 계산한다.
+ * FIR은 파3(페어웨이 개념이 없는 홀)를 분모에서 제외 - 그래서 par3만 있는 홀들이면 null. */
+function computeFirGir() {
+  const played = holeEntryHoles.filter((h) => h.score != null);
+  const firEligible = played.filter((h) => h.par !== 3);
+  const firHit = firEligible.filter((h) => h.fairwayHit).length;
+  const girHit = played.filter((h) => h.greenHit).length;
+  return {
+    fir: firEligible.length ? Math.round((firHit / firEligible.length) * 100) : null,
+    gir: played.length ? Math.round((girHit / played.length) * 100) : null,
+  };
 }
 
 function renderCurrentHole() {
@@ -2375,6 +2400,14 @@ function renderCurrentHole() {
   document.getElementById('hole-entry-putts').textContent = h.putts;
   document.getElementById('hole-entry-penalty').textContent = h.penalty ?? 0;
   document.getElementById('hole-entry-mulligan').checked = !!h.mulligan;
+  document.getElementById('hole-entry-green').checked = !!h.greenHit;
+  const fairwayCb = document.getElementById('hole-entry-fairway');
+  const fairwayLabel = document.getElementById('hole-entry-fairway-label');
+  const isPar3 = h.par === 3;
+  fairwayCb.checked = !isPar3 && !!h.fairwayHit;
+  fairwayCb.disabled = isPar3;
+  fairwayLabel.style.opacity = isPar3 ? '0.4' : '1';
+  fairwayLabel.title = isPar3 ? '파3는 페어웨이 개념이 없어요' : '';
 
   const scoreEl = document.getElementById('hole-entry-score');
   const termEl = document.getElementById('hole-entry-term');
@@ -2401,10 +2434,11 @@ function adjustHoleValue(field, delta) {
   scheduleHoleEntryAutosave();
 }
 
-/** 멀리건은 스코어 계산에 관여하지 않고 스코어카드에 체크 표시만 남기는 참고 기록. */
-function toggleHoleMulligan(checked) {
+/** 페어웨이 안착/그린 적중/멀리건 체크박스 공용 핸들러 - 셋 다 스코어 계산에는 관여하지 않고
+ * 기록·통계(FIR/GIR 자동계산)에만 쓰인다. */
+function toggleHoleCheck(field, checked) {
   const h = holeEntryHoles[currentHoleIndex];
-  h.mulligan = checked;
+  h[field] = checked;
   renderScorecardTable();
   scheduleHoleEntryAutosave();
 }
@@ -2423,12 +2457,13 @@ function buildHoleEntryPayload(status) {
     courseSubName: holeEntryMeta.inCourseName ? `${holeEntryMeta.outCourseName} → ${holeEntryMeta.inCourseName}` : holeEntryMeta.outCourseName,
     outCourseName: holeEntryMeta.outCourseName,
     inCourseName: holeEntryMeta.inCourseName,
-    holes: holeEntryHoles.map(({ no, par, shots, putts, penalty, mulligan, score }) => ({ no, par, shots, putts, penalty, mulligan, score })),
+    holes: holeEntryHoles.map(({ no, par, shots, putts, penalty, mulligan, fairwayHit, greenHit, score }) =>
+      ({ no, par, shots, putts, penalty, mulligan, fairwayHit, greenHit, score })),
     totalScore: filled.reduce((s, h) => s + h.score, 0),
     putts: holeEntryHoles.filter((h) => h.putts != null).reduce((s, h) => s + h.putts, 0),
-    fir: valOrNull('hole-entry-fir'),
-    gir: valOrNull('hole-entry-gir'),
+    ...computeFirGir(),
     courseRating: valOrNull('hole-entry-rating'),
+    companions: document.getElementById('hole-entry-companions').value.split(',').map((s) => s.trim()).filter(Boolean),
     memo: document.getElementById('hole-entry-memo').value,
     status,
   };
