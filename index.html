@@ -2848,16 +2848,19 @@ function renderCourseInfoSubCourses() {
   }
   el.innerHTML = courseInfoDialogSubCourses.map((sc, si) => `
     <div class="subcourse-block">
-      <label style="margin-top:0; font-size:12px;">코스명 ${si + 1}</label>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div id="courseinfo-subcourse-title-${si}" style="font-weight:700; font-size:15px;">${sc.name ? escapeHtml(sc.name) : `(이름 없는 코스 ${si + 1})`}</div>
+        <button type="button" class="icon-btn" onclick="removeCourseInfoSubCourse(${si})" title="이 코스 삭제">🗑️</button>
+      </div>
+      <label style="margin-top:8px; font-size:12px;">코스명 (예: LAKE, OUT)</label>
       <div class="row">
-        <input type="text" placeholder="예: LAKE, OUT" value="${escapeHtml(sc.name)}" style="flex:1; font-weight:600;"
-          oninput="courseInfoDialogSubCourses[${si}].name = this.value"
+        <input type="text" placeholder="예: LAKE, OUT" value="${escapeHtml(sc.name)}" style="flex:1; min-width:0;"
+          oninput="courseInfoDialogSubCourses[${si}].name = this.value; document.getElementById('courseinfo-subcourse-title-${si}').textContent = this.value || '(이름 없는 코스 ${si + 1})';"
           onblur="regenerateCourseInfoRatings(); renderCourseInfoRatings();">
-        <select onchange="setCourseInfoSubCourseHoleCount(${si}, this.value)">
+        <select onchange="setCourseInfoSubCourseHoleCount(${si}, this.value)" style="flex:0 0 auto; width:auto;">
           <option value="9" ${sc.holes.length === 9 ? 'selected' : ''}>9홀</option>
           <option value="18" ${sc.holes.length === 18 ? 'selected' : ''}>18홀</option>
         </select>
-        <button type="button" class="icon-btn" onclick="removeCourseInfoSubCourse(${si})" title="이 코스 삭제">🗑️</button>
       </div>
       <label style="margin-top:8px; font-size:12px;">파(PAR)</label>
       <div class="hole-grid-wrap">
