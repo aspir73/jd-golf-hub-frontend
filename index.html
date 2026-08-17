@@ -5166,15 +5166,17 @@ function renderHomeWatchGroups() {
 }
 
 /** 각 워치 그룹의 대표 골프장(첫 번째) 좌표로 그 라운딩 날짜의 날씨를 채운다 - "예약 일정" 카드의
- * loadHomeWeatherTiles와 같은 로직(loadWeatherTilesGeneric)을 그대로 재사용. scopeKey는
- * renderWatchGroupCard가 만든 tileId와 짝이 맞아야 한다(홈 탭과 부킹/조인 탭이 같은
- * (모드+날짜) 조합을 동시에 보여줄 수도 있어서, id 충돌을 막으려고 스코프별로 접두어를 다르게 씀). */
+ * loadHomeWeatherTiles와 같은 로직(loadWeatherTilesGeneric)을 재사용하되, 데이터 소스는
+ * source:'openmeteo'로 지정해 Open-Meteo를 쓴다("티타임 모니터링"만 - 예약 카드 쪽은 이번 범위가
+ * 아니라서 그대로 KMA). scopeKey는 renderWatchGroupCard가 만든 tileId와 짝이 맞아야 한다(홈 탭과
+ * 부킹/조인 탭이 같은 (모드+날짜) 조합을 동시에 보여줄 수도 있어서, id 충돌을 막으려고 스코프별로
+ * 접두어를 다르게 씀). */
 async function loadWatchGroupWeatherTiles(groups, scopeKey) {
   await loadWeatherTilesGeneric(groups.map((g) => ({
     tileId: `${scopeKey}-watch-weather-tile-${g.mode}-${g.date}`,
     courseName: g.watches[0]?.courseName,
     date: g.date,
-  })));
+  })), { source: 'openmeteo' });
 }
 // 상세 다이얼로그가 지금 어느 날짜/모드를 보여주고 있는지 - 새로고침/삭제 후 목록뿐 아니라
 // 열려있는 상세 다이얼로그도 같이 최신화하기 위해 기억해둔다(닫혀 있으면 null).
@@ -6084,7 +6086,7 @@ function renderHomeBookingList(bookings) {
 /** 홈 탭 [날씨 타일]을 채우는 공통 로직 - "예약 일정" 카드(라운딩 날짜)와 "티타임 워치" 카드
  * (감시 날짜) 둘 다 골프장명+날짜만 있으면 같은 방식으로 아이콘+기온을 채워 넣을 수 있어서
  * 하나로 합쳤다. targets: [{tileId, courseName, date}]. */
-async function loadWeatherTilesGeneric(targets) {
+async function loadWeatherTilesGeneric(targets, { source = 'kma' } = {}) {
   if (!courseCache.length) await loadCourses();
   await Promise.all(targets.map(async (t) => {
     const tile = document.getElementById(t.tileId);
@@ -6096,7 +6098,14 @@ async function loadWeatherTilesGeneric(targets) {
     try {
       let icon = '🌡️';
       let tempMin, tempMax;
-      if (offset <= 3) {
+      if (source === 'openmeteo') {
+        // "티타임 모니터링" 카드 전용 - KMA 단기/중기 API를 나눠 부르지 않고 Open-Meteo 하나로
+        // 처리한다(중기 구간에서도 하늘상태를 그대로 받을 수 있어 skyIcon 대신 SKY_ICON_EXT 사용).
+        const data = await api(`/api/weather/openmeteo?lat=${coords.lat}&lon=${coords.lon}&date=${t.date}`);
+        icon = SKY_ICON_EXT[data.sky] || '🌡️';
+        tempMin = data.tempMin ?? '-';
+        tempMax = data.tempMax ?? '-';
+      } else if (offset <= 3) {
         const data = await api(`/api/weather?lat=${coords.lat}&lon=${coords.lon}&date=${t.date}`);
         if (!data.hourly.length) return;
         const temps = data.hourly.map((h) => h.temp).filter((v) => v != null);
