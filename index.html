@@ -1449,14 +1449,26 @@
       <div class="muted" style="font-size:11px;">MY골프장에 등록해둔 코스 - 탭하면 그 이름으로 바로 추가돼요</div>
       <div class="chip-group" id="courseinfo-mygolf-courselist-chips" style="margin-top:4px;"></div>
     </div>
+    <div id="courseinfo-kga-courselist" style="display:none; margin-top:8px;">
+      <div class="muted" style="font-size:11px;">✅ KGA 공식자료에 등록된 코스 - 탭하면 그 이름으로 바로 추가돼요</div>
+      <div class="chip-group" id="courseinfo-kga-courselist-chips" style="margin-top:4px;"></div>
+    </div>
 
     <div id="courseinfo-subcourses" style="margin-top:6px;"></div>
     <button type="button" class="btn secondary block" style="margin-top:10px;" onclick="addCourseInfoSubCourse()">＋ 코스(9/18홀 루프) 추가</button>
 
+    <!-- KGA 공식 데이터가 있는 골프장은 이 대신 courseinfo-kga-rating-info(읽기전용 요약)를 보여준다
+         (라운드 시작 때 자동으로 뜨니 여기서 굳이 옮겨 적을 필요가 없어서). -->
     <div id="courseinfo-ratings-section" style="margin-top:16px; display:none;">
       <label>코스 레이팅(선택)</label>
       <div class="muted" style="font-size:11px;">KGA 코스레이팅확인서·골프장 홈페이지를 보고 코스 조합 × 티박스별로 입력해두면, 라운드 시작 시 코스레이팅/슬로프레이팅/코스길이를 바로 보여줍니다.</div>
       <div id="courseinfo-ratings"></div>
+    </div>
+
+    <div id="courseinfo-kga-rating-info" style="margin-top:16px; display:none;">
+      <label>코스 레이팅 (KGA 공식자료)</label>
+      <div class="muted" style="font-size:11px;">이 골프장은 KGA 공식 데이터가 있어서 따로 입력하지 않아도 라운드 시작 시 자동으로 코스레이팅/슬로프레이팅/코스길이를 보여줍니다. 아래는 참고용입니다.</div>
+      <div id="courseinfo-kga-rating-summary" style="margin-top:6px;"></div>
     </div>
 
     <div class="dialog-actions">
@@ -1858,6 +1870,8 @@ function onRoundStartCourseInput() {
   roundStartCourseDebounceTimer = setTimeout(async () => {
     try {
       const { courses } = await api(`/api/golf-db/search?query=${encodeURIComponent(q)}`);
+      // 검색 도중 이미 blur로 포커스가 옮겨갔으면 뒤늦게 다시 띄우지 않는다(아래 KGA 섹션 등을 가림).
+      if (document.activeElement !== document.getElementById('roundstart-course-input')) return;
       if (!courses.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
       box.dataset.courses = JSON.stringify(courses.slice(0, 8));
       box.innerHTML = courses.slice(0, 8).map((c, idx) =>
@@ -2099,7 +2113,13 @@ function quickAddCourseInfoFromRoundStart() {
   openCourseInfoDialog();
   document.getElementById('courseinfo-course-input').value = name;
   courseInfoDialogSelectedCourse = { name };
-  addCourseInfoSubCourse();
+  // 라운드 시작 화면에서 이미 조회해둔 KGA 데이터가 있으면 재사용(중복 호출 없이 바로 반영)
+  courseInfoKgaRating = roundStartKgaRating;
+  renderCourseInfoKgaSection();
+  if (!courseInfoKgaRating?.loopBased) {
+    addCourseInfoSubCourse(); // KGA 칩으로 바로 채울 수 없으면 빈 코스를 하나 만들어 시작한다
+  }
+  renderCourseInfoSubCourses();
 }
 
 function outInNamesFromRoundStartPickers() {
@@ -2512,6 +2532,7 @@ let courseInfoCache = [];
 let courseInfoDialogSelectedCourse = null; // 자동완성으로 고른 { name, region } - 없으면 입력창 텍스트 그대로 씀
 let courseInfoDialogSubCourses = []; // [{ id, name, holes: [{no, par}] }]
 let courseInfoDialogRatings = []; // [{ courseNames:[a,b] 또는 [a], teeBox, courseRating, slopeRating, courseLength }]
+let courseInfoKgaRating = null; // GET /api/kga-rating 결과 - 있으면 코스명 빠른추가 칩 + 레이팅 자동 표시(수동입력 그리드는 숨김)
 let courseInfoCourseDebounceTimer = null;
 const TEE_BOX_LABELS = { white: 'White', blue: 'Blue', red: 'Red' };
 
@@ -2548,9 +2569,60 @@ function regenerateCourseInfoRatings() {
   courseInfoDialogRatings = next;
 }
 
+/** 골프장명으로 KGA 공식 코스레이팅을 조회한다(경기·강원·충북·충남 111개만 매칭 - 그 외는 null,
+ * 그 경우 기존처럼 수동입력 코스 레이팅 섹션을 그대로 쓴다). */
+async function applyCourseInfoKgaRating(courseName) {
+  try {
+    const { rating } = await api(`/api/kga-rating?courseName=${encodeURIComponent(courseName)}`);
+    courseInfoKgaRating = rating;
+  } catch {
+    courseInfoKgaRating = null;
+  }
+  renderCourseInfoKgaSection();
+  renderCourseInfoRatings(); // KGA 매칭 여부에 따라 수동입력 그리드 표시/숨김 갱신
+}
+
+function renderCourseInfoKgaSection() {
+  const courselistWrap = document.getElementById('courseinfo-kga-courselist');
+  const infoWrap = document.getElementById('courseinfo-kga-rating-info');
+
+  if (!courseInfoKgaRating) {
+    courselistWrap.style.display = 'none';
+    infoWrap.style.display = 'none';
+    return;
+  }
+
+  // 코스(9홀 루프) 이름이 깔끔하게 분리되는 골프장만 빠른추가 칩을 준다 - 표기가 불규칙해서
+  // 개별 코스명을 못 나눈 경우엔 뭘 추가해야 할지 애매해서 생략(아래 참고용 요약만 보여줌).
+  if (courseInfoKgaRating.loopBased) {
+    const loopNames = [...new Set(courseInfoKgaRating.combos.flatMap((c) => c.loopNames))];
+    document.getElementById('courseinfo-kga-courselist-chips').innerHTML =
+      loopNames.map((n) => `<span class="chip" onclick="addCourseInfoSubCourse('${jsAttrEscape(n)}')">${escapeHtml(n)}</span>`).join('');
+    courselistWrap.style.display = '';
+  } else {
+    courselistWrap.style.display = 'none';
+  }
+
+  document.getElementById('courseinfo-kga-rating-summary').innerHTML = courseInfoKgaRating.combos.map((c) => `
+    <div class="subcourse-block">
+      <div style="font-weight:600; font-size:13px;">${escapeHtml(c.comboLabel)}</div>
+      <div class="muted" style="font-size:12px; margin-top:4px; line-height:1.6;">
+        ${c.teeSets.map((t) => {
+          const len = t.courseLengthYards != null ? `${yardsToMeters(t.courseLengthYards).toLocaleString('ko-KR')}m` : '-';
+          return `${escapeHtml(t.teeSet)}(${escapeHtml(t.gender)}) · CR ${t.courseRating ?? '-'} · SR ${t.slopeRating ?? '-'} · ${len}`;
+        }).join('<br>')}
+      </div>
+    </div>
+  `).join('');
+  infoWrap.style.display = '';
+}
+
 function renderCourseInfoRatings() {
   const section = document.getElementById('courseinfo-ratings-section');
   const el = document.getElementById('courseinfo-ratings');
+  // KGA 공식자료가 있는 골프장은 그쪽이 항상 최신·정확하므로 수동입력 그리드는 아예 숨긴다
+  // (courseinfo-kga-rating-info가 대신 참고용으로 보여줌 - renderCourseInfoKgaSection 참고).
+  if (courseInfoKgaRating) { section.style.display = 'none'; return; }
   if (!courseInfoDialogRatings.length) { section.style.display = 'none'; el.innerHTML = ''; return; }
   section.style.display = '';
 
@@ -2634,7 +2706,10 @@ function openCourseInfoDialog(id) {
   document.getElementById('courseinfo-course-suggestions').style.display = 'none';
   document.getElementById('courseinfo-delete-btn').style.display = 'none';
   document.getElementById('courseinfo-mygolf-courselist').style.display = 'none';
+  document.getElementById('courseinfo-kga-courselist').style.display = 'none';
+  document.getElementById('courseinfo-kga-rating-info').style.display = 'none';
   courseInfoDialogSelectedCourse = null;
+  courseInfoKgaRating = null;
   document.getElementById('courseInfoDialogTitle').textContent = id ? '코스정보 수정' : '코스정보 추가';
 
   if (id) {
@@ -2648,6 +2723,7 @@ function openCourseInfoDialog(id) {
     courseInfoDialogRatings = (c.ratings || []).map((r) => ({ ...r, courseNames: [...r.courseNames] }));
     document.getElementById('courseinfo-delete-btn').style.display = '';
     refreshCourseInfoMygolfCourseList(c.courseName);
+    applyCourseInfoKgaRating(c.courseName);
   } else {
     courseInfoDialogSubCourses = [];
     courseInfoDialogRatings = [];
@@ -2662,7 +2738,11 @@ function closeCourseInfoDialog() {
 
 function onCourseInfoCourseInput() {
   courseInfoDialogSelectedCourse = null;
+  courseInfoKgaRating = null;
   document.getElementById('courseinfo-mygolf-courselist').style.display = 'none';
+  document.getElementById('courseinfo-kga-courselist').style.display = 'none';
+  document.getElementById('courseinfo-kga-rating-info').style.display = 'none';
+  renderCourseInfoRatings(); // KGA 매칭이 풀렸으니 수동입력 그리드 다시 계산해서 보여줄지 결정
   const box = document.getElementById('courseinfo-course-suggestions');
   const q = document.getElementById('courseinfo-course-input').value.trim();
   if (courseInfoCourseDebounceTimer) clearTimeout(courseInfoCourseDebounceTimer);
@@ -2670,6 +2750,10 @@ function onCourseInfoCourseInput() {
   courseInfoCourseDebounceTimer = setTimeout(async () => {
     try {
       const { courses } = await api(`/api/golf-db/search?query=${encodeURIComponent(q)}`);
+      // 검색이 끝나기 전에 이미 다른 곳으로 포커스가 옮겨갔으면(blur) 뒤늦게 목록을 다시
+      // 띄우지 않는다 - blur 핸들러가 먼저 숨겨놔도 이 비동기 콜백이 나중에 끝나면서
+      // 되살아나 KGA 칩 등 그 아래 내용을 가리는 문제가 있었다.
+      if (document.activeElement !== document.getElementById('courseinfo-course-input')) return;
       if (!courses.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
       box.dataset.courses = JSON.stringify(courses.slice(0, 8));
       box.innerHTML = courses.slice(0, 8).map((c, idx) =>
@@ -2691,16 +2775,20 @@ function selectCourseInfoCourse(idx) {
   document.getElementById('courseinfo-course-input').value = course.name;
   box.style.display = 'none';
   refreshCourseInfoMygolfCourseList(course.name);
+  applyCourseInfoKgaRating(course.name);
 }
 
-/** 자동완성에 없는 이름을 직접 타이핑하고 포커스를 벗어난 경우에도 MY골프장 코스 목록 조회는
- * 시도한다(다른 blur 핸들러들과 같은 이유 - 클릭 직후 blur가 먼저 발생할 수 있어 살짝 지연). */
+/** 자동완성에 없는 이름을 직접 타이핑하고 포커스를 벗어난 경우에도 MY골프장 코스 목록/KGA
+ * 레이팅 조회는 시도한다(다른 blur 핸들러들과 같은 이유 - 클릭 직후 blur가 먼저 발생할 수
+ * 있어 살짝 지연). */
 function onCourseInfoCourseBlur() {
   setTimeout(() => {
+    document.getElementById('courseinfo-course-suggestions').style.display = 'none';
     if (courseInfoDialogSelectedCourse) return;
     const name = document.getElementById('courseinfo-course-input').value.trim();
     if (!name) return;
     refreshCourseInfoMygolfCourseList(name);
+    applyCourseInfoKgaRating(name);
   }, 200);
 }
 
