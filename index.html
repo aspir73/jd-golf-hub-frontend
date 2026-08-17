@@ -2692,7 +2692,10 @@ function renderCourseInfoList(list) {
           <div class="name">${escapeHtml(c.courseName)}</div>
           <div class="muted" style="font-size:12px; margin-top:2px;">${subLabel} · 총 ${totalHoles}홀</div>
         </div>
-        <button class="icon-btn" onclick="openCourseInfoDialog('${c.id}')" title="수정">✏️</button>
+        <div style="display:flex; gap:4px;">
+          <button class="icon-btn" onclick="openCourseInfoDialog('${c.id}')" title="수정">✏️</button>
+          <button class="icon-btn" onclick="deleteCourseInfoFromList('${c.id}', event)" title="삭제">🗑️</button>
+        </div>
       </div>
     </div>
   `;
@@ -2899,14 +2902,26 @@ async function submitCourseInfoDialog() {
 async function deleteCourseInfoFromDialog() {
   const id = document.getElementById('courseinfo-id').value;
   if (!id) return;
-  if (!confirm('이 코스정보를 삭제할까요? (이미 기록된 스코어의 홀 데이터에는 영향 없음)')) return;
+  const ok = await deleteCourseInfoById(id);
+  if (ok) closeCourseInfoDialog();
+}
+
+/** 코스정보 관리 목록에서 다이얼로그를 열지 않고 바로 삭제(다른 목록들의 🗑️ 버튼과 동일한 패턴). */
+async function deleteCourseInfoFromList(id, event) {
+  event?.stopPropagation();
+  await deleteCourseInfoById(id);
+}
+
+async function deleteCourseInfoById(id) {
+  if (!confirm('이 코스정보를 삭제할까요? (이미 기록된 스코어의 홀 데이터에는 영향 없음)')) return false;
   try {
     await api(`/api/course-info/${id}`, { method: 'DELETE' });
     showToast('삭제했습니다');
-    closeCourseInfoDialog();
     await loadCourseInfoList();
+    return true;
   } catch (e) {
     showToast('삭제 실패: ' + e.message);
+    return false;
   }
 }
 
