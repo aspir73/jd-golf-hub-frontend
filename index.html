@@ -615,13 +615,14 @@
       <div id="home-watch-groups"></div>
     </div>
 
-    <!-- 사용자 위치 권한 없이 항상 뜨는 고정 3권역(경기·강원·충청, 도청 소재지 대표 좌표) 일주일
-         예보 - 라운드 지역을 미리 가늠하는 용도. 바람·습도는 기상청 중기예보 특성상 4일 뒤부터는
-         아예 없는 값이라(칸이 계속 "-"로 비어 보여서) 온도·강우만 보여준다 - 이 둘은 7일 내내
-         채워진다. 세 지역을 한 번에 비교할 수 있도록 탭 전환 대신 세로로 나란히 쌓아서 보여준다. -->
+    <!-- 사용자 위치 권한 없이 항상 뜨는 고정 5권역(경기남부/북부·경춘·강원·충청, 대표 좌표) 일주일
+         예보 - 라운드 지역을 미리 가늠하는 용도. Open-Meteo 전환 후로는 바람·습도도 7일 내내 채워져
+         온도·강우와 함께 보여준다. 권역이 5개로 늘어난 만큼 칩으로 원하는 권역만 골라 세로로 나란히
+         비교해 볼 수 있게 한다(기본값: 전체 선택). -->
     <div class="card">
       <h2>🌦 주간 골프 기상도</h2>
-      <div class="muted" style="font-size:12px; margin-top:2px;">경기·강원·충청 대표지점(도청 소재지) 기준 7일 온도·강우 예보입니다.</div>
+      <div class="muted" style="font-size:12px; margin-top:2px;">대표지점 기준 7일 온도·강우·바람·습도 예보입니다. 비교하고 싶은 권역을 골라보세요.</div>
+      <div class="chip-group" id="golf-weather-board-region-chips" style="margin-top:8px;"></div>
       <div id="golf-weather-board-regions" style="margin-top:8px;"></div>
     </div>
 
@@ -1756,12 +1757,18 @@ function renderWeather(data) {
   `;
 }
 
-// ===== 홈 탭 "주간 골프 기상도"(경기·강원·충청 고정 3권역, 위치 권한 불필요) =====
+// ===== 홈 탭 "주간 골프 기상도"(경기남부/북부·경춘·강원·충청 고정 5권역, 위치 권한 불필요) =====
 let golfWeatherBoardData = null; // GET /api/weather/board 결과 { regions: [{key,label,days,error?}] }
+let golfWeatherBoardSelectedRegions = null; // Set<key> - 칩으로 고른 표시 대상 권역. null이면 아직 미초기화(최초 로드 시 전체 선택으로 채움).
 
 async function loadGolfWeatherBoard() {
   try {
     golfWeatherBoardData = await api('/api/weather/board');
+    // 최초 로드 시에만 전체 선택으로 초기화 - 이후 재로드(탭 재방문 등)에서는 사용자가 고른 선택을 유지.
+    if (!golfWeatherBoardSelectedRegions) {
+      golfWeatherBoardSelectedRegions = new Set(golfWeatherBoardData.regions.map((r) => r.key));
+    }
+    renderGolfWeatherBoardChips();
     renderGolfWeatherBoard();
   } catch (e) {
     const el = document.getElementById('golf-weather-board-regions');
@@ -1772,14 +1779,36 @@ async function loadGolfWeatherBoard() {
 const GOLF_WEATHER_SKY_ICON = { '맑음': '☀️', '구름많음': '⛅', '흐림': '☁️', '비': '🌧', '비/눈': '🌨', '눈': '❄️', '소나기': '🌦' };
 const GOLF_WEATHER_WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 
-/** 세 지역(경기/강원/충청)을 탭 전환 없이 세로로 나란히 쌓아서 한 번에 비교할 수 있게 보여준다.
- * 바람·습도는 기상청 중기예보 특성상 4일 뒤부터 아예 값이 없어서(항상 "-") 온도·강우만 보여준다 -
- * 이 둘은 7일 내내(단기예보 0~3일 + 중기예보 4~6일) 채워진다. */
+/** 권역 선택 칩 - 경기남부/경기북부/경춘/강원/충청 중 비교해서 보고 싶은 권역만 여러 개 고를 수 있다. */
+function renderGolfWeatherBoardChips() {
+  const el = document.getElementById('golf-weather-board-region-chips');
+  if (!el || !golfWeatherBoardData) return;
+  el.innerHTML = golfWeatherBoardData.regions.map((region) => {
+    const selected = golfWeatherBoardSelectedRegions.has(region.key);
+    return `<span class="chip${selected ? ' selected' : ''}" onclick="toggleGolfWeatherBoardRegion('${region.key}')">${escapeHtml(region.label)}</span>`;
+  }).join('');
+}
+
+function toggleGolfWeatherBoardRegion(key) {
+  if (golfWeatherBoardSelectedRegions.has(key)) {
+    // 최소 1개는 선택돼 있어야 한다 - 마지막 하나를 끄려는 클릭은 무시.
+    if (golfWeatherBoardSelectedRegions.size <= 1) return;
+    golfWeatherBoardSelectedRegions.delete(key);
+  } else {
+    golfWeatherBoardSelectedRegions.add(key);
+  }
+  renderGolfWeatherBoardChips();
+  renderGolfWeatherBoard();
+}
+
+/** 선택된 권역들을 탭 전환 없이 세로로 나란히 쌓아서 한 번에 비교할 수 있게 보여준다. Open-Meteo
+ * 전환 후로는 바람·습도도 7일 내내 채워지므로 온도·강우와 함께 표시한다. */
 function renderGolfWeatherBoard() {
   const el = document.getElementById('golf-weather-board-regions');
   if (!el || !golfWeatherBoardData) return;
 
-  el.innerHTML = golfWeatherBoardData.regions.map((region) => {
+  const regions = golfWeatherBoardData.regions.filter((r) => golfWeatherBoardSelectedRegions.has(r.key));
+  el.innerHTML = regions.map((region) => {
     const heading = `<div style="font-weight:700; font-size:14px;">${escapeHtml(region.label)}</div>`;
     if (!region.days.length) {
       const msg = region.error ? '조회 실패: ' + escapeHtml(region.error) : '데이터가 없습니다.';
@@ -1802,6 +1831,8 @@ function renderGolfWeatherBoard() {
               <tr><td class="hole-label"></td>${row((d) => `<span style="font-size:16px;">${GOLF_WEATHER_SKY_ICON[d.sky] || '-'}</span>`)}</tr>
               <tr><td class="hole-label">온도</td>${row((d) => `${d.tempMin ?? '-'}° / ${d.tempMax ?? '-'}°`)}</tr>
               <tr><td class="hole-label">강우</td>${row((d) => (d.pop != null ? `${d.pop}%` : '-'))}</tr>
+              <tr><td class="hole-label">바람</td>${row((d) => (d.windMs != null ? `${d.windMs}m/s` : '-'))}</tr>
+              <tr><td class="hole-label">습도</td>${row((d) => (d.humidityMin != null ? `${d.humidityMin}~${d.humidityMax}%` : '-'))}</tr>
             </tbody>
           </table>
         </div>
