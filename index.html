@@ -2813,6 +2813,12 @@ function defaultHoles(count) {
 }
 
 function addCourseInfoSubCourse(name) {
+  // 칩(빠른추가)을 실수로 두 번 누르면 같은 이름의 코스가 중복 추가돼서 헷갈리므로 막는다.
+  // 직접 "+코스 추가"로 빈 칸을 여러 개 만드는 건 그대로 허용(이름을 아직 안 정했을 수 있어서).
+  if (name && courseInfoDialogSubCourses.some((sc) => sc.name.trim() === name.trim())) {
+    showToast(`이미 "${name}" 코스가 추가돼 있어요`);
+    return;
+  }
   courseInfoDialogSubCourses.push({ id: null, name: name || '', holes: defaultHoles(9) });
   renderCourseInfoSubCourses();
 }
@@ -2842,8 +2848,9 @@ function renderCourseInfoSubCourses() {
   }
   el.innerHTML = courseInfoDialogSubCourses.map((sc, si) => `
     <div class="subcourse-block">
+      <label style="margin-top:0; font-size:12px;">코스명 ${si + 1}</label>
       <div class="row">
-        <input type="text" placeholder="예: LAKE, OUT" value="${escapeHtml(sc.name)}" style="flex:1;"
+        <input type="text" placeholder="예: LAKE, OUT" value="${escapeHtml(sc.name)}" style="flex:1; font-weight:600;"
           oninput="courseInfoDialogSubCourses[${si}].name = this.value"
           onblur="regenerateCourseInfoRatings(); renderCourseInfoRatings();">
         <select onchange="setCourseInfoSubCourseHoleCount(${si}, this.value)">
@@ -2852,6 +2859,7 @@ function renderCourseInfoSubCourses() {
         </select>
         <button type="button" class="icon-btn" onclick="removeCourseInfoSubCourse(${si})" title="이 코스 삭제">🗑️</button>
       </div>
+      <label style="margin-top:8px; font-size:12px;">파(PAR)</label>
       <div class="hole-grid-wrap">
         <table class="hole-grid">
           <thead><tr><th>홀</th>${sc.holes.map((h) => `<th>${h.no}</th>`).join('')}</tr></thead>
