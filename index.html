@@ -1234,6 +1234,16 @@
       </div>
     </div>
 
+    <div id="roundstart-teebox-pick" style="display:none; margin-top:10px;">
+      <label>티박스 <span class="muted" style="font-size:11px;">(선택 - 등록된 코스레이팅이 있으면 보여줘요)</span></label>
+      <div class="chip-group" id="roundstart-teebox-chips">
+        <span class="chip" onclick="selectRoundStartTeeBox('white', this)">White</span>
+        <span class="chip" onclick="selectRoundStartTeeBox('blue', this)">Blue</span>
+        <span class="chip" onclick="selectRoundStartTeeBox('red', this)">Red</span>
+      </div>
+      <div id="roundstart-rating-info" class="muted" style="font-size:12px; margin-top:6px;"></div>
+    </div>
+
     <div class="dialog-actions">
       <button type="button" class="btn secondary block" onclick="document.getElementById('roundStartDialog').close()">취소</button>
       <button type="button" class="btn block" onclick="confirmRoundStart()">시작하기</button>
@@ -1418,6 +1428,12 @@
 
     <div id="courseinfo-subcourses" style="margin-top:6px;"></div>
     <button type="button" class="btn secondary block" style="margin-top:10px;" onclick="addCourseInfoSubCourse()">＋ 코스(9/18홀 루프) 추가</button>
+
+    <div id="courseinfo-ratings-section" style="margin-top:16px; display:none;">
+      <label>코스 레이팅(선택)</label>
+      <div class="muted" style="font-size:11px;">KGA 코스레이팅확인서·골프장 홈페이지를 보고 코스 조합 × 티박스별로 입력해두면, 라운드 시작 시 코스레이팅/슬로프레이팅/코스길이를 바로 보여줍니다.</div>
+      <div id="courseinfo-ratings"></div>
+    </div>
 
     <div class="dialog-actions">
       <button type="button" class="btn secondary block" onclick="closeCourseInfoDialog()">취소</button>
@@ -1779,6 +1795,7 @@ let roundStartSelectedCourse = null; // 자동완성으로 고른 { name, region
 let roundStartCourseInfo = null; // GET /api/course-info?courseName= 결과
 let roundStartHoles = []; // [{ no, subCourseName, par }] - 파 스켈레톤만(타수/퍼트는 아직 없음)
 let roundStartCourseDebounceTimer = null;
+let roundStartTeeBox = null; // 'white' | 'blue' | 'red' | null(선택 안 함)
 let courseInfoDialogReturnToCourseName = null; // "코스정보 추가"로 넘어간 경우, 저장 후 되돌아올 골프장명(라운드 시작 다이얼로그로 복귀)
 
 function openRoundStartDialog() {
@@ -1787,9 +1804,12 @@ function openRoundStartDialog() {
   document.getElementById('roundstart-course-suggestions').style.display = 'none';
   document.getElementById('roundstart-course-status').innerHTML = '';
   document.getElementById('roundstart-subcourse-pick').style.display = 'none';
+  document.getElementById('roundstart-teebox-pick').style.display = 'none';
+  document.querySelectorAll('#roundstart-teebox-chips .chip').forEach((c) => c.classList.remove('selected'));
   roundStartSelectedCourse = null;
   roundStartCourseInfo = null;
   roundStartHoles = [];
+  roundStartTeeBox = null;
   document.getElementById('roundStartDialog').showModal();
 }
 
@@ -1797,7 +1817,10 @@ function onRoundStartCourseInput() {
   roundStartSelectedCourse = null;
   roundStartCourseInfo = null;
   roundStartHoles = [];
+  roundStartTeeBox = null;
   document.getElementById('roundstart-subcourse-pick').style.display = 'none';
+  document.getElementById('roundstart-teebox-pick').style.display = 'none';
+  document.querySelectorAll('#roundstart-teebox-chips .chip').forEach((c) => c.classList.remove('selected'));
   document.getElementById('roundstart-course-status').innerHTML = '';
   const box = document.getElementById('roundstart-course-suggestions');
   const q = document.getElementById('roundstart-course-input').value.trim();
@@ -1853,10 +1876,12 @@ async function applyRoundStartCourseInfoByName(courseName) {
     if (!courseInfo || !courseInfo.subCourses.length) {
       status.innerHTML = `이 골프장의 코스정보가 아직 없어요. <button type="button" class="btn secondary" style="padding:4px 8px; font-size:12px;" onclick="quickAddCourseInfoFromRoundStart()">＋ 코스정보 추가</button>`;
       document.getElementById('roundstart-subcourse-pick').style.display = 'none';
+      document.getElementById('roundstart-teebox-pick').style.display = 'none';
       roundStartHoles = [];
       return;
     }
     status.innerHTML = `✅ 등록된 코스 ${courseInfo.subCourses.length}개 (총 ${courseInfo.subCourses.reduce((s, sc) => s + sc.holes.length, 0)}홀)`;
+    document.getElementById('roundstart-teebox-pick').style.display = '';
     const subCourses = courseInfo.subCourses;
     if (subCourses.length === 1) {
       document.getElementById('roundstart-subcourse-pick').style.display = 'none';
@@ -1872,6 +1897,7 @@ async function applyRoundStartCourseInfoByName(courseName) {
       inSel.value = subCourses.length > 1 ? 1 : 0;
       rebuildRoundStartHoles();
     }
+    updateRoundStartRatingInfo();
   } catch (e) {
     status.textContent = '코스정보 조회 실패: ' + e.message;
   }
@@ -1884,6 +1910,41 @@ function rebuildRoundStartHoles() {
   const out = roundStartCourseInfo.subCourses[outIdx];
   const inn = roundStartCourseInfo.subCourses[inIdx];
   buildRoundStartHolesFromSubCourses(outIdx === inIdx ? [out] : [out, inn]);
+  updateRoundStartRatingInfo();
+}
+
+function selectRoundStartTeeBox(tb, el) {
+  const wasSelected = el.classList.contains('selected');
+  document.querySelectorAll('#roundstart-teebox-chips .chip').forEach((c) => c.classList.remove('selected'));
+  roundStartTeeBox = wasSelected ? null : tb; // 같은 걸 다시 누르면 선택 해제
+  if (roundStartTeeBox) el.classList.add('selected');
+  updateRoundStartRatingInfo();
+}
+
+/** 코스정보에 등록해둔 ratings(조합×티박스)에서 현재 OUT/IN + 선택한 티박스에 맞는 항목을 찾는다.
+ * 조합은 순서 무관이라 항상 정렬해서 비교. */
+function findRoundStartRating(outName, inName, teeBox) {
+  if (!teeBox || !roundStartCourseInfo) return null;
+  const names = inName ? [outName, inName] : [outName];
+  const key = [...names].sort().join('|');
+  return (roundStartCourseInfo.ratings || []).find((r) => [...r.courseNames].sort().join('|') === key && r.teeBox === teeBox) || null;
+}
+
+function updateRoundStartRatingInfo() {
+  const el = document.getElementById('roundstart-rating-info');
+  if (!el) return;
+  if (!roundStartTeeBox) { el.textContent = ''; return; }
+  const { outName, inName } = outInNamesFromRoundStartPickers();
+  const rating = findRoundStartRating(outName, inName, roundStartTeeBox);
+  if (!rating || (rating.courseRating == null && rating.slopeRating == null && rating.courseLength == null)) {
+    el.textContent = '이 조합·티박스로 등록된 코스레이팅이 없어요.';
+    return;
+  }
+  const parts = [];
+  if (rating.courseRating != null) parts.push(`코스레이팅 ${rating.courseRating}`);
+  if (rating.slopeRating != null) parts.push(`슬로프 ${rating.slopeRating}`);
+  if (rating.courseLength != null) parts.push(`길이 ${Number(rating.courseLength).toLocaleString('ko-KR')}m`);
+  el.textContent = parts.join(' · ');
 }
 
 function buildRoundStartHolesFromSubCourses(subCourses) {
@@ -1926,6 +1987,7 @@ async function confirmRoundStart() {
   if (!roundStartHoles.length) { showToast('코스를 선택하면 홀 구성이 만들어집니다(코스정보가 없으면 먼저 등록해주세요)'); return; }
 
   const { outName, inName } = outInNamesFromRoundStartPickers();
+  const rating = findRoundStartRating(outName, inName, roundStartTeeBox);
   const payload = {
     date,
     courseName,
@@ -1936,6 +1998,10 @@ async function confirmRoundStart() {
     totalScore: 0,
     putts: 0,
     status: 'in_progress',
+    teeBox: roundStartTeeBox || '',
+    kgaCourseRating: rating?.courseRating ?? null,
+    kgaSlopeRating: rating?.slopeRating ?? null,
+    kgaCourseLength: rating?.courseLength ?? null,
   };
   try {
     const { score } = await api('/api/scores', { method: 'POST', body: JSON.stringify(payload) });
@@ -1990,8 +2056,11 @@ function openHoleEntryForRecord(record, startIndex) {
     date: record.date,
   };
   document.getElementById('holeEntryTitle').textContent = record.courseName;
-  document.getElementById('holeEntrySubTitle').textContent =
-    `${record.date}` + (record.inCourseName ? ` · ${record.outCourseName} → ${record.inCourseName}` : (record.outCourseName ? ` · ${record.outCourseName}` : ''));
+  let subTitle = `${record.date}` + (record.inCourseName ? ` · ${record.outCourseName} → ${record.inCourseName}` : (record.outCourseName ? ` · ${record.outCourseName}` : ''));
+  if (record.teeBox) subTitle += ` · ${TEE_BOX_LABELS[record.teeBox] || record.teeBox}`;
+  if (record.kgaCourseRating != null) subTitle += ` · CR ${record.kgaCourseRating}`;
+  if (record.kgaSlopeRating != null) subTitle += ` / SR ${record.kgaSlopeRating}`;
+  document.getElementById('holeEntrySubTitle').textContent = subTitle;
   document.getElementById('hole-entry-fir').value = record.fir ?? '';
   document.getElementById('hole-entry-gir').value = record.gir ?? '';
   document.getElementById('hole-entry-rating').value = record.courseRating ?? '';
@@ -2153,8 +2222,9 @@ function renderActiveRoundBanner() {
   const totalPar = filledHoles.reduce((s, h) => s + h.par, 0);
   const toPar = record.totalScore - totalPar;
   const toParText = filledHoles.length ? (toPar === 0 ? 'E' : (toPar > 0 ? `+${toPar}` : `${toPar}`)) : '-';
+  const teeBoxText = record.teeBox ? ` · ${TEE_BOX_LABELS[record.teeBox] || record.teeBox}` : '';
   document.getElementById('active-round-info').textContent =
-    `${record.courseName}${record.courseSubName ? ' · ' + record.courseSubName : ''} · ${record.date} · ${filledHoles.length}/${holes.length}홀 · ${record.totalScore}타 (${toParText})`;
+    `${record.courseName}${record.courseSubName ? ' · ' + record.courseSubName : ''}${teeBoxText} · ${record.date} · ${filledHoles.length}/${holes.length}홀 · ${record.totalScore}타 (${toParText})`;
 }
 
 function resumeActiveRound() {
@@ -2284,8 +2354,87 @@ async function removeScore(id) {
 // ===== 코스정보 관리(골프장별 코스/홀 파·핸디캡 직접 입력) =====
 let courseInfoCache = [];
 let courseInfoDialogSelectedCourse = null; // 자동완성으로 고른 { name, region } - 없으면 입력창 텍스트 그대로 씀
-let courseInfoDialogSubCourses = []; // [{ id, name, holes: [{no, par, handicap}] }]
+let courseInfoDialogSubCourses = []; // [{ id, name, holes: [{no, par}] }]
+let courseInfoDialogRatings = []; // [{ courseNames:[a,b] 또는 [a], teeBox, courseRating, slopeRating, courseLength }]
 let courseInfoCourseDebounceTimer = null;
+const TEE_BOX_LABELS = { white: 'White', blue: 'Blue', red: 'Red' };
+
+function courseInfoComboKey(names) {
+  return [...names].sort().join('|');
+}
+
+/** 현재 서브코스 구성으로부터 있어야 할 "코스 조합"들을 계산한다. 코스가 1개면 그 자체가 이미
+ * 18홀이라 조합이 없고(그 코스 하나로 티박스별 레이팅만), 2개 이상이면 2개씩 묶은 모든 조합
+ * (KGA 코스레이팅은 순서 무관 - OUT/IN 어느 쪽으로 시작하든 같은 레이팅). */
+function computeCourseInfoCombos() {
+  const names = courseInfoDialogSubCourses.map((sc) => sc.name.trim()).filter(Boolean);
+  if (names.length === 1) return [[names[0]]];
+  const combos = [];
+  for (let i = 0; i < names.length; i++) {
+    for (let j = i + 1; j < names.length; j++) combos.push([names[i], names[j]]);
+  }
+  return combos;
+}
+
+/** 서브코스 구성이 바뀔 때마다(추가/삭제/이름변경) 조합×티박스 레이팅 목록을 다시 계산한다.
+ * 조합+티박스가 그대로인 항목은 기존에 입력해둔 값을 보존한다. */
+function regenerateCourseInfoRatings() {
+  const combos = computeCourseInfoCombos();
+  const existingByKey = new Map();
+  for (const r of courseInfoDialogRatings) existingByKey.set(`${courseInfoComboKey(r.courseNames)}::${r.teeBox}`, r);
+  const next = [];
+  for (const combo of combos) {
+    for (const tb of Object.keys(TEE_BOX_LABELS)) {
+      const key = `${courseInfoComboKey(combo)}::${tb}`;
+      next.push(existingByKey.get(key) || { courseNames: combo, teeBox: tb, courseRating: null, slopeRating: null, courseLength: null });
+    }
+  }
+  courseInfoDialogRatings = next;
+}
+
+function renderCourseInfoRatings() {
+  const section = document.getElementById('courseinfo-ratings-section');
+  const el = document.getElementById('courseinfo-ratings');
+  if (!courseInfoDialogRatings.length) { section.style.display = 'none'; el.innerHTML = ''; return; }
+  section.style.display = '';
+
+  // 조합 단위로 묶어서 카드 하나씩(조합 등장 순서 유지)
+  const groups = [];
+  const groupIndexByKey = new Map();
+  courseInfoDialogRatings.forEach((r, idx) => {
+    const key = courseInfoComboKey(r.courseNames);
+    if (!groupIndexByKey.has(key)) {
+      groupIndexByKey.set(key, groups.length);
+      groups.push({ label: r.courseNames.join(' + '), entries: [] });
+    }
+    groups[groupIndexByKey.get(key)].entries.push({ ...r, idx });
+  });
+
+  const ROWS = [
+    { field: 'courseRating', label: '코스레이팅', step: '0.1' },
+    { field: 'slopeRating', label: '슬로프', step: '1' },
+    { field: 'courseLength', label: '길이(m)', step: '1' },
+  ];
+
+  el.innerHTML = groups.map((g) => `
+    <div class="subcourse-block">
+      <div style="font-weight:600; font-size:13px;">${escapeHtml(g.label)}</div>
+      <div class="hole-grid-wrap">
+        <table class="hole-grid">
+          <thead><tr><th></th>${g.entries.map((e) => `<th>${TEE_BOX_LABELS[e.teeBox]}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${ROWS.map((row) => `
+              <tr><td class="hole-no">${row.label}</td>${g.entries.map((e) => `
+                <td><input type="number" step="${row.step}" style="width:56px;" value="${e[row.field] ?? ''}"
+                  oninput="courseInfoDialogRatings[${e.idx}].${row.field} = this.value === '' ? null : Number(this.value)"></td>`).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `).join('');
+}
 
 async function loadCourseInfoList() {
   try {
@@ -2340,10 +2489,12 @@ function openCourseInfoDialog(id) {
     courseInfoDialogSelectedCourse = { name: c.courseName };
     // 구조복제(딥카피) - 취소 시 원본 캐시가 오염되지 않도록
     courseInfoDialogSubCourses = c.subCourses.map((sc) => ({ id: sc.id, name: sc.name, holes: sc.holes.map((h) => ({ ...h })) }));
+    courseInfoDialogRatings = (c.ratings || []).map((r) => ({ ...r, courseNames: [...r.courseNames] }));
     document.getElementById('courseinfo-delete-btn').style.display = '';
     refreshCourseInfoMygolfCourseList(c.courseName);
   } else {
     courseInfoDialogSubCourses = [];
+    courseInfoDialogRatings = [];
   }
   renderCourseInfoSubCourses();
   dialog.showModal();
@@ -2438,13 +2589,16 @@ function renderCourseInfoSubCourses() {
   const el = document.getElementById('courseinfo-subcourses');
   if (!courseInfoDialogSubCourses.length) {
     el.innerHTML = '<div class="muted" style="font-size:12px; margin-top:8px;">아래 버튼으로 코스(9홀 또는 18홀 단위)를 추가해주세요. 27/36홀 골프장은 코스를 여러 개 등록해두면 스코어 입력 시 OUT/IN을 골라서 조합할 수 있어요.</div>';
+    regenerateCourseInfoRatings();
+    renderCourseInfoRatings();
     return;
   }
   el.innerHTML = courseInfoDialogSubCourses.map((sc, si) => `
     <div class="subcourse-block">
       <div class="row">
         <input type="text" placeholder="예: LAKE, OUT" value="${escapeHtml(sc.name)}" style="flex:1;"
-          oninput="courseInfoDialogSubCourses[${si}].name = this.value">
+          oninput="courseInfoDialogSubCourses[${si}].name = this.value"
+          onblur="regenerateCourseInfoRatings(); renderCourseInfoRatings();">
         <select onchange="setCourseInfoSubCourseHoleCount(${si}, this.value)">
           <option value="9" ${sc.holes.length === 9 ? 'selected' : ''}>9홀</option>
           <option value="18" ${sc.holes.length === 18 ? 'selected' : ''}>18홀</option>
@@ -2465,6 +2619,8 @@ function renderCourseInfoSubCourses() {
       </div>
     </div>
   `).join('');
+  regenerateCourseInfoRatings();
+  renderCourseInfoRatings();
 }
 
 async function submitCourseInfoDialog() {
@@ -2473,7 +2629,8 @@ async function submitCourseInfoDialog() {
   if (!courseName) { showToast('골프장명을 입력해주세요'); return; }
   if (!courseInfoDialogSubCourses.length) { showToast('코스를 1개 이상 추가해주세요'); return; }
   if (courseInfoDialogSubCourses.some((sc) => !sc.name.trim())) { showToast('코스 이름을 모두 입력해주세요'); return; }
-  const payload = { courseName, subCourses: courseInfoDialogSubCourses };
+  regenerateCourseInfoRatings(); // 마지막 코스명 수정이 blur 없이 바로 저장으로 이어진 경우까지 대비
+  const payload = { courseName, subCourses: courseInfoDialogSubCourses, ratings: courseInfoDialogRatings };
   try {
     if (id) {
       await api(`/api/course-info/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
