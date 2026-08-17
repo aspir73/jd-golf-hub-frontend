@@ -983,17 +983,7 @@
   <section id="tab-score" class="tab-panel">
     <div class="card">
       <h2>통계</h2>
-      <div class="filter-row" style="margin-top:0;">
-        <button class="filter-btn active" data-stat-filter="source" data-value="" onclick="setStatFilter('source','')">전체 출처</button>
-        <button class="filter-btn" data-stat-filter="source" data-value="직접입력" onclick="setStatFilter('source','직접입력')">직접입력</button>
-        <button class="filter-btn" data-stat-filter="source" data-value="종이스코어카드" onclick="setStatFilter('source','종이스코어카드')">종이스코어카드</button>
-      </div>
-      <div class="filter-row">
-        <button class="filter-btn active" data-stat-filter="roundType" data-value="" onclick="setStatFilter('roundType','')">전체 라운드</button>
-        <button class="filter-btn" data-stat-filter="roundType" data-value="필드" onclick="setStatFilter('roundType','필드')">필드</button>
-        <button class="filter-btn" data-stat-filter="roundType" data-value="스크린" onclick="setStatFilter('roundType','스크린')">스크린골프</button>
-      </div>
-      <div class="grid-3">
+      <div class="grid-3" style="margin-top:0;">
         <div><div class="muted">최근10 평균</div><div style="font-size:20px;font-weight:700;" id="stat-avg10">-</div></div>
         <div><div class="muted">베스트</div><div style="font-size:20px;font-weight:700;" id="stat-best">-</div></div>
         <div><div class="muted">총 라운드</div><div style="font-size:20px;font-weight:700;" id="stat-rounds">-</div></div>
@@ -1211,23 +1201,6 @@
         <option value="1">1 - 별로</option>
       </select>
 
-      <div class="grid-2">
-        <div>
-          <label>기록 출처</label>
-          <select id="score-source">
-            <option value="직접입력">직접입력</option>
-            <option value="종이스코어카드">종이스코어카드</option>
-          </select>
-        </div>
-        <div>
-          <label>라운드 종류</label>
-          <select id="score-round-type">
-            <option value="필드">필드</option>
-            <option value="스크린">스크린골프</option>
-          </select>
-        </div>
-      </div>
-
       <label>메모</label>
       <textarea id="score-memo" rows="2" placeholder="특이사항 (선택)"></textarea>
 
@@ -1435,8 +1408,12 @@
     <label style="margin-top:10px;">골프장명 *</label>
     <div style="position:relative;">
       <input type="text" id="courseinfo-course-input" placeholder="예: 세현CC" autocomplete="off"
-        oninput="onCourseInfoCourseInput()" onfocus="onCourseInfoCourseInput()">
+        oninput="onCourseInfoCourseInput()" onfocus="onCourseInfoCourseInput()" onblur="onCourseInfoCourseBlur()">
       <div id="courseinfo-course-suggestions" class="course-suggestion-list" style="display:none;"></div>
+    </div>
+    <div id="courseinfo-mygolf-courselist" style="display:none; margin-top:8px;">
+      <div class="muted" style="font-size:11px;">MY골프장에 등록해둔 코스 - 탭하면 그 이름으로 바로 추가돼요</div>
+      <div class="chip-group" id="courseinfo-mygolf-courselist-chips" style="margin-top:4px;"></div>
     </div>
 
     <div id="courseinfo-subcourses" style="margin-top:6px;"></div>
@@ -1744,7 +1721,7 @@ function renderScoreList(scores) {
     <div class="score-item">
       <div class="info">
         <div class="course">${inProgress ? '<span class="muted" style="font-size:11px;">⏳ </span>' : ''}${escapeHtml(s.courseName)}${s.courseSubName ? ' · ' + escapeHtml(s.courseSubName) : ''}</div>
-        <div class="meta">${s.date} · ${s.source}${s.roundType === '스크린' ? ' · 🖥️ 스크린골프' : ''}</div>
+        <div class="meta">${s.date}</div>
       </div>
       <div class="total">${totalDisplay}</div>
       <div class="score-actions">
@@ -1769,27 +1746,9 @@ function jsAttrEscape(str) {
     .replace(/>/g, '&gt;');
 }
 
-let currentStatFilters = { source: '', roundType: '' };
-
-function setStatFilter(type, value) {
-  currentStatFilters[type] = value;
-  document.querySelectorAll(`[data-stat-filter="${type}"]`).forEach((b) => {
-    b.classList.toggle('active', b.dataset.value === value);
-  });
-  loadStats();
-}
-
-function statsQueryString() {
-  const params = new URLSearchParams();
-  if (currentStatFilters.source) params.set('source', currentStatFilters.source);
-  if (currentStatFilters.roundType) params.set('roundType', currentStatFilters.roundType);
-  const qs = params.toString();
-  return qs ? '?' + qs : '';
-}
-
 async function loadStats(homeOnly = false) {
   try {
-    const stats = await api('/api/stats' + (homeOnly ? '' : statsQueryString()));
+    const stats = await api('/api/stats');
     document.getElementById('home-avg10').textContent = stats.recentAvg10 ?? '-';
     document.getElementById('home-best').textContent = stats.bestScore ?? '-';
     document.getElementById('home-rounds').textContent = stats.totalRounds + '회';
@@ -2129,8 +2088,6 @@ function buildHoleEntryPayload(status) {
     gir: valOrNull('hole-entry-gir'),
     courseRating: valOrNull('hole-entry-rating'),
     memo: document.getElementById('hole-entry-memo').value,
-    source: '직접입력',
-    roundType: '필드',
     status,
   };
 }
@@ -2237,8 +2194,6 @@ function openScoreDialog(id) {
     document.getElementById('score-gir').value = s.gir ?? '';
     document.getElementById('score-putts').value = s.putts ?? '';
     document.getElementById('score-rating').value = s.courseRating ?? '';
-    document.getElementById('score-source').value = s.source || '직접입력';
-    document.getElementById('score-round-type').value = s.roundType || '필드';
     document.getElementById('score-memo').value = s.memo || '';
   } else {
     document.getElementById('score-date').value = new Date().toISOString().slice(0, 10);
@@ -2271,8 +2226,6 @@ async function submitScoreDialog() {
     fir: valOrNull('score-fir'),
     gir: valOrNull('score-gir'),
     courseRating: valOrNull('score-rating'),
-    source: document.getElementById('score-source').value,
-    roundType: document.getElementById('score-round-type').value,
     status: 'done',
     memo: document.getElementById('score-memo').value,
   };
@@ -2280,7 +2233,7 @@ async function submitScoreDialog() {
   const duplicate = scoreCache.find(
     (s) => s.id !== id && s.date === payload.date && s.courseName.trim() && s.courseName.trim() === payload.courseName.trim()
   );
-  if (duplicate && !confirm(`이미 [${duplicate.source}]로 등록된 라운드입니다 (${duplicate.date} ${duplicate.courseName}). 그래도 저장할까요?`)) {
+  if (duplicate && !confirm(`이미 등록된 라운드입니다 (${duplicate.date} ${duplicate.courseName}). 그래도 저장할까요?`)) {
     return;
   }
   try {
@@ -2375,6 +2328,7 @@ function openCourseInfoDialog(id) {
   document.getElementById('courseinfo-course-input').value = '';
   document.getElementById('courseinfo-course-suggestions').style.display = 'none';
   document.getElementById('courseinfo-delete-btn').style.display = 'none';
+  document.getElementById('courseinfo-mygolf-courselist').style.display = 'none';
   courseInfoDialogSelectedCourse = null;
   document.getElementById('courseInfoDialogTitle').textContent = id ? '코스정보 수정' : '코스정보 추가';
 
@@ -2387,6 +2341,7 @@ function openCourseInfoDialog(id) {
     // 구조복제(딥카피) - 취소 시 원본 캐시가 오염되지 않도록
     courseInfoDialogSubCourses = c.subCourses.map((sc) => ({ id: sc.id, name: sc.name, holes: sc.holes.map((h) => ({ ...h })) }));
     document.getElementById('courseinfo-delete-btn').style.display = '';
+    refreshCourseInfoMygolfCourseList(c.courseName);
   } else {
     courseInfoDialogSubCourses = [];
   }
@@ -2400,6 +2355,7 @@ function closeCourseInfoDialog() {
 
 function onCourseInfoCourseInput() {
   courseInfoDialogSelectedCourse = null;
+  document.getElementById('courseinfo-mygolf-courselist').style.display = 'none';
   const box = document.getElementById('courseinfo-course-suggestions');
   const q = document.getElementById('courseinfo-course-input').value.trim();
   if (courseInfoCourseDebounceTimer) clearTimeout(courseInfoCourseDebounceTimer);
@@ -2427,14 +2383,39 @@ function selectCourseInfoCourse(idx) {
   courseInfoDialogSelectedCourse = course;
   document.getElementById('courseinfo-course-input').value = course.name;
   box.style.display = 'none';
+  refreshCourseInfoMygolfCourseList(course.name);
+}
+
+/** 자동완성에 없는 이름을 직접 타이핑하고 포커스를 벗어난 경우에도 MY골프장 코스 목록 조회는
+ * 시도한다(다른 blur 핸들러들과 같은 이유 - 클릭 직후 blur가 먼저 발생할 수 있어 살짝 지연). */
+function onCourseInfoCourseBlur() {
+  setTimeout(() => {
+    if (courseInfoDialogSelectedCourse) return;
+    const name = document.getElementById('courseinfo-course-input').value.trim();
+    if (!name) return;
+    refreshCourseInfoMygolfCourseList(name);
+  }, 200);
+}
+
+/** MY골프장 즐겨찾기에 등록된 "코스 목록(콤마 구분)"에서 이 골프장의 코스 이름들을 찾아 칩으로
+ * 보여준다 - 크릭/챌린지/밸리 같은 실제 코스명을 매번 타이핑하지 않고 탭 한 번으로 채우기 위함. */
+async function refreshCourseInfoMygolfCourseList(courseName) {
+  const wrap = document.getElementById('courseinfo-mygolf-courselist');
+  const chips = document.getElementById('courseinfo-mygolf-courselist-chips');
+  if (!courseCache.length) await loadCourses();
+  const match = courseCache.find((c) => c.name.trim() === courseName.trim());
+  const names = match?.courseList?.filter((n) => n && n.trim()) || [];
+  if (!names.length) { wrap.style.display = 'none'; return; }
+  chips.innerHTML = names.map((n) => `<span class="chip" onclick="addCourseInfoSubCourse('${jsAttrEscape(n)}')">${escapeHtml(n)}</span>`).join('');
+  wrap.style.display = '';
 }
 
 function defaultHoles(count) {
-  return Array.from({ length: count }, (_, i) => ({ no: i + 1, par: 4, handicap: null }));
+  return Array.from({ length: count }, (_, i) => ({ no: i + 1, par: 4 }));
 }
 
-function addCourseInfoSubCourse() {
-  courseInfoDialogSubCourses.push({ id: null, name: '', holes: defaultHoles(9) });
+function addCourseInfoSubCourse(name) {
+  courseInfoDialogSubCourses.push({ id: null, name: name || '', holes: defaultHoles(9) });
   renderCourseInfoSubCourses();
 }
 
@@ -2478,10 +2459,6 @@ function renderCourseInfoSubCourses() {
               <td><select onchange="courseInfoDialogSubCourses[${si}].holes[${hi}].par = Number(this.value)">
                 ${[3, 4, 5].map((p) => `<option value="${p}" ${h.par === p ? 'selected' : ''}>${p}</option>`).join('')}
               </select></td>`).join('')}
-            </tr>
-            <tr><td class="hole-no">HDCP</td>${sc.holes.map((h, hi) => `
-              <td><input type="number" min="1" max="18" value="${h.handicap ?? ''}"
-                oninput="courseInfoDialogSubCourses[${si}].holes[${hi}].handicap = this.value === '' ? null : Number(this.value)"></td>`).join('')}
             </tr>
           </tbody>
         </table>
