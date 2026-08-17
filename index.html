@@ -1485,20 +1485,6 @@
     <div id="courseinfo-subcourses" style="margin-top:6px;"></div>
     <button type="button" class="btn secondary block" style="margin-top:10px;" onclick="addCourseInfoSubCourse()">＋ 코스(9/18홀 루프) 추가</button>
 
-    <!-- KGA 공식 데이터가 있는 골프장은 이 대신 courseinfo-kga-rating-info(읽기전용 요약)를 보여준다
-         (라운드 시작 때 자동으로 뜨니 여기서 굳이 옮겨 적을 필요가 없어서). -->
-    <div id="courseinfo-ratings-section" style="margin-top:16px; display:none;">
-      <label>코스 레이팅(선택)</label>
-      <div class="muted" style="font-size:11px;">KGA 코스레이팅확인서·골프장 홈페이지를 보고 코스 조합 × 티박스별로 입력해두면, 라운드 시작 시 코스레이팅/슬로프레이팅/코스길이를 바로 보여줍니다.</div>
-      <div id="courseinfo-ratings"></div>
-    </div>
-
-    <div id="courseinfo-kga-rating-info" style="margin-top:16px; display:none;">
-      <label>코스 레이팅 (KGA 공식자료)</label>
-      <div class="muted" style="font-size:11px;">이 골프장은 KGA 공식 데이터가 있어서 따로 입력하지 않아도 라운드 시작 시 자동으로 코스레이팅/슬로프레이팅/코스길이를 보여줍니다. 아래는 참고용입니다.</div>
-      <div id="courseinfo-kga-rating-summary" style="margin-top:6px;"></div>
-    </div>
-
     <div class="dialog-actions">
       <button type="button" class="btn secondary block" onclick="closeCourseInfoDialog()">취소</button>
       <button type="button" class="btn block" onclick="submitCourseInfoDialog()">저장</button>
@@ -2693,18 +2679,18 @@ async function applyCourseInfoKgaRating(courseName) {
   renderCourseInfoRatings(); // KGA 매칭 여부에 따라 수동입력 그리드 표시/숨김 갱신
 }
 
+/** 코스정보 추가 화면에서는 코스레이팅 정보를 보여주지 않는다(라운드 시작 화면에서만 다룸) -
+ * 여기서는 KGA 공식자료가 있는 골프장의 코스명 빠른추가 칩만 채워준다. */
 function renderCourseInfoKgaSection() {
   const courselistWrap = document.getElementById('courseinfo-kga-courselist');
-  const infoWrap = document.getElementById('courseinfo-kga-rating-info');
 
   if (!courseInfoKgaRating) {
     courselistWrap.style.display = 'none';
-    infoWrap.style.display = 'none';
     return;
   }
 
   // 코스(9홀 루프) 이름이 깔끔하게 분리되는 골프장만 빠른추가 칩을 준다 - 표기가 불규칙해서
-  // 개별 코스명을 못 나눈 경우엔 뭘 추가해야 할지 애매해서 생략(아래 참고용 요약만 보여줌).
+  // 개별 코스명을 못 나눈 경우엔 뭘 추가해야 할지 애매해서 생략.
   if (courseInfoKgaRating.loopBased) {
     const loopNames = [...new Set(courseInfoKgaRating.combos.flatMap((c) => c.loopNames))];
     document.getElementById('courseinfo-kga-courselist-chips').innerHTML =
@@ -2713,67 +2699,12 @@ function renderCourseInfoKgaSection() {
   } else {
     courselistWrap.style.display = 'none';
   }
-
-  document.getElementById('courseinfo-kga-rating-summary').innerHTML = courseInfoKgaRating.combos.map((c) => `
-    <div class="subcourse-block">
-      <div style="font-weight:600; font-size:13px;">${escapeHtml(c.comboLabel)}</div>
-      <div class="muted" style="font-size:12px; margin-top:4px; line-height:1.6;">
-        ${c.teeSets.map((t) => {
-          const len = t.courseLengthYards != null ? `${yardsToMeters(t.courseLengthYards).toLocaleString('ko-KR')}m` : '-';
-          return `${escapeHtml(t.teeSet)}(${escapeHtml(t.gender)}) · CR ${t.courseRating ?? '-'} · SR ${t.slopeRating ?? '-'} · ${len}`;
-        }).join('<br>')}
-      </div>
-    </div>
-  `).join('');
-  infoWrap.style.display = '';
 }
 
-function renderCourseInfoRatings() {
-  const section = document.getElementById('courseinfo-ratings-section');
-  const el = document.getElementById('courseinfo-ratings');
-  // KGA 공식자료가 있는 골프장은 그쪽이 항상 최신·정확하므로 수동입력 그리드는 아예 숨긴다
-  // (courseinfo-kga-rating-info가 대신 참고용으로 보여줌 - renderCourseInfoKgaSection 참고).
-  if (courseInfoKgaRating) { section.style.display = 'none'; return; }
-  if (!courseInfoDialogRatings.length) { section.style.display = 'none'; el.innerHTML = ''; return; }
-  section.style.display = '';
-
-  // 조합 단위로 묶어서 카드 하나씩(조합 등장 순서 유지)
-  const groups = [];
-  const groupIndexByKey = new Map();
-  courseInfoDialogRatings.forEach((r, idx) => {
-    const key = courseInfoComboKey(r.courseNames);
-    if (!groupIndexByKey.has(key)) {
-      groupIndexByKey.set(key, groups.length);
-      groups.push({ label: r.courseNames.join(' + '), entries: [] });
-    }
-    groups[groupIndexByKey.get(key)].entries.push({ ...r, idx });
-  });
-
-  const ROWS = [
-    { field: 'courseRating', label: '코스레이팅', step: '0.1' },
-    { field: 'slopeRating', label: '슬로프', step: '1' },
-    { field: 'courseLength', label: '길이(m)', step: '1' },
-  ];
-
-  el.innerHTML = groups.map((g) => `
-    <div class="subcourse-block">
-      <div style="font-weight:600; font-size:13px;">${escapeHtml(g.label)}</div>
-      <div class="hole-grid-wrap">
-        <table class="hole-grid">
-          <thead><tr><th></th>${g.entries.map((e) => `<th>${TEE_BOX_LABELS[e.teeBox]}</th>`).join('')}</tr></thead>
-          <tbody>
-            ${ROWS.map((row) => `
-              <tr><td class="hole-no">${row.label}</td>${g.entries.map((e) => `
-                <td><input type="number" step="${row.step}" style="width:56px;" value="${e[row.field] ?? ''}"
-                  oninput="courseInfoDialogRatings[${e.idx}].${row.field} = this.value === '' ? null : Number(this.value)"></td>`).join('')}
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `).join('');
-}
+// 코스정보 추가 화면에는 더 이상 코스레이팅 입력 그리드를 보여주지 않는다(라운드 시작 화면에서만
+// 다룸). courseInfoDialogRatings 자체는 그대로 두고 조합 목록만 계속 최신 상태로 맞춰서, 이미
+// 저장돼 있던 레이팅 데이터가 있으면 화면에 안 보여도 저장 시 유실되지 않게만 해둔다.
+function renderCourseInfoRatings() {}
 
 async function loadCourseInfoList() {
   try {
@@ -2821,7 +2752,6 @@ function openCourseInfoDialog(id) {
   document.getElementById('courseinfo-delete-btn').style.display = 'none';
   document.getElementById('courseinfo-mygolf-courselist').style.display = 'none';
   document.getElementById('courseinfo-kga-courselist').style.display = 'none';
-  document.getElementById('courseinfo-kga-rating-info').style.display = 'none';
   courseInfoDialogSelectedCourse = null;
   courseInfoKgaRating = null;
   document.getElementById('courseInfoDialogTitle').textContent = id ? '코스정보 수정' : '코스정보 추가';
@@ -2855,8 +2785,6 @@ function onCourseInfoCourseInput() {
   courseInfoKgaRating = null;
   document.getElementById('courseinfo-mygolf-courselist').style.display = 'none';
   document.getElementById('courseinfo-kga-courselist').style.display = 'none';
-  document.getElementById('courseinfo-kga-rating-info').style.display = 'none';
-  renderCourseInfoRatings(); // KGA 매칭이 풀렸으니 수동입력 그리드 다시 계산해서 보여줄지 결정
   const box = document.getElementById('courseinfo-course-suggestions');
   const q = document.getElementById('courseinfo-course-input').value.trim();
   if (courseInfoCourseDebounceTimer) clearTimeout(courseInfoCourseDebounceTimer);
