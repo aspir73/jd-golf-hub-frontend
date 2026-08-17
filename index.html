@@ -1235,17 +1235,14 @@
     </div>
 
     <!-- KGA 공식 코스레이팅 데이터(경기·강원·충북·충남 111개 골프장)가 있으면 이걸 우선 보여준다.
-         코스조합이 OUT/IN 두 개로 깔끔히 쪼개지면 드롭다운 2개, 표기가 불규칙하면 조합 목록을
-         그대로 하나의 선택지로 보여주는 폴백. -->
+         OUT/IN은 위 "코스정보"에서 이미 골랐으니 여기서 또 고르지 않고 그대로 재사용해서 어느
+         KGA 코스조합인지 자동으로 찾는다(코스명이 KGA와 다르면 못 찾을 수 있음 - 그 경우 안내
+         문구만 보여줌). 표기가 불규칙해서 OUT/IN으로 못 쪼갠 골프장만 조합 목록을 그대로
+         하나의 선택지로 보여주는 폴백을 쓴다. -->
     <div id="roundstart-kga-section" style="display:none; margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
       <label>코스 레이팅 <span class="muted" style="font-size:11px;">(KGA 공식자료)</span></label>
+      <div id="roundstart-kga-combo-hint" class="muted" style="font-size:12px; margin-top:4px;"></div>
 
-      <div id="roundstart-kga-loop-pick" style="display:none; margin-top:6px;">
-        <div class="grid-2">
-          <div><label>OUT</label><select id="roundstart-kga-out-select" onchange="onRoundStartKgaPickChange()"></select></div>
-          <div><label>IN</label><select id="roundstart-kga-in-select" onchange="onRoundStartKgaPickChange()"></select></div>
-        </div>
-      </div>
       <div id="roundstart-kga-combo-pick" style="display:none; margin-top:6px;">
         <label>코스 조합</label>
         <select id="roundstart-kga-combo-select" onchange="onRoundStartKgaPickChange()"></select>
@@ -1924,22 +1921,23 @@ async function applyRoundStartKgaRating(courseName) {
 function renderRoundStartKgaSection() {
   if (!roundStartKgaRating) return;
   const combos = roundStartKgaRating.combos;
-  const loopPick = document.getElementById('roundstart-kga-loop-pick');
   const comboPick = document.getElementById('roundstart-kga-combo-pick');
+  const hint = document.getElementById('roundstart-kga-combo-hint');
 
-  if (combos.length === 1) {
-    loopPick.style.display = 'none';
+  if (combos.length === 1 || roundStartKgaRating.loopBased) {
+    // OUT/IN은 위 "코스정보"에서 이미 골랐으니 여기서 또 고르지 않고, 그 선택으로 어느 KGA
+    // 코스조합인지 자동으로 찾는다(코스가 1개뿐이면 고민할 것도 없이 그 코스 그대로).
     comboPick.style.display = 'none';
-  } else if (roundStartKgaRating.loopBased) {
-    loopPick.style.display = '';
-    comboPick.style.display = 'none';
-    const loopNames = [...new Set(combos.flatMap((c) => c.loopNames))];
-    const opts = loopNames.map((n) => `<option value="${jsAttrEscape(n)}">${escapeHtml(n)}</option>`).join('');
-    document.getElementById('roundstart-kga-out-select').innerHTML = opts;
-    document.getElementById('roundstart-kga-in-select').innerHTML = opts;
-    document.getElementById('roundstart-kga-in-select').selectedIndex = Math.min(1, loopNames.length - 1);
+    const combo = findRoundStartKgaCombo();
+    if (combo) {
+      hint.textContent = combos.length === 1 ? '' : `✅ ${combo.comboLabel} 코스레이팅을 찾았어요`;
+    } else {
+      const { outName, inName } = outInNamesFromRoundStartPickers();
+      hint.textContent = `"${outName}${inName ? ' + ' + inName : ''}" 조합과 일치하는 KGA 코스레이팅을 못 찾았어요. 위 코스정보의 OUT/IN 이름을 KGA 코스명과 맞춰보세요.`;
+    }
   } else {
-    loopPick.style.display = 'none';
+    // 코스조합 표기가 불규칙해서 OUT/IN 두 개로 못 쪼갠 골프장만 조합 목록을 그대로 보여준다.
+    hint.textContent = '';
     comboPick.style.display = '';
     document.getElementById('roundstart-kga-combo-select').innerHTML =
       combos.map((c, i) => `<option value="${i}">${escapeHtml(c.comboLabel)}</option>`).join('');
@@ -1947,15 +1945,16 @@ function renderRoundStartKgaSection() {
   onRoundStartKgaPickChange();
 }
 
-/** 현재 OUT/IN(또는 코스조합) 선택 상태에서 해당하는 KGA 코스조합 레코드를 찾는다. */
+/** 현재 KGA 코스조합 레코드를 찾는다. loop 기반이면 위 "코스정보"에서 고른 OUT/IN 이름을 그대로
+ * 재사용해서 매칭하고(따로 또 고르게 하지 않음), 아니면 코스조합 드롭다운 선택값을 쓴다. */
 function findRoundStartKgaCombo() {
   if (!roundStartKgaRating) return null;
   const combos = roundStartKgaRating.combos;
   if (combos.length === 1) return combos[0];
   if (roundStartKgaRating.loopBased) {
-    const outVal = document.getElementById('roundstart-kga-out-select').value;
-    const inVal = document.getElementById('roundstart-kga-in-select').value;
-    const key = [outVal, inVal].sort().join('|');
+    const { outName, inName } = outInNamesFromRoundStartPickers();
+    if (!outName) return null;
+    const key = [outName, inName].filter(Boolean).sort().join('|');
     return combos.find((c) => [...c.loopNames].sort().join('|') === key) || null;
   }
   const idx = Number(document.getElementById('roundstart-kga-combo-select').value);
@@ -2025,6 +2024,7 @@ async function applyRoundStartCourseInfoByName(courseName) {
       document.getElementById('roundstart-subcourse-pick').style.display = 'none';
       roundStartHoles = [];
       refreshRoundStartRatingVisibility();
+      if (roundStartKgaRating) renderRoundStartKgaSection();
       return;
     }
     status.innerHTML = `✅ 등록된 코스 ${courseInfo.subCourses.length}개 (총 ${courseInfo.subCourses.reduce((s, sc) => s + sc.holes.length, 0)}홀)`;
@@ -2042,9 +2042,10 @@ async function applyRoundStartCourseInfoByName(courseName) {
       inSel.innerHTML = opts;
       outSel.value = 0;
       inSel.value = subCourses.length > 1 ? 1 : 0;
-      rebuildRoundStartHoles();
+      rebuildRoundStartHoles(); // 이 안에서 KGA 섹션도 같이 갱신됨
     }
     updateRoundStartRatingInfo();
+    if (roundStartKgaRating) renderRoundStartKgaSection();
   } catch (e) {
     status.textContent = '코스정보 조회 실패: ' + e.message;
   }
@@ -2058,6 +2059,8 @@ function rebuildRoundStartHoles() {
   const inn = roundStartCourseInfo.subCourses[inIdx];
   buildRoundStartHolesFromSubCourses(outIdx === inIdx ? [out] : [out, inn]);
   updateRoundStartRatingInfo();
+  // KGA 코스레이팅도 이 OUT/IN 선택을 그대로 재사용하므로, 선택이 바뀌면 매칭되는 조합을 다시 찾는다.
+  if (roundStartKgaRating) renderRoundStartKgaSection();
 }
 
 function selectRoundStartTeeBox(tb, el) {
