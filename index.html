@@ -1962,6 +1962,11 @@ function onRoundStartKgaPickChange() {
   updateRoundStartKgaRatingDisplay();
 }
 
+/** KGA 원본 데이터는 야드 단위 - 국내에서 익숙한 미터로 환산해서 보여준다(1야드=0.9144m). */
+function yardsToMeters(yards) {
+  return Math.round(yards * 0.9144);
+}
+
 function updateRoundStartKgaRatingDisplay() {
   const el = document.getElementById('roundstart-kga-rating-display');
   const combo = findRoundStartKgaCombo();
@@ -1972,7 +1977,10 @@ function updateRoundStartKgaRatingDisplay() {
   const parts = [];
   if (t.courseRating != null) parts.push(`코스레이팅 ${t.courseRating}`);
   if (t.slopeRating != null) parts.push(`슬로프 ${t.slopeRating}`);
-  if (t.courseLengthYards != null) parts.push(`길이 ${Number(t.courseLengthYards).toLocaleString('ko-KR')}야드`);
+  if (t.courseLengthYards != null) {
+    const m = yardsToMeters(t.courseLengthYards);
+    parts.push(`길이 ${m.toLocaleString('ko-KR')}m (${Number(t.courseLengthYards).toLocaleString('ko-KR')}야드)`);
+  }
   el.textContent = parts.join(' · ');
 }
 
@@ -2113,22 +2121,27 @@ async function confirmRoundStart() {
 
   const { outName, inName } = outInNamesFromRoundStartPickers();
 
-  // KGA 공식 데이터가 있으면 그걸 우선 스냅샷(야드 단위), 없으면 코스정보에 직접 입력해둔
-  // White/Blue/Red 수동 레이팅(미터 단위)으로 폴백.
+  // KGA 공식 데이터가 있으면 그걸 우선 스냅샷, 없으면 코스정보에 직접 입력해둔 White/Blue/Red
+  // 수동 레이팅으로 폴백. 코스길이는 출처와 무관하게 항상 미터로 통일해서 저장한다(KGA 원본은
+  // 야드라 여기서 환산 - 미리 환산해두면 나중에 이 값을 쓸 때마다 단위를 신경 쓸 필요가 없다).
   let teeBoxLabel = '';
-  let ratingSnapshot = { courseRating: null, slopeRating: null, courseLength: null, unit: '' };
+  let ratingSnapshot = { courseRating: null, slopeRating: null, courseLength: null };
   if (roundStartKgaRating) {
     const combo = findRoundStartKgaCombo();
     const teesetIdx = Number(document.getElementById('roundstart-kga-teeset-select').value || 0);
     const t = combo?.teeSets?.[teesetIdx];
     if (t) {
       teeBoxLabel = `${t.teeSet}(${t.gender})`;
-      ratingSnapshot = { courseRating: t.courseRating, slopeRating: t.slopeRating, courseLength: t.courseLengthYards, unit: 'yards' };
+      ratingSnapshot = {
+        courseRating: t.courseRating,
+        slopeRating: t.slopeRating,
+        courseLength: t.courseLengthYards != null ? yardsToMeters(t.courseLengthYards) : null,
+      };
     }
   } else {
     const rating = findRoundStartRating(outName, inName, roundStartTeeBox);
     teeBoxLabel = roundStartTeeBox || '';
-    ratingSnapshot = { courseRating: rating?.courseRating ?? null, slopeRating: rating?.slopeRating ?? null, courseLength: rating?.courseLength ?? null, unit: 'm' };
+    ratingSnapshot = { courseRating: rating?.courseRating ?? null, slopeRating: rating?.slopeRating ?? null, courseLength: rating?.courseLength ?? null };
   }
 
   const payload = {
@@ -2145,7 +2158,6 @@ async function confirmRoundStart() {
     kgaCourseRating: ratingSnapshot.courseRating,
     kgaSlopeRating: ratingSnapshot.slopeRating,
     kgaCourseLength: ratingSnapshot.courseLength,
-    kgaCourseLengthUnit: ratingSnapshot.courseLength != null ? ratingSnapshot.unit : '',
   };
   try {
     const { score } = await api('/api/scores', { method: 'POST', body: JSON.stringify(payload) });
