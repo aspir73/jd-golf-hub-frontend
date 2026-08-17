@@ -147,19 +147,6 @@
   .stat-row .v { font-weight: 700; }
 
   /* 날씨 */
-  .hourly-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
-  .hour-chip {
-    flex: 0 0 auto;
-    background: #f0f4f0;
-    border-radius: 12px;
-    padding: 10px 14px;
-    text-align: center;
-    min-width: 70px;
-  }
-  .hour-chip .t { font-size: 12px; color: var(--muted); }
-  .hour-chip .temp { font-size: 17px; font-weight: 700; margin: 4px 0; }
-  .hour-chip .sky { font-size: 12px; }
-  .hour-chip .pop { font-size: 11px; color: #2b6cb0; }
   .outfit-box {
     background: #eef7ee;
     border-radius: 10px;
@@ -1031,15 +1018,15 @@
   <!-- 날씨 -->
   <section id="tab-weather" class="tab-panel">
     <div class="card">
-      <h2>라운딩 날씨</h2>
-      <button class="btn block" id="btn-locate" onclick="locateAndFetchWeather()">📍 내 위치로 날씨 확인</button>
-      <div class="muted" style="margin-top:8px;">위치 권한을 허용하면 기상청 단기예보를 시간대별로 보여줍니다.</div>
-    </div>
-
-    <div class="card" id="weather-result-card" style="display:none;">
-      <h2>오늘 시간대별 예보</h2>
-      <div class="hourly-scroll" id="hourly-scroll"></div>
-      <div class="outfit-box" id="outfit-box"></div>
+      <h2>⛳ 골프장 날씨 검색</h2>
+      <div class="muted" style="font-size:12px; margin-top:2px;">골프장을 검색해서 추가하면 7일 온도·강우 예보를 보여줍니다.</div>
+      <label style="margin-top:10px;">골프장 이름으로 검색</label>
+      <div style="display:flex; gap:6px;">
+        <input type="text" id="weather-course-search-input" placeholder="예: 세현CC" autocomplete="off"
+          onkeydown="if(event.key==='Enter'){event.preventDefault(); addWeatherSearchCourse();}">
+        <button type="button" class="btn secondary" onclick="addWeatherSearchCourse()">추가</button>
+      </div>
+      <div id="weather-search-courses" style="margin-top:10px;"></div>
     </div>
   </section>
 
@@ -1654,6 +1641,7 @@ function showTab(name) {
   if (name === 'join') { loadCourses(); loadComparisonGroups(); loadBookings(); }
   if (name === 'mygolf') { loadCourses(); }
   if (name === 'food') { loadFavoriteRestaurants(); renderFoodCourseList(bookingCache); }
+  if (name === 'weather') { renderWeatherSearchCourses(); }
   if (name === 'pricedashboard') { loadPriceDashboard(); }
   if (name === 'courseinfo') { loadCourseInfoList(); }
 }
@@ -1699,62 +1687,96 @@ document.addEventListener('click', (e) => {
   if (menu && menu.classList.contains('open') && !menu.contains(e.target)) closeHamburgerMenu();
 });
 
-// ===== 날씨 =====
-function locateAndFetchWeather() {
-  if (!navigator.geolocation) {
-    showToast('이 브라우저는 위치 정보를 지원하지 않습니다');
+// ===== 날씨 탭 "골프장 날씨 검색" - 검색해서 추가한 골프장들의 7일 온도·강우 예보(Open-Meteo) =====
+// MY골프장(즐겨찾기)에 좌표가 있으면 그걸 재사용하고, 없으면 맛집 탭의 골프장 검색과 같은 방식으로
+// 카카오 장소검색에서 좌표만 찾는다(searchFoodAroundCourseName과 동일 패턴). 추가한 목록은
+// localStorage에 저장해 재방문해도 유지된다.
+const WEATHER_SEARCH_COURSES_KEY = 'jdgh_weather_search_courses';
+let weatherSearchCourses = JSON.parse(localStorage.getItem(WEATHER_SEARCH_COURSES_KEY) || '[]'); // [{name,lat,lon}]
+
+function saveWeatherSearchCourses() {
+  localStorage.setItem(WEATHER_SEARCH_COURSES_KEY, JSON.stringify(weatherSearchCourses));
+}
+
+async function addWeatherSearchCourse() {
+  const input = document.getElementById('weather-course-search-input');
+  const name = input.value.trim();
+  if (!name) { showToast('골프장명을 입력해주세요'); return; }
+  try {
+    if (!courseCache.length) await loadCourses();
+    let coords = findCourseCoordsByName(name);
+    let displayName = name;
+    if (!coords) {
+      const { places } = await api(`/api/places/search?query=${encodeURIComponent(name)}`);
+      const best = places?.[0];
+      if (!best || best.lat == null || best.lon == null) { showToast(`"${name}" 골프장 위치를 찾을 수 없습니다`); return; }
+      coords = { lat: best.lat, lon: best.lon };
+      displayName = best.name || name;
+    }
+    if (weatherSearchCourses.some((c) => c.name === displayName)) { showToast('이미 추가된 골프장입니다'); return; }
+    weatherSearchCourses.push({ name: displayName, lat: coords.lat, lon: coords.lon });
+    saveWeatherSearchCourses();
+    input.value = '';
+    renderWeatherSearchCourses();
+  } catch (e) {
+    showToast('골프장 검색 실패: ' + e.message);
+  }
+}
+
+function removeWeatherSearchCourse(index) {
+  weatherSearchCourses.splice(index, 1);
+  saveWeatherSearchCourses();
+  renderWeatherSearchCourses();
+}
+
+function renderWeatherSearchCourses() {
+  const el = document.getElementById('weather-search-courses');
+  if (!el) return;
+  if (!weatherSearchCourses.length) {
+    el.innerHTML = '<div class="empty">검색해서 추가한 골프장이 없습니다.</div>';
     return;
   }
-  const btn = document.getElementById('btn-locate');
-  btn.disabled = true;
-  btn.textContent = '위치 확인 중...';
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      const { latitude, longitude } = pos.coords;
-      localStorage.setItem('jdgh_lat', latitude);
-      localStorage.setItem('jdgh_lon', longitude);
-      await fetchWeather(latitude, longitude);
-      btn.disabled = false;
-      btn.textContent = '📍 내 위치로 날씨 확인';
-    },
-    (err) => {
-      showToast('위치 확인 실패: ' + err.message);
-      btn.disabled = false;
-      btn.textContent = '📍 내 위치로 날씨 확인';
-    },
-    { timeout: 8000 }
-  );
-}
-
-async function fetchWeather(lat, lon) {
-  try {
-    const data = await api(`/api/weather?lat=${lat}&lon=${lon}`);
-    renderWeather(data);
-  } catch (e) {
-    showToast('날씨 조회 실패: ' + e.message);
-  }
-}
-
-function renderWeather(data) {
-  const card = document.getElementById('weather-result-card');
-  card.style.display = 'block';
-
-  const scroll = document.getElementById('hourly-scroll');
-  scroll.innerHTML = data.hourly.map((h) => `
-    <div class="hour-chip">
-      <div class="t">${h.time.slice(0,2)}시</div>
-      <div class="temp">${h.temp ?? '-'}°</div>
-      <div class="sky">${h.sky ?? ''}${h.pty && h.pty !== '없음' ? ' · ' + h.pty : ''}</div>
-      <div class="pop">☔ ${h.pop ?? 0}%</div>
+  el.innerHTML = weatherSearchCourses.map((c, i) => `
+    <div style="margin-top:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:700; font-size:14px;">${escapeHtml(c.name)}</div>
+        <button type="button" class="icon-btn" onclick="removeWeatherSearchCourse(${i})" title="이 골프장 삭제">🗑️</button>
+      </div>
+      <div id="weather-search-course-body-${i}" style="margin-top:4px;">
+        <div class="muted" style="font-size:12px;">불러오는 중...</div>
+      </div>
     </div>
   `).join('');
+  weatherSearchCourses.forEach((c, i) => loadWeatherSearchCourseForecast(c, i));
+}
 
-  const outfitBox = document.getElementById('outfit-box');
-  outfitBox.innerHTML = `
-    <h3>👕 오늘의 복장 추천</h3>
-    <div><strong>${data.outfit.summary}</strong></div>
-    <ul>${data.outfit.items.map((i) => `<li>${i}</li>`).join('')}</ul>
-  `;
+async function loadWeatherSearchCourseForecast(course, index) {
+  const body = document.getElementById(`weather-search-course-body-${index}`);
+  if (!body) return;
+  try {
+    const data = await api(`/api/weather/course?lat=${course.lat}&lon=${course.lon}`);
+    const days = data.days || [];
+    if (!days.length) { body.innerHTML = '<div class="muted" style="font-size:12px;">데이터가 없습니다.</div>'; return; }
+    const headRow = days.map((d) => {
+      const wd = GOLF_WEATHER_WEEKDAY[new Date(`${d.date}T00:00:00`).getDay()];
+      const label = d.dayOffset === 0 ? '오늘' : `${d.date.slice(5).replace('-', '/')}(${wd})`;
+      return `<th>${label}</th>`;
+    }).join('');
+    const row = (fn) => days.map((d) => `<td>${fn(d)}</td>`).join('');
+    body.innerHTML = `
+      <div class="scorecard-wrap">
+        <table class="scorecard-table">
+          <thead><tr><th></th>${headRow}</tr></thead>
+          <tbody>
+            <tr><td class="hole-label"></td>${row((d) => `<span style="font-size:16px;">${GOLF_WEATHER_SKY_ICON[d.sky] || '-'}</span>`)}</tr>
+            <tr><td class="hole-label">온도</td>${row((d) => `${d.tempMin ?? '-'}° / ${d.tempMax ?? '-'}°`)}</tr>
+            <tr><td class="hole-label">강우</td>${row((d) => (d.pop != null ? `${d.pop}%` : '-'))}</tr>
+          </tbody>
+        </table>
+      </div>`;
+  } catch (e) {
+    body.innerHTML = `<div class="muted" style="font-size:12px;">조회 실패: ${escapeHtml(e.message)}</div>`;
+  }
 }
 
 // ===== 홈 탭 "주간 골프 기상도"(경기남부/북부·경춘·강원·충청 고정 5권역, 위치 권한 불필요) =====
@@ -6479,9 +6501,6 @@ window.addEventListener('DOMContentLoaded', () => {
   loadWatches();
   loadGolfWeatherBoard();
   onRoundSearchPlatformChange();
-  const lat = localStorage.getItem('jdgh_lat');
-  const lon = localStorage.getItem('jdgh_lon');
-  if (lat && lon) fetchWeather(lat, lon);
 });
 </script>
 </body>
