@@ -1598,6 +1598,13 @@
         <div><label>선입금</label><input type="text" inputmode="numeric" id="booking-deposit" oninput="formatMoneyInput(this)"></div>
       </div>
 
+      <!-- 여기서 등록한 동반자 이름은 "라운드 일정" 카드의 "▶ 라운드 시작"으로 넘어갈 때
+           그대로 전달돼(startRoundFromBooking) 스코어 기록의 동반자 목록에 자동으로 채워진다
+           (홀별 입력 화면에서 매번 다시 입력할 필요 없이). -->
+      <label>동반자 <span class="muted" id="booking-companion-name-count" style="font-size:11px;">0명</span></label>
+      <div id="booking-companions-list"></div>
+      <button type="button" class="btn secondary block" style="margin-top:6px;" onclick="addBookingCompanion()">＋ 동반자 추가</button>
+
       <div class="grid-2">
         <div><label>문의 연락처</label><input type="text" id="booking-contact"></div>
         <div><label>홈페이지 링크</label><input type="text" id="booking-homepage"></div>
@@ -1982,11 +1989,14 @@ let roundStartCourseDebounceTimer = null;
 let roundStartTeeBox = null; // 'white' | 'blue' | 'red' | null(선택 안 함) - KGA 데이터가 없을 때 폴백용
 let roundStartKgaRating = null; // GET /api/kga-rating 결과(KGA 공식 코스레이팅 - 경기·강원·충북·충남 111개 골프장만 있음)
 let courseInfoDialogReturnToCourseName = null; // "코스정보 추가"로 넘어간 경우, 저장 후 되돌아올 골프장명(라운드 시작 다이얼로그로 복귀)
+let roundStartPresetCompanions = []; // 예약 건에서 넘어온 동반자([{name}]) - confirmRoundStart가 스코어 생성 시 그대로 넘긴다.
 
-/** preset({courseName, date})을 넘기면 "라운드 일정" 카드의 "▶ 라운드 시작"처럼 이미 정해진
- * 예약 건에서 바로 넘어온 경우 - 골프장명을 채운 채로 열고, 직접 타이핑/자동완성으로 고른 것과
- * 동일하게 코스정보·KGA 레이팅 조회까지 자동으로 이어서 해준다(selectRoundStartCourse와 동일 로직). */
+/** preset({courseName, date, subCourseLabel, companions})을 넘기면 "라운드 일정" 카드의
+ * "▶ 라운드 시작"처럼 이미 정해진 예약 건에서 바로 넘어온 경우 - 골프장명을 채운 채로 열고,
+ * 직접 타이핑/자동완성으로 고른 것과 동일하게 코스정보·KGA 레이팅 조회까지 자동으로 이어서
+ * 해준다(selectRoundStartCourse와 동일 로직). 동반자는 confirmRoundStart에서 그대로 저장된다. */
 async function openRoundStartDialog(preset) {
+  roundStartPresetCompanions = preset?.companions || [];
   document.getElementById('roundstart-date').value = preset?.date || new Date().toISOString().slice(0, 10);
   document.getElementById('roundstart-course-input').value = '';
   document.getElementById('roundstart-course-suggestions').style.display = 'none';
@@ -2010,11 +2020,21 @@ async function openRoundStartDialog(preset) {
   }
 }
 
-/** "라운드 일정" 카드의 "▶ 라운드 시작" - 그 예약 건의 골프장·날짜·코스명을 그대로 라운드 시작
- * 다이얼로그에 채워서 바로 이어지게 한다(스코어 입력까지 몇 번의 탭만에 도달). 코스명(예: "북,서")은
- * applyRoundStartCourseInfoByName이 등록된 코스정보의 OUT/IN을 자동으로 맞춰보는 데 쓴다. */
-function startRoundFromBooking(courseName, date, subCourseLabel) {
-  openRoundStartDialog({ courseName, date, subCourseLabel });
+/** "라운드 일정" 카드의 "▶ 라운드 시작" - 그 예약 건의 골프장·날짜·코스명·동반자를 그대로
+ * 라운드 시작 다이얼로그에 채워서 바로 이어지게 한다(스코어 입력까지 몇 번의 탭만에 도달).
+ * 코스명(예: "북,서")은 applyRoundStartCourseInfoByName이 등록된 코스정보의 OUT/IN을 자동으로
+ * 맞춰보는 데 쓰고, 동반자는 confirmRoundStart가 스코어 기록 생성 시 그대로 넘겨서 홀별 입력
+ * 화면(holeEntryDialog)에서 다시 입력할 필요가 없게 한다. bookingCache에서 id로 조회하는 이유:
+ * onclick 속성에 companions 배열까지 통째로 문자열 이스케이프해 넣는 것보다 훨씬 간단하고 안전. */
+function startRoundFromBooking(id) {
+  const b = bookingCache.find((x) => x.id === id);
+  if (!b) return;
+  openRoundStartDialog({
+    courseName: b.courseName,
+    date: b.roundDate,
+    subCourseLabel: b.courseSubName,
+    companions: b.companions || [],
+  });
 }
 
 function onRoundStartCourseInput() {
@@ -2365,6 +2385,9 @@ async function confirmRoundStart() {
     totalScore: 0,
     putts: 0,
     status: 'in_progress',
+    // 예약 건에서 "▶ 라운드 시작"으로 넘어온 경우, 예약 때 등록해둔 동반자를 그대로 채워서
+    // 홀별 입력 화면에서 또 입력할 필요가 없게 한다(startRoundFromBooking 참고).
+    companions: roundStartPresetCompanions.filter((c) => c.name?.trim()).map((c) => ({ name: c.name.trim() })),
     teeBox: teeBoxLabel,
     kgaCourseRating: ratingSnapshot.courseRating,
     kgaSlopeRating: ratingSnapshot.slopeRating,
@@ -6194,7 +6217,7 @@ function renderHomeBookingList(bookings) {
           ${travelText || costText ? `<div class="sub">${[travelText, costText].filter(Boolean).join(' · ')}</div>` : ''}
           <div class="tags"><span class="tag">${escapeHtml(b.status)}</span></div>
           <button type="button" class="btn secondary" style="margin-top:6px; padding:5px 10px; font-size:12px; align-self:flex-start;"
-            onclick="event.stopPropagation(); startRoundFromBooking('${jsAttrEscape(b.courseName)}', '${jsAttrEscape(b.roundDate || '')}', '${jsAttrEscape(b.courseSubName || '')}')">▶ 라운드 시작</button>
+            onclick="event.stopPropagation(); startRoundFromBooking('${jsAttrEscape(b.id)}')">▶ 라운드 시작</button>
         </div>
         <div class="hb-tile hb-weather-tile" id="home-weather-tile-${b.id}" style="display:none;">
           <div class="hb-wt-icon">🌡️</div>
@@ -6348,6 +6371,32 @@ function toggleBookingSubCourseChip(name, el) {
   document.getElementById('booking-subcourse').value = selected.join(',');
 }
 
+// ===== 예약 다이얼로그 "동반자" - 이름만 등록해두면(holeEntryDialog의 동반자와 달리 예약
+// 시점엔 아직 스코어가 없다) "▶ 라운드 시작" 시 그대로 스코어 기록의 동반자로 넘어간다
+// (startRoundFromBooking → confirmRoundStart). =====
+let bookingDialogCompanions = []; // [{ name }]
+
+function renderBookingCompanions() {
+  document.getElementById('booking-companion-name-count').textContent = `${bookingDialogCompanions.length}명`;
+  document.getElementById('booking-companions-list').innerHTML = bookingDialogCompanions.map((c, i) => `
+    <div style="display:flex; gap:6px; align-items:center; margin-top:6px;">
+      <input type="text" placeholder="이름" value="${escapeHtml(c.name)}" style="flex:1; min-width:0;"
+        oninput="bookingDialogCompanions[${i}].name = this.value">
+      <button type="button" class="icon-btn" onclick="removeBookingCompanion(${i})" title="삭제">🗑️</button>
+    </div>
+  `).join('');
+}
+
+function addBookingCompanion() {
+  bookingDialogCompanions.push({ name: '' });
+  renderBookingCompanions();
+}
+
+function removeBookingCompanion(i) {
+  bookingDialogCompanions.splice(i, 1);
+  renderBookingCompanions();
+}
+
 function applyBookingToForm(b) {
   document.getElementById('booking-type').value = b.type || '본인';
   document.getElementById('booking-status').value = b.status || '가예약';
@@ -6371,6 +6420,8 @@ function applyBookingToForm(b) {
   document.getElementById('booking-memo').value = b.memo || '';
   bookingDialogSelectedCourseName = b.courseName || null;
   if (b.courseName) loadBookingSubCourseChips(b.courseName, b.courseSubName);
+  bookingDialogCompanions = (b.companions || []).map((c) => ({ name: c.name || '' }));
+  renderBookingCompanions();
 }
 
 function applyParsedToForm(parsed) {
@@ -6399,6 +6450,8 @@ function applyParsedToForm(parsed) {
   document.getElementById('booking-memo').value = parsed.memo || '';
   bookingDialogSelectedCourseName = parsed.courseName || null;
   if (parsed.courseName) loadBookingSubCourseChips(parsed.courseName, parsed.courseSubName);
+  bookingDialogCompanions = (parsed.companions || []).map((c) => ({ name: c.name || '' }));
+  renderBookingCompanions();
 }
 
 /** 다이얼로그 안에서 "직접 입력 폼" ↔ "메시지 붙여넣기" 두 모드를 전환한다. */
@@ -6450,6 +6503,8 @@ function openBookingDialog(id, defaultType, uiTab) {
   document.getElementById('booking-subcourse-chips').style.display = 'none';
   document.getElementById('booking-subcourse-chips').innerHTML = '';
   bookingDialogSelectedCourseName = null;
+  bookingDialogCompanions = [];
+  renderBookingCompanions();
   document.getElementById('bookingDialogTitle').textContent = id ? '예약 기록 수정' : '예약 기록 추가';
   bookingDialogTypeContext = id ? null : (defaultType || null);
   bookingDialogUiTab = id ? null : (uiTab || null);
@@ -6576,6 +6631,7 @@ document.getElementById('bookingForm').addEventListener('submit', async (e) => {
     paymentMethod: document.getElementById('booking-payment').value,
     reservationName: document.getElementById('booking-reservation-name').value,
     companionCount: valOrNull('booking-companion-count'),
+    companions: bookingDialogCompanions.filter((c) => c.name.trim()).map((c) => ({ name: c.name.trim() })),
     contactPhone: document.getElementById('booking-contact').value,
     homepageUrl: document.getElementById('booking-homepage').value,
     memo: document.getElementById('booking-memo').value,
