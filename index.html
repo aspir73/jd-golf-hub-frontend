@@ -1542,9 +1542,14 @@
       </div>
 
       <label>골프장명 *</label>
-      <input type="text" id="booking-course">
+      <div style="position:relative;">
+        <input type="text" id="booking-course" placeholder="예: 세현CC" autocomplete="off"
+          oninput="onBookingCourseNameInput()" onfocus="onBookingCourseNameInput()" onblur="onBookingCourseNameBlur()">
+        <div id="booking-course-name-suggestions" class="course-suggestion-list" style="display:none;"></div>
+      </div>
       <label>코스명</label>
-      <input type="text" id="booking-subcourse">
+      <div id="booking-subcourse-chips" class="chip-group" style="display:none;"></div>
+      <input type="text" id="booking-subcourse" placeholder="예: 북,서 (등록된 코스가 있으면 위에서 골라보세요)" style="margin-top:4px;">
 
       <div class="grid-2">
         <div><label>라운딩 날짜</label><input type="date" id="booking-date"></div>
@@ -1926,6 +1931,21 @@ function jsAttrEscape(str) {
     .replace(/>/g, '&gt;');
 }
 
+/** 코스이름 한 토큰을 courseInfo에 등록된 subCourse 이름과 비교하기 좋은 형태로 정리한다
+ * (양끝 공백 제거 + 끝의 "코스" 접미사 제거 - "북코스"로 파싱됐어도 등록된 이름이 "북"이면
+ * 매칭되도록). 부킹 다이얼로그의 코스명 칩 선택, 라운드 시작 시 예약 코스명 기반 OUT/IN
+ * 자동선택 두 곳에서 공용으로 쓴다. */
+function normalizeSubCourseToken(s) {
+  return (s || '').trim().replace(/코스$/, '');
+}
+
+/** 자유형식 코스명 문자열("북,서" / "북코스 → 서코스" / "북/서" 등)을 개별 코스이름 후보로
+ * 쪼갠다 - 콤마/화살표/슬래시/가운뎃점/공백 등 흔한 구분자를 모두 인정한다. */
+function splitSubCourseLabel(label) {
+  if (!label) return [];
+  return label.split(/[,、·\/→>+\s]+/).map(normalizeSubCourseToken).filter(Boolean);
+}
+
 async function loadStats(homeOnly = false) {
   try {
     const stats = await api('/api/stats');
@@ -1983,14 +2003,18 @@ async function openRoundStartDialog(preset) {
   document.getElementById('roundStartDialog').showModal();
   if (preset?.courseName) {
     document.getElementById('roundstart-course-input').value = preset.courseName;
-    await Promise.all([applyRoundStartCourseInfoByName(preset.courseName), applyRoundStartKgaRating(preset.courseName)]);
+    await Promise.all([
+      applyRoundStartCourseInfoByName(preset.courseName, preset.subCourseLabel),
+      applyRoundStartKgaRating(preset.courseName),
+    ]);
   }
 }
 
-/** "라운드 일정" 카드의 "▶ 라운드 시작" - 그 예약 건의 골프장·날짜를 그대로 라운드 시작
- * 다이얼로그에 채워서 바로 이어지게 한다(스코어 입력까지 몇 번의 탭만에 도달). */
-function startRoundFromBooking(courseName, date) {
-  openRoundStartDialog({ courseName, date });
+/** "라운드 일정" 카드의 "▶ 라운드 시작" - 그 예약 건의 골프장·날짜·코스명을 그대로 라운드 시작
+ * 다이얼로그에 채워서 바로 이어지게 한다(스코어 입력까지 몇 번의 탭만에 도달). 코스명(예: "북,서")은
+ * applyRoundStartCourseInfoByName이 등록된 코스정보의 OUT/IN을 자동으로 맞춰보는 데 쓴다. */
+function startRoundFromBooking(courseName, date, subCourseLabel) {
+  openRoundStartDialog({ courseName, date, subCourseLabel });
 }
 
 function onRoundStartCourseInput() {
@@ -2157,8 +2181,10 @@ function refreshRoundStartRatingVisibility() {
 }
 
 /** 골프장명으로 코스정보를 조회해서 OUT/IN 선택 UI(또는 없음 안내)를 채운다.
- * "코스정보 추가" 다이얼로그에서 저장하고 돌아왔을 때도 재사용. */
-async function applyRoundStartCourseInfoByName(courseName) {
+ * "코스정보 추가" 다이얼로그에서 저장하고 돌아왔을 때도 재사용. presetSubCourseLabel을 주면
+ * (라운드 일정 카드의 "▶ 라운드 시작"에서 예약된 코스명을 넘겨준 경우) 그 이름과 일치하는
+ * 코스를 OUT/IN에 자동으로 골라준다 - startRoundFromBooking 참고. */
+async function applyRoundStartCourseInfoByName(courseName, presetSubCourseLabel) {
   const status = document.getElementById('roundstart-course-status');
   status.innerHTML = '조회 중...';
   try {
@@ -2172,7 +2198,7 @@ async function applyRoundStartCourseInfoByName(courseName) {
       if (roundStartKgaRating) renderRoundStartKgaSection();
       return;
     }
-    status.innerHTML = `✅ 등록된 코스 ${courseInfo.subCourses.length}개 (총 ${courseInfo.subCourses.reduce((s, sc) => s + sc.holes.length, 0)}홀)`;
+    let statusText = `✅ 등록된 코스 ${courseInfo.subCourses.length}개 (총 ${courseInfo.subCourses.reduce((s, sc) => s + sc.holes.length, 0)}홀)`;
     refreshRoundStartRatingVisibility();
     const subCourses = courseInfo.subCourses;
     if (subCourses.length === 1) {
@@ -2185,10 +2211,27 @@ async function applyRoundStartCourseInfoByName(courseName) {
       const opts = subCourses.map((sc, i) => `<option value="${i}">${escapeHtml(sc.name)} (${sc.holes.length}홀)</option>`).join('');
       outSel.innerHTML = opts;
       inSel.innerHTML = opts;
-      outSel.value = 0;
-      inSel.value = subCourses.length > 1 ? 1 : 0;
+
+      const presetTokens = splitSubCourseLabel(presetSubCourseLabel);
+      const matchedIdxs = presetTokens
+        .map((t) => subCourses.findIndex((sc) => normalizeSubCourseToken(sc.name) === t))
+        .filter((i) => i >= 0);
+      if (matchedIdxs.length >= 2) {
+        outSel.value = matchedIdxs[0];
+        inSel.value = matchedIdxs[1];
+        statusText += ` · 예약 코스명 "${escapeHtml(presetSubCourseLabel)}" 기준으로 자동 선택했어요`;
+      } else if (matchedIdxs.length === 1) {
+        outSel.value = matchedIdxs[0];
+        inSel.value = matchedIdxs[0];
+        statusText += ` · 예약 코스명 "${escapeHtml(presetSubCourseLabel)}" 기준으로 자동 선택했어요`;
+      } else {
+        outSel.value = 0;
+        inSel.value = subCourses.length > 1 ? 1 : 0;
+        if (presetTokens.length) statusText += ` · 예약 코스명 "${escapeHtml(presetSubCourseLabel)}"과 일치하는 코스를 못 찾아 기본값을 선택했어요`;
+      }
       rebuildRoundStartHoles(); // 이 안에서 KGA 섹션도 같이 갱신됨
     }
+    status.innerHTML = statusText;
     updateRoundStartRatingInfo();
     if (roundStartKgaRating) renderRoundStartKgaSection();
   } catch (e) {
@@ -6151,7 +6194,7 @@ function renderHomeBookingList(bookings) {
           ${travelText || costText ? `<div class="sub">${[travelText, costText].filter(Boolean).join(' · ')}</div>` : ''}
           <div class="tags"><span class="tag">${escapeHtml(b.status)}</span></div>
           <button type="button" class="btn secondary" style="margin-top:6px; padding:5px 10px; font-size:12px; align-self:flex-start;"
-            onclick="event.stopPropagation(); startRoundFromBooking('${jsAttrEscape(b.courseName)}', '${jsAttrEscape(b.roundDate || '')}')">▶ 라운드 시작</button>
+            onclick="event.stopPropagation(); startRoundFromBooking('${jsAttrEscape(b.courseName)}', '${jsAttrEscape(b.roundDate || '')}', '${jsAttrEscape(b.courseSubName || '')}')">▶ 라운드 시작</button>
         </div>
         <div class="hb-tile hb-weather-tile" id="home-weather-tile-${b.id}" style="display:none;">
           <div class="hb-wt-icon">🌡️</div>
@@ -6214,6 +6257,97 @@ async function loadHomeWeatherTiles(bookings) {
   await loadWeatherTilesGeneric(bookings.map((b) => ({ tileId: `home-weather-tile-${b.id}`, courseName: b.courseName, date: b.roundDate })));
 }
 
+// ===== 예약 다이얼로그 "골프장명"/"코스명" 검색 선택 - roundStartDialog의 자동완성/코스정보
+// 조회 패턴(onRoundStartCourseInput/applyRoundStartCourseInfoByName)과 같은 구조. 코스명을
+// 등록된 courseInfo의 실제 이름으로 맞춰두면, 나중에 "라운드 일정" 카드에서 "▶ 라운드 시작"을
+// 눌렀을 때 그 이름으로 OUT/IN을 자동으로 골라줄 수 있다(applyRoundStartCourseInfoByName 참고). =====
+let bookingDialogCourseDebounceTimer = null;
+// 자동완성에서 이미 확정한 골프장명 - 값이 이거면 blur 핸들러가 코스명 칩을 다시 조회/재렌더링하지
+// 않는다. 없으면(suggestion 클릭 직후 포커스가 옮겨가며 발생하는 blur가) 방금 클릭한 코스명 칩의
+// 선택 상태를 지워버리는 레이스가 있었다(roundStartDialog의 roundStartSelectedCourse와 동일한 이유).
+let bookingDialogSelectedCourseName = null;
+
+function onBookingCourseNameInput() {
+  bookingDialogSelectedCourseName = null;
+  document.getElementById('booking-subcourse-chips').style.display = 'none';
+  document.getElementById('booking-subcourse-chips').innerHTML = '';
+  const box = document.getElementById('booking-course-name-suggestions');
+  const q = document.getElementById('booking-course').value.trim();
+  if (bookingDialogCourseDebounceTimer) clearTimeout(bookingDialogCourseDebounceTimer);
+  if (q.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  bookingDialogCourseDebounceTimer = setTimeout(async () => {
+    try {
+      const { courses } = await api(`/api/golf-db/search?query=${encodeURIComponent(q)}`);
+      if (document.activeElement !== document.getElementById('booking-course')) return;
+      if (!courses.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+      box.dataset.courses = JSON.stringify(courses.slice(0, 8));
+      box.innerHTML = courses.slice(0, 8).map((c, idx) =>
+        `<div class="course-suggestion-item" onclick="selectBookingCourseName(${idx})">${escapeHtml(c.name)} <span class="muted" style="font-size:11px;">${escapeHtml(c.region || '')}</span></div>`
+      ).join('');
+      box.style.display = 'block';
+    } catch {
+      box.style.display = 'none';
+    }
+  }, 300);
+}
+
+async function selectBookingCourseName(idx) {
+  const box = document.getElementById('booking-course-name-suggestions');
+  const courses = JSON.parse(box.dataset.courses || '[]');
+  const course = courses[idx];
+  if (!course) return;
+  document.getElementById('booking-course').value = course.name;
+  bookingDialogSelectedCourseName = course.name;
+  box.style.display = 'none';
+  await loadBookingSubCourseChips(course.name);
+}
+
+/** 자동완성 목록에 없는 골프장명을 직접 타이핑하고 포커스를 벗어난 경우에도 코스명 칩은
+ * 조회해서 보여준다(roundStartDialog의 onRoundStartCourseBlur와 동일한 이유의 지연 처리).
+ * 이미 자동완성으로 확정한 이름이면 다시 조회하지 않는다(위 bookingDialogSelectedCourseName 참고 -
+ * 안 그러면 코스명 칩을 막 클릭한 직후에 목록이 새로 그려지며 선택이 지워지는 레이스가 있었다). */
+function onBookingCourseNameBlur() {
+  setTimeout(() => {
+    document.getElementById('booking-course-name-suggestions').style.display = 'none';
+    const name = document.getElementById('booking-course').value.trim();
+    if (!name || name === bookingDialogSelectedCourseName) return;
+    loadBookingSubCourseChips(name);
+  }, 200);
+}
+
+/** 골프장에 등록된 코스정보(courseInfo)가 있으면 서브코스 이름을 칩으로 보여줘서, 코스명을
+ * 직접 타이핑하지 않고 실제 등록된 이름 중에서 골라 넣을 수 있게 한다("코스명" 입력칸에는
+ * 선택한 이름들이 콤마로 이어져 그대로 채워진다). 등록된 코스정보가 없는 골프장은 칩 없이
+ * 기존처럼 직접 입력만 가능(하위호환). presetLabel을 주면(수정/메시지 등록 시 이미 있는
+ * 코스명) 일치하는 칩을 미리 선택된 상태로 보여준다. */
+async function loadBookingSubCourseChips(courseName, presetLabel) {
+  const chipsEl = document.getElementById('booking-subcourse-chips');
+  try {
+    const { courseInfo } = await api(`/api/course-info?courseName=${encodeURIComponent(courseName)}`);
+    if (!courseInfo || !courseInfo.subCourses.length) {
+      chipsEl.style.display = 'none';
+      chipsEl.innerHTML = '';
+      return;
+    }
+    const presetTokens = splitSubCourseLabel(presetLabel);
+    const selectedNames = new Set(courseInfo.subCourses.map((sc) => sc.name).filter((name) => presetTokens.includes(normalizeSubCourseToken(name))));
+    chipsEl.innerHTML = courseInfo.subCourses.map((sc) =>
+      `<span class="chip${selectedNames.has(sc.name) ? ' selected' : ''}" onclick="toggleBookingSubCourseChip('${jsAttrEscape(sc.name)}', this)">${escapeHtml(sc.name)}</span>`
+    ).join('');
+    chipsEl.style.display = '';
+    if (selectedNames.size) document.getElementById('booking-subcourse').value = [...selectedNames].join(',');
+  } catch {
+    chipsEl.style.display = 'none';
+    chipsEl.innerHTML = '';
+  }
+}
+
+function toggleBookingSubCourseChip(name, el) {
+  el.classList.toggle('selected');
+  const selected = [...document.querySelectorAll('#booking-subcourse-chips .chip.selected')].map((c) => c.textContent);
+  document.getElementById('booking-subcourse').value = selected.join(',');
+}
+
 function applyBookingToForm(b) {
   document.getElementById('booking-type').value = b.type || '본인';
   document.getElementById('booking-status').value = b.status || '가예약';
@@ -6235,6 +6369,8 @@ function applyBookingToForm(b) {
   document.getElementById('booking-contact').value = b.contactPhone || '';
   document.getElementById('booking-homepage').value = b.homepageUrl || '';
   document.getElementById('booking-memo').value = b.memo || '';
+  bookingDialogSelectedCourseName = b.courseName || null;
+  if (b.courseName) loadBookingSubCourseChips(b.courseName, b.courseSubName);
 }
 
 function applyParsedToForm(parsed) {
@@ -6261,6 +6397,8 @@ function applyParsedToForm(parsed) {
   document.getElementById('booking-contact').value = parsed.contactPhone || '';
   document.getElementById('booking-homepage').value = parsed.homepageUrl || '';
   document.getElementById('booking-memo').value = parsed.memo || '';
+  bookingDialogSelectedCourseName = parsed.courseName || null;
+  if (parsed.courseName) loadBookingSubCourseChips(parsed.courseName, parsed.courseSubName);
 }
 
 /** 다이얼로그 안에서 "직접 입력 폼" ↔ "메시지 붙여넣기" 두 모드를 전환한다. */
@@ -6308,6 +6446,10 @@ function openBookingDialog(id, defaultType, uiTab) {
   document.getElementById('booking-dialog-message-status').textContent = '';
   document.getElementById('booking-dialog-message-status').style.color = '';
   setBookingMessageMode(false);
+  document.getElementById('booking-course-name-suggestions').style.display = 'none';
+  document.getElementById('booking-subcourse-chips').style.display = 'none';
+  document.getElementById('booking-subcourse-chips').innerHTML = '';
+  bookingDialogSelectedCourseName = null;
   document.getElementById('bookingDialogTitle').textContent = id ? '예약 기록 수정' : '예약 기록 추가';
   bookingDialogTypeContext = id ? null : (defaultType || null);
   bookingDialogUiTab = id ? null : (uiTab || null);
@@ -6357,6 +6499,9 @@ function openBookingReviewDialog(parsed, matchedBookingId, matchedBooking) {
   document.getElementById('booking-status-row').style.display = 'none';
   document.getElementById('booking-delete-btn').style.display = 'none';
   setBookingMessageMode(false);
+  document.getElementById('booking-course-name-suggestions').style.display = 'none';
+  document.getElementById('booking-subcourse-chips').style.display = 'none';
+  document.getElementById('booking-subcourse-chips').innerHTML = '';
   applyParsedToForm(parsed);
   const notice = document.getElementById('booking-match-notice');
   notice.style.display = 'block';
