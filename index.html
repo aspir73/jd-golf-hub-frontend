@@ -1055,10 +1055,19 @@
     </div>
   </section>
 
-  <!-- 날씨 -->
+  <!-- 날씨 - 제일 위에 "예약된 골프장"(라운드 일정에 맞춰 자동 추가/삭제 - syncWeatherSearchCoursesWithBookings)을
+       두고, 그 아래 사용자가 직접 검색해서 관리하는 "MY 골프장 날씨"를 배치한다. 둘 다 같은
+       weatherSearchCourses 배열을 source로 나눠서 그릴 뿐, 예보 조회 로직(7일 요약/시간별 전환)은
+       공통이다(renderWeatherSearchCourses 참고). -->
   <section id="tab-weather" class="tab-panel">
+    <div class="card" id="weather-booking-card" style="display:none;">
+      <h2>📅 예약된 골프장 날씨</h2>
+      <div class="muted" style="font-size:12px; margin-top:2px;">"라운드 일정"에 등록된 예약에 맞춰 자동으로 추가·삭제됩니다.</div>
+      <div id="weather-booking-courses" style="margin-top:10px;"></div>
+    </div>
+
     <div class="card">
-      <h2>⛳ 골프장 날씨 검색</h2>
+      <h2>⭐ MY 골프장 날씨</h2>
       <div class="muted" style="font-size:12px; margin-top:2px;">골프장을 검색해서 추가하면 7일 온도·강우 예보를 보여줍니다.</div>
       <label style="margin-top:10px;">골프장 이름으로 검색</label>
       <div style="display:flex; gap:6px;">
@@ -1066,7 +1075,7 @@
           onkeydown="if(event.key==='Enter'){event.preventDefault(); addWeatherSearchCourse();}">
         <button type="button" class="btn secondary" onclick="addWeatherSearchCourse()">추가</button>
       </div>
-      <div id="weather-search-courses" style="margin-top:10px;"></div>
+      <div id="weather-my-courses" style="margin-top:10px;"></div>
     </div>
   </section>
 
@@ -1831,24 +1840,34 @@ function findUpcomingBookingForCourse(courseName) {
     .sort((a, b) => (a.roundDate < b.roundDate ? -1 : 1))[0] || null;
 }
 
+/** "예약된 골프장 날씨"(상단, source:'booking', 자동 관리)와 "MY 골프장 날씨"(하단, 수동 검색·
+ * 추가/삭제)를 같은 weatherSearchCourses 배열에서 source로 나눠 각자의 컨테이너에 그린다. 카드
+ * 안 body id는 배열의 실제 인덱스를 그대로 쓰므로(그룹별로 다시 매기지 않음)
+ * removeWeatherSearchCourse/loadWeatherSearchCourseForecast는 그대로 재사용된다. */
 function renderWeatherSearchCourses() {
-  const el = document.getElementById('weather-search-courses');
-  if (!el) return;
-  if (!weatherSearchCourses.length) {
-    el.innerHTML = '<div class="empty">검색해서 추가한 골프장이 없습니다.</div>';
-    return;
-  }
-  el.innerHTML = weatherSearchCourses.map((c, i) => `
+  const bookingCard = document.getElementById('weather-booking-card');
+  const bookingEl = document.getElementById('weather-booking-courses');
+  const myEl = document.getElementById('weather-my-courses');
+  if (!bookingEl || !myEl) return;
+
+  const cardHtml = (c, i) => `
     <div style="margin-top:14px;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-weight:700; font-size:14px;">${escapeHtml(c.name)}${c.source === 'booking' ? ' <span class="tag" style="font-size:10px; vertical-align:middle;">예약됨</span>' : ''}</div>
+        <div style="font-weight:700; font-size:14px;">${escapeHtml(c.name)}</div>
         <button type="button" class="icon-btn" onclick="removeWeatherSearchCourse(${i})" title="이 골프장 삭제">🗑️</button>
       </div>
       <div id="weather-search-course-body-${i}" style="margin-top:4px;">
         <div class="muted" style="font-size:12px;">불러오는 중...</div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+
+  const bookingEntries = weatherSearchCourses.map((c, i) => ({ c, i })).filter((x) => x.c.source === 'booking');
+  const myEntries = weatherSearchCourses.map((c, i) => ({ c, i })).filter((x) => x.c.source !== 'booking');
+
+  if (bookingCard) bookingCard.style.display = bookingEntries.length ? '' : 'none';
+  bookingEl.innerHTML = bookingEntries.map(({ c, i }) => cardHtml(c, i)).join('');
+  myEl.innerHTML = myEntries.length ? myEntries.map(({ c, i }) => cardHtml(c, i)).join('') : '<div class="empty">검색해서 추가한 골프장이 없습니다.</div>';
+
   weatherSearchCourses.forEach((c, i) => loadWeatherSearchCourseForecast(c, i));
 }
 
