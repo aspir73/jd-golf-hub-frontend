@@ -351,11 +351,14 @@
   .home-booking-item {
     display: flex;
     align-items: stretch;
+    flex-wrap: wrap; /* "라운드 일정" 카드가 라운딩 전날~당일이면 시간별 상세 줄(.home-booking-hourly)을
+                         4번째 자식으로 아래에 새 줄로 떨어뜨리기 위함(watch 카드는 3개뿐이라 영향 없음) */
     gap: 10px;
     padding: 14px 0;
     border-bottom: 1px solid var(--border);
   }
   .home-booking-item:last-child { border-bottom: none; }
+  .home-booking-hourly { flex: 1 1 100%; margin-top: 4px; }
   .hb-tile {
     flex: 0 0 76px;
     display: flex;
@@ -1919,6 +1922,41 @@ function isoDateAddDaysClient(isoDateStr, days) {
 /** 라운딩 전날~당일 시간별 상세 예보 - 전날 00시부터 티타임+6시간까지(요청 사양)를 가로 스크롤
  * 칩으로 보여준다. 티타임이 없으면(메시지에서 못 읽었거나 직접 안 채운 경우) 통상적인 오전
  * 티타임(09:00)을 기본값으로 잡아서라도 표시는 되게 한다. */
+/** 예약된 골프장의 "전날~당일 시간별 상세" 로직 - 날씨 탭 카드/홈 탭 "라운드 일정" 카드 둘 다
+ * 여기서 공유한다(cutoffHoursToTeeTimePlus6h/renderHourChipsHtml). 티타임이 없으면(메시지에서
+ * 못 읽었거나 직접 안 채운 경우) 통상적인 오전 티타임(09:00)을 기본값으로 잡아서라도 표시는
+ * 되게 한다. */
+function cutoffHoursToTeeTimePlus6h(allHours, roundDate, roundTime) {
+  const teeTime = /^\d{1,2}:\d{2}$/.test(roundTime || '') ? roundTime : '09:00';
+  const cutoff = new Date(`${roundDate}T${teeTime}`);
+  cutoff.setHours(cutoff.getHours() + 6);
+  return { hours: allHours.filter((h) => new Date(h.time) <= cutoff), teeTime };
+}
+
+function renderHourChipsHtml(hours) {
+  const nowStr = new Date().toISOString().slice(0, 13); // "YYYY-MM-DDTHH" 시간 단위 비교
+  let lastDate = null;
+  return `
+    <div class="weather-hourly-scroll">
+      ${hours.map((h) => {
+        const [datePart, timePart] = h.time.split('T');
+        const isNewDay = datePart !== lastDate;
+        lastDate = datePart;
+        const dateObj = new Date(`${datePart}T00:00:00`);
+        const dayLabel = `${dateObj.getMonth() + 1}/${dateObj.getDate()}(${GOLF_WEATHER_WEEKDAY[dateObj.getDay()]})`;
+        const isNow = h.time.slice(0, 13) === nowStr;
+        return `
+          <div class="weather-hour-chip${isNow ? ' is-now' : ''}">
+            ${isNewDay ? `<div class="d">${dayLabel}</div>` : ''}
+            <div class="t">${timePart.slice(0, 2)}시</div>
+            <div class="sky">${GOLF_WEATHER_SKY_ICON[h.sky] || '-'}</div>
+            <div class="temp">${h.temp ?? '-'}°</div>
+            <div class="pop">☔${h.pop ?? 0}%</div>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
 async function loadWeatherSearchCourseHourly(course, index, booking) {
   const body = document.getElementById(`weather-search-course-body-${index}`);
   if (!body) return;
@@ -1926,34 +1964,10 @@ async function loadWeatherSearchCourseHourly(course, index, booking) {
     const data = await api(`/api/weather/course-hourly?lat=${course.lat}&lon=${course.lon}&roundDate=${booking.roundDate}`);
     const allHours = data.hours || [];
     if (!allHours.length) { body.innerHTML = '<div class="muted" style="font-size:12px;">데이터가 없습니다.</div>'; return; }
-
-    const teeTime = /^\d{1,2}:\d{2}$/.test(booking.roundTime || '') ? booking.roundTime : '09:00';
-    const cutoff = new Date(`${booking.roundDate}T${teeTime}`);
-    cutoff.setHours(cutoff.getHours() + 6);
-    const hours = allHours.filter((h) => new Date(h.time) <= cutoff);
-
-    const nowStr = new Date().toISOString().slice(0, 13); // "YYYY-MM-DDTHH" 시간 단위 비교
-    let lastDate = null;
+    const { hours, teeTime } = cutoffHoursToTeeTimePlus6h(allHours, booking.roundDate, booking.roundTime);
     body.innerHTML = `
       <div class="muted" style="font-size:11px; margin-bottom:4px;">📅 ${escapeHtml(booking.roundDate)} 티타임 ${escapeHtml(booking.roundTime || teeTime + '(추정)')} 기준 - 전날부터 티타임+6시간까지</div>
-      <div class="weather-hourly-scroll">
-        ${hours.map((h) => {
-          const [datePart, timePart] = h.time.split('T');
-          const isNewDay = datePart !== lastDate;
-          lastDate = datePart;
-          const dateObj = new Date(`${datePart}T00:00:00`);
-          const dayLabel = `${dateObj.getMonth() + 1}/${dateObj.getDate()}(${GOLF_WEATHER_WEEKDAY[dateObj.getDay()]})`;
-          const isNow = h.time.slice(0, 13) === nowStr;
-          return `
-            <div class="weather-hour-chip${isNow ? ' is-now' : ''}">
-              ${isNewDay ? `<div class="d">${dayLabel}</div>` : ''}
-              <div class="t">${timePart.slice(0, 2)}시</div>
-              <div class="sky">${GOLF_WEATHER_SKY_ICON[h.sky] || '-'}</div>
-              <div class="temp">${h.temp ?? '-'}°</div>
-              <div class="pop">☔${h.pop ?? 0}%</div>
-            </div>`;
-        }).join('')}
-      </div>`;
+      ${renderHourChipsHtml(hours)}`;
   } catch (e) {
     body.innerHTML = `<div class="muted" style="font-size:12px;">조회 실패: ${escapeHtml(e.message)}</div>`;
   }
@@ -6539,6 +6553,7 @@ function renderHomeBookingList(bookings) {
   card.style.display = upcoming.length ? 'block' : 'none';
   if (!upcoming.length) return;
 
+  const hourlyBookings = []; // 전날(D-1)·당일(D-DAY) 예약만 모아서 아래에서 따로 로드
   document.getElementById('home-booking-list').innerHTML = upcoming.map((b) => {
     const dateObj = parseRoundDateLocal(b.roundDate);
     const days = dateObj ? daysUntil(dateObj) : null;
@@ -6548,6 +6563,10 @@ function renderHomeBookingList(bookings) {
     const travelText = b.distanceKm != null ? `🚗 ${b.distanceKm}km (약 ${b.durationMin}분)` : '';
     const cost = estimatedPersonalCost(b);
     const costText = cost != null ? `💰 1인 예상 ${cost.toLocaleString('ko-KR')}원` : '';
+    // 라운딩 전날(D-1)·당일(D-DAY)이면 오른쪽의 간단한 아이콘+기온 타일 대신, 카드 아래에 티타임
+    // +6시간까지 시간별 상세를 펼쳐 보여준다(날씨 탭 예약 카드와 같은 로직 - loadHomeBookingHourly).
+    const showHourly = days === 0 || days === 1;
+    if (showHourly) hourlyBookings.push(b);
     return `
       <div class="home-booking-item" onclick="openBookingDialog('${b.id}')" style="cursor:pointer;">
         <div class="hb-tile hb-date-tile">
@@ -6562,14 +6581,40 @@ function renderHomeBookingList(bookings) {
           <button type="button" class="btn secondary" style="margin-top:6px; padding:5px 10px; font-size:12px; align-self:flex-start;"
             onclick="event.stopPropagation(); startRoundFromBooking('${jsAttrEscape(b.id)}')">▶ 라운드 시작</button>
         </div>
+        ${showHourly ? '' : `
         <div class="hb-tile hb-weather-tile" id="home-weather-tile-${b.id}" style="display:none;">
           <div class="hb-wt-icon">🌡️</div>
           <div class="hb-wt-temp">-</div>
-        </div>
+        </div>`}
+        ${showHourly ? `
+        <div class="home-booking-hourly" id="home-booking-hourly-${b.id}" onclick="event.stopPropagation();">
+          <div class="muted" style="font-size:11px;">시간별 예보 불러오는 중...</div>
+        </div>` : ''}
       </div>
     `;
   }).join('');
-  loadHomeWeatherTiles(upcoming);
+  const hourlyIds = new Set(hourlyBookings.map((b) => b.id));
+  loadHomeWeatherTiles(upcoming.filter((b) => !hourlyIds.has(b.id)));
+  hourlyBookings.forEach((b) => loadHomeBookingHourly(b));
+}
+
+/** "라운드 일정" 카드의 전날~당일 시간별 상세(날씨 탭 예약 카드와 같은 데이터/포맷 -
+ * cutoffHoursToTeeTimePlus6h/renderHourChipsHtml 재사용). 카드 클릭(상세보기)과 겹치지 않게
+ * 이 블록 자체에 stopPropagation을 걸어뒀다(마크업 쪽 onclick 참고). */
+async function loadHomeBookingHourly(b) {
+  const el = document.getElementById(`home-booking-hourly-${b.id}`);
+  if (!el) return;
+  try {
+    const resolved = await resolveCourseCoords(b.courseName);
+    if (!resolved) { el.innerHTML = ''; return; } // 좌표를 못 찾으면 조용히 생략(부가 정보라 카드 자체를 막을 정도는 아님)
+    const data = await api(`/api/weather/course-hourly?lat=${resolved.lat}&lon=${resolved.lon}&roundDate=${b.roundDate}`);
+    const allHours = data.hours || [];
+    if (!allHours.length) { el.innerHTML = ''; return; }
+    const { hours } = cutoffHoursToTeeTimePlus6h(allHours, b.roundDate, b.roundTime);
+    el.innerHTML = renderHourChipsHtml(hours);
+  } catch {
+    el.innerHTML = ''; // 실패해도 조용히 생략 - 카드 자체(예약 정보)는 그대로 보여준다
+  }
 }
 
 /** 홈 탭 [날씨 타일]을 채우는 공통 로직 - "라운드 일정" 카드(라운딩 날짜)와 "티타임 워치" 카드
