@@ -459,7 +459,16 @@
   .score-mark.m-doublebogey { border-radius: 3px; border: 3px double var(--danger); color: var(--danger); }
   .mulligan-mark { position: absolute; top: 0; right: 1px; font-size: 8px; color: var(--green-dark); font-weight: 700; }
 
-  .hole-entry-main { text-align: center; margin-top: 18px; }
+  /* 좌우로 밀어서 홀을 이동한다(initHoleSwipeNav) - 세로 스크롤은 그대로 되게 pan-y만 허용하고
+     가로 드래그는 JS가 pointer 이벤트로 직접 처리한다. 드래그 중엔 transition을 꺼서 손가락을
+     따라 즉시 움직이고, 손을 떼는 순간(.dragging 제거)만 다시 부드럽게 스냅된다. */
+  .hole-entry-main { text-align: center; margin-top: 18px; touch-action: pan-y; transition: transform 0.2s ease; }
+  .hole-entry-main.dragging { transition: none; }
+  .hole-swipe-hint {
+    display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px;
+    font-size: 12px; color: var(--muted);
+  }
+  .hole-swipe-arrow { font-size: 16px; font-weight: 700; transition: opacity 0.2s ease; }
   .hole-entry-header { display: flex; justify-content: center; align-items: baseline; gap: 8px; }
   .hole-entry-num { font-size: 21px; font-weight: 800; }
   .hole-entry-par { font-size: 14px; color: var(--muted); font-weight: 600; }
@@ -1303,7 +1312,7 @@
       <table class="scorecard-table" id="scorecard-table"></table>
     </div>
 
-    <div class="hole-entry-main">
+    <div class="hole-entry-main" id="hole-entry-main">
       <div class="hole-entry-header">
         <span class="hole-entry-num" id="hole-entry-num">1번홀</span>
         <span class="hole-entry-par" id="hole-entry-par">PAR 4</span>
@@ -1357,11 +1366,12 @@
       <div class="muted" id="hole-entry-savestatus" style="font-size:11px; height:14px; margin-top:6px;"></div>
     </div>
 
-    <div class="grid-2" style="margin-top:14px;">
-      <button type="button" class="btn secondary" id="hole-entry-prev-btn" onclick="goToHole(currentHoleIndex - 1)">◀ 이전 홀</button>
-      <button type="button" class="btn" id="hole-entry-next-btn" onclick="goToHole(currentHoleIndex + 1)">다음 홀 ▶</button>
+    <div class="hole-swipe-hint" id="hole-entry-swipe-hint">
+      <span class="hole-swipe-arrow hole-swipe-arrow-left">‹</span>
+      좌우로 밀어서 홀 이동
+      <span class="hole-swipe-arrow hole-swipe-arrow-right">›</span>
     </div>
-    <button type="button" class="btn block" id="hole-entry-finish-btn" style="margin-top:8px; display:none;" onclick="finishRound()">🏁 라운드 종료</button>
+    <button type="button" class="btn block" id="hole-entry-finish-btn" style="margin-top:8px;" onclick="finishRound()">🏁 라운드 종료</button>
 
     <div style="margin-top:14px; text-align:center;">
       <a href="#" style="font-size:12px; color:var(--muted);" onclick="toggleHoleEntryExtra(event)">＋ 동반자 스코어·코스평점·메모 (선택)</a>
@@ -2522,6 +2532,66 @@ function goToHole(i) {
   scheduleHoleEntryAutosave();
 }
 
+// ===== 홀 이동을 버튼 대신 좌우 스와이프로(Pointer Events - 터치/마우스 공용) =====
+// 요소는 다이얼로그가 열릴 때마다 새로 그려지지 않고 index.html에 고정돼 있으므로, 리스너는
+// DOMContentLoaded에서 한 번만 붙이면 된다(goToHole처럼 홀이 바뀔 때마다 다시 붙일 필요 없음).
+const HOLE_SWIPE_THRESHOLD = 60; // px - 이보다 짧게 밀면 그냥 탭/스크롤로 보고 무시
+const HOLE_SWIPE_CLAIM_DISTANCE = 10; // px - 이만큼 가로로 움직이기 전엔 "드래그"로 확정하지 않는다
+let holeSwipeStartX = 0;
+let holeSwipeStartY = 0;
+let holeSwipeDeltaX = 0;
+let holeSwipeTracking = false; // pointerdown~pointerup 사이(아직 드래그인지 탭인지 모름)
+let holeSwipeConfirmed = false; // 가로 이동이 임계값을 넘어서 "이건 스와이프다"라고 확정된 상태
+let holeSwipePointerId = null;
+
+function initHoleSwipeNav() {
+  const el = document.getElementById('hole-entry-main');
+  if (!el) return;
+
+  el.addEventListener('pointerdown', (e) => {
+    holeSwipeTracking = true;
+    holeSwipeConfirmed = false;
+    holeSwipePointerId = e.pointerId;
+    holeSwipeStartX = e.clientX;
+    holeSwipeStartY = e.clientY;
+    holeSwipeDeltaX = 0;
+    // 여기서는 아직 포인터를 캡처하지도, transform을 건드리지도 않는다 - 스테퍼 +/−나
+    // 체크박스 같은 버튼 위에서 시작한 "탭"까지 스와이프로 가로채면 그 버튼들의 클릭이
+    // 씹혀버린다(실측된 버그). 실제로 가로로 일정 거리 이상 움직였을 때만(pointermove 참고)
+    // "이건 탭이 아니라 스와이프다"로 확정해서 그때부터 캡처·transform을 시작한다.
+  });
+
+  el.addEventListener('pointermove', (e) => {
+    if (!holeSwipeTracking || e.pointerId !== holeSwipePointerId) return;
+    const dx = e.clientX - holeSwipeStartX;
+    const dy = e.clientY - holeSwipeStartY;
+    if (!holeSwipeConfirmed) {
+      if (Math.abs(dx) < HOLE_SWIPE_CLAIM_DISTANCE || Math.abs(dx) <= Math.abs(dy)) return; // 아직 탭일 수도 있음(또는 세로 스크롤 의도)
+      holeSwipeConfirmed = true;
+      el.classList.add('dragging');
+      try { el.setPointerCapture(e.pointerId); } catch {}
+    }
+    holeSwipeDeltaX = dx;
+    el.style.transform = `translateX(${dx}px)`;
+  });
+
+  const endSwipe = (e) => {
+    if (!holeSwipeTracking || (e.pointerId != null && e.pointerId !== holeSwipePointerId)) return;
+    holeSwipeTracking = false;
+    if (holeSwipeConfirmed) {
+      holeSwipeConfirmed = false;
+      el.classList.remove('dragging');
+      el.style.transform = '';
+      if (holeSwipeDeltaX <= -HOLE_SWIPE_THRESHOLD) goToHole(currentHoleIndex + 1);
+      else if (holeSwipeDeltaX >= HOLE_SWIPE_THRESHOLD) goToHole(currentHoleIndex - 1);
+    }
+    // 확정된 적 없으면(=그냥 탭) 아무것도 안 건드렸으니 원래 클릭이 그대로 발생한다.
+    holeSwipeDeltaX = 0;
+  };
+  el.addEventListener('pointerup', endSwipe);
+  el.addEventListener('pointercancel', endSwipe);
+}
+
 /** 지금까지 기록한 모든 홀을 한눈에 보여주는 스코어카드 표(1~9/OUT/10~18/IN/TOT) + 상단 합계.
  * 각 칸을 탭하면 그 홀로 바로 이동(기존 점 네비게이션을 대체) - 파 정보와 버디/보기 표기까지
  * 한 화면에서 누적으로 볼 수 있게 했다. */
@@ -2684,10 +2754,10 @@ function renderCurrentHole() {
   const diffText = d === 0 ? 'E' : (d > 0 ? `+${d}` : `${d}`);
   termEl.textContent = `${holeScoreTerm(h.par, h.score)} (${diffText})`;
 
-  document.getElementById('hole-entry-prev-btn').disabled = currentHoleIndex === 0;
-  const isLast = currentHoleIndex === holeEntryHoles.length - 1;
-  document.getElementById('hole-entry-next-btn').style.display = isLast ? 'none' : '';
-  document.getElementById('hole-entry-finish-btn').style.display = isLast ? '' : 'none';
+  // 버튼 대신 좌우 스와이프로 홀을 이동하므로(initHoleSwipeNav 참고), 첫/마지막 홀에서는
+  // 더 밀 수 없는 방향의 화살표 힌트를 흐리게 표시해서 경계를 알려준다.
+  document.getElementById('hole-entry-swipe-hint').querySelector('.hole-swipe-arrow-left').style.opacity = currentHoleIndex === 0 ? '0.25' : '1';
+  document.getElementById('hole-entry-swipe-hint').querySelector('.hole-swipe-arrow-right').style.opacity = currentHoleIndex === holeEntryHoles.length - 1 ? '0.25' : '1';
 }
 
 function adjustHoleValue(field, delta) {
@@ -6824,6 +6894,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadWatches();
   loadGolfWeatherBoard();
   onRoundSearchPlatformChange();
+  initHoleSwipeNav();
 });
 </script>
 </body>
