@@ -326,7 +326,7 @@
     font-size: 11px;
   }
 
-  /* 홈 탭 "예약 일정" 카드: [D-day 타일] [본문] [날씨 타일] 가로 배치.
+  /* 홈 탭 "라운드 일정" 카드: [D-day 타일] [본문] [날씨 타일] 가로 배치.
      날짜("8/16(토)")를 주인공으로 크게, D-day는 그 아래 작은 배지로 보조 정보만 되게 구성 -
      날씨 타일도 같은 높이·굵기 톤으로 맞춰서 두 타일이 세트처럼 보이게 했다. */
   .home-booking-item {
@@ -590,7 +590,7 @@
          있게 보여준다. renderBookingList를 그대로 재사용해서 카드 모양(거리·예상비용·상태뱃지)과
          예약일 날씨 표시(loadBookingWeatherBadges)를 부킹/조인 탭과 동일하게 맞춘다. -->
     <div class="card" id="home-booking-card" style="display:none;">
-      <h2>📅 예약 일정</h2>
+      <h2>📅 라운드 일정</h2>
       <div id="home-booking-list"></div>
     </div>
 
@@ -1963,8 +1963,11 @@ let roundStartTeeBox = null; // 'white' | 'blue' | 'red' | null(선택 안 함) 
 let roundStartKgaRating = null; // GET /api/kga-rating 결과(KGA 공식 코스레이팅 - 경기·강원·충북·충남 111개 골프장만 있음)
 let courseInfoDialogReturnToCourseName = null; // "코스정보 추가"로 넘어간 경우, 저장 후 되돌아올 골프장명(라운드 시작 다이얼로그로 복귀)
 
-function openRoundStartDialog() {
-  document.getElementById('roundstart-date').value = new Date().toISOString().slice(0, 10);
+/** preset({courseName, date})을 넘기면 "라운드 일정" 카드의 "▶ 라운드 시작"처럼 이미 정해진
+ * 예약 건에서 바로 넘어온 경우 - 골프장명을 채운 채로 열고, 직접 타이핑/자동완성으로 고른 것과
+ * 동일하게 코스정보·KGA 레이팅 조회까지 자동으로 이어서 해준다(selectRoundStartCourse와 동일 로직). */
+async function openRoundStartDialog(preset) {
+  document.getElementById('roundstart-date').value = preset?.date || new Date().toISOString().slice(0, 10);
   document.getElementById('roundstart-course-input').value = '';
   document.getElementById('roundstart-course-suggestions').style.display = 'none';
   document.getElementById('roundstart-course-status').innerHTML = '';
@@ -1978,6 +1981,16 @@ function openRoundStartDialog() {
   roundStartTeeBox = null;
   roundStartKgaRating = null;
   document.getElementById('roundStartDialog').showModal();
+  if (preset?.courseName) {
+    document.getElementById('roundstart-course-input').value = preset.courseName;
+    await Promise.all([applyRoundStartCourseInfoByName(preset.courseName), applyRoundStartKgaRating(preset.courseName)]);
+  }
+}
+
+/** "라운드 일정" 카드의 "▶ 라운드 시작" - 그 예약 건의 골프장·날짜를 그대로 라운드 시작
+ * 다이얼로그에 채워서 바로 이어지게 한다(스코어 입력까지 몇 번의 탭만에 도달). */
+function startRoundFromBooking(courseName, date) {
+  openRoundStartDialog({ courseName, date });
 }
 
 function onRoundStartCourseInput() {
@@ -5211,7 +5224,7 @@ function renderHomeWatchGroups() {
   loadWatchGroupWeatherTiles(groups, 'home');
 }
 
-/** 각 워치 그룹의 대표 골프장(첫 번째) 좌표로 그 라운딩 날짜의 날씨를 채운다 - "예약 일정" 카드의
+/** 각 워치 그룹의 대표 골프장(첫 번째) 좌표로 그 라운딩 날짜의 날씨를 채운다 - "라운드 일정" 카드의
  * loadHomeWeatherTiles와 같은 로직(loadWeatherTilesGeneric)을 재사용하되, 데이터 소스는
  * source:'openmeteo'로 지정해 Open-Meteo를 쓴다("티타임 모니터링"만 - 예약 카드 쪽은 이번 범위가
  * 아니라서 그대로 KMA). scopeKey는 renderWatchGroupCard가 만든 tileId와 짝이 맞아야 한다(홈 탭과
@@ -6101,11 +6114,12 @@ function parseRoundDateLocal(str) {
 
 const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
 
-/** 취소완료·지난 날짜를 뺀 예약만 홈 화면에 카드로 보여준다(등록은 조인/부킹 탭에서 하고,
- * 홈에서는 "확인"만). 조인/부킹 탭의 예약 카드와는 다르게 여기는 [D-day 타일] [본문]
- * [날씨 타일] 가로 배치 전용 레이아웃이라 renderBookingList를 재사용하지 않고 따로 그린다.
- * 카드 자체를 누르면 openBookingDialog가 열려서 상세 정보(=수정 폼에 이미 다 채워져 있음)를
- * 보여주고, 거기서 편집·삭제까지 이어서 할 수 있다 - 카드에는 별도 아이콘을 안 둔다. */
+/** 취소완료·지난 날짜를 뺀 예약만 홈 화면 "라운드 일정" 카드에 보여준다(등록은 조인/부킹
+ * 탭에서 하고, 홈에서는 "확인"만). 조인/부킹 탭의 예약 카드와는 다르게 여기는 [D-day 타일]
+ * [본문] [날씨 타일] 가로 배치 전용 레이아웃이라 renderBookingList를 재사용하지 않고 따로
+ * 그린다. 카드 자체를 누르면 openBookingDialog가 열려서 상세 정보(=수정 폼에 이미 다 채워져
+ * 있음)를 보여주고, 거기서 편집·삭제까지 이어서 할 수 있다. "▶ 라운드 시작" 버튼만 예외로
+ * stopPropagation해서 그 예약의 골프장·날짜를 채운 채로 roundStartDialog로 바로 넘어간다. */
 function renderHomeBookingList(bookings) {
   const card = document.getElementById('home-booking-card');
   if (!card) return;
@@ -6136,6 +6150,8 @@ function renderHomeBookingList(bookings) {
           <div class="sub">티타임 ${escapeHtml(b.roundTime || '-')}</div>
           ${travelText || costText ? `<div class="sub">${[travelText, costText].filter(Boolean).join(' · ')}</div>` : ''}
           <div class="tags"><span class="tag">${escapeHtml(b.status)}</span></div>
+          <button type="button" class="btn secondary" style="margin-top:6px; padding:5px 10px; font-size:12px; align-self:flex-start;"
+            onclick="event.stopPropagation(); startRoundFromBooking('${jsAttrEscape(b.courseName)}', '${jsAttrEscape(b.roundDate || '')}')">▶ 라운드 시작</button>
         </div>
         <div class="hb-tile hb-weather-tile" id="home-weather-tile-${b.id}" style="display:none;">
           <div class="hb-wt-icon">🌡️</div>
@@ -6147,7 +6163,7 @@ function renderHomeBookingList(bookings) {
   loadHomeWeatherTiles(upcoming);
 }
 
-/** 홈 탭 [날씨 타일]을 채우는 공통 로직 - "예약 일정" 카드(라운딩 날짜)와 "티타임 워치" 카드
+/** 홈 탭 [날씨 타일]을 채우는 공통 로직 - "라운드 일정" 카드(라운딩 날짜)와 "티타임 워치" 카드
  * (감시 날짜) 둘 다 골프장명+날짜만 있으면 같은 방식으로 아이콘+기온을 채워 넣을 수 있어서
  * 하나로 합쳤다. targets: [{tileId, courseName, date}]. */
 async function loadWeatherTilesGeneric(targets, { source = 'kma' } = {}) {
