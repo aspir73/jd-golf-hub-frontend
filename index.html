@@ -2650,7 +2650,10 @@ function renderHoleHistory() {
     const markSpan = markClass ? `<span class="score-mark ${markClass}">${h.score}</span>` : `<span class="score-mark">${h.score}</span>`;
     const d = h.score - h.par;
     const diffText = d === 0 ? 'E' : (d > 0 ? `+${d}` : `${d}`);
-    return `<span class="hole-history-row">${escapeHtml(date.slice(5).replace('-', '/'))} ${markSpan}(${diffText})${h.putts != null ? ` · 퍼트${h.putts}` : ''}</span>`;
+    const puttsText = h.putts != null ? ` · 퍼트${h.putts}` : '';
+    // 페널티는 0이 대부분이라(OB·해저드 등 있었을 때만 의미 있음) 0이면 아예 표시하지 않는다.
+    const penaltyText = h.penalty ? ` · 페널티${h.penalty}` : '';
+    return `<span class="hole-history-row">${escapeHtml(date.slice(5).replace('-', '/'))} ${markSpan}(${diffText})${puttsText}${penaltyText}</span>`;
   }).join('');
 }
 
