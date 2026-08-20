@@ -2156,9 +2156,29 @@ function splitSubCourseLabel(label) {
   return label.split(/[,、·\/→>+\s]+/).map(normalizeSubCourseToken).filter(Boolean);
 }
 
+let myStatsCache = null; // GET /api/stats 결과 캐시 - 코스 핸디캡 계산에 recentAvg10이 필요해서 보관해둔다.
+
+/** "최근 10라운드 평균 스코어 - 72(기준파)"로 추정한 내 핸디캡 지수. 공식 WHS 핸디캡 지수는
+ * 라운드마다 그 코스의 코스레이팅·슬로프를 알아야 하는 미분값(differential) 평균 방식이라
+ * 예전 기록(특히 "총타수만 간단히" 입력분)엔 그 값이 없어 정확히 계산하기 어렵다 - 사용자
+ * 요청대로 평균 스코어 기반 간이 추정치를 쓴다(참고용, 공식 핸디캡 지수가 아님을 표시에 명시). */
+function estimateMyHandicapIndex() {
+  const avg = myStatsCache?.recentAvg10;
+  if (avg == null) return null;
+  return Math.round((avg - 72) * 10) / 10;
+}
+
+/** 코스 핸디캡(WHS 공식): 핸디캡지수 × (슬로프레이팅/113) + (코스레이팅 − 코스파). */
+function computeCourseHandicap(courseRating, slopeRating, coursePar) {
+  const hi = estimateMyHandicapIndex();
+  if (hi == null || courseRating == null || slopeRating == null || coursePar == null) return null;
+  return Math.round(hi * (slopeRating / 113) + (courseRating - coursePar));
+}
+
 async function loadStats(homeOnly = false) {
   try {
     const stats = await api('/api/stats');
+    myStatsCache = stats;
     document.getElementById('home-avg10').textContent = stats.recentAvg10 ?? '-';
     document.getElementById('home-best').textContent = stats.bestScore ?? '-';
     document.getElementById('home-rounds').textContent = stats.totalRounds + '회';
@@ -2386,6 +2406,10 @@ function updateRoundStartKgaRatingDisplay() {
     const m = yardsToMeters(t.courseLengthYards);
     parts.push(`길이 ${m.toLocaleString('ko-KR')}m (${Number(t.courseLengthYards).toLocaleString('ko-KR')}야드)`);
   }
+  // 최근 10라운드 평균 스코어 기반 간이 핸디캡 지수 + 이 코스·티박스 레이팅으로 예상 코스 핸디캡을 계산.
+  const coursePar = roundStartHoles.reduce((s, h) => s + (h.par || 0), 0);
+  const handicap = computeCourseHandicap(t.courseRating, t.slopeRating, coursePar);
+  if (handicap != null) parts.push(`⛳ 예상 코스핸디 ${handicap}`);
   el.textContent = parts.join(' · ');
 }
 
@@ -2505,6 +2529,9 @@ function updateRoundStartRatingInfo() {
   if (rating.courseRating != null) parts.push(`코스레이팅 ${rating.courseRating}`);
   if (rating.slopeRating != null) parts.push(`슬로프 ${rating.slopeRating}`);
   if (rating.courseLength != null) parts.push(`길이 ${Number(rating.courseLength).toLocaleString('ko-KR')}m`);
+  const coursePar = roundStartHoles.reduce((s, h) => s + (h.par || 0), 0);
+  const handicap = computeCourseHandicap(rating.courseRating, rating.slopeRating, coursePar);
+  if (handicap != null) parts.push(`⛳ 예상 코스핸디 ${handicap}`);
   el.textContent = parts.join(' · ');
 }
 
@@ -6598,7 +6625,7 @@ function renderHomeBookingList(bookings) {
           <div class="name">${escapeHtml(b.courseName)}${subName ? ' · ' + escapeHtml(subName) : ''}</div>
           <div class="sub">티타임 ${escapeHtml(b.roundTime || '-')}</div>
           ${travelText || costText ? `<div class="sub">${[travelText, costText].filter(Boolean).join(' · ')}</div>` : ''}
-          <div class="tags"><span class="tag">${escapeHtml(b.status)}</span></div>
+          <div class="tags"><span class="tag">${escapeHtml(b.status)}</span><span id="home-booking-handicap-${b.id}"></span></div>
           <button type="button" class="btn secondary" style="margin-top:6px; padding:5px 10px; font-size:12px; align-self:flex-start;"
             onclick="event.stopPropagation(); startRoundFromBooking('${jsAttrEscape(b.id)}')">▶ 라운드 시작</button>
         </div>
@@ -6617,6 +6644,43 @@ function renderHomeBookingList(bookings) {
   const hourlyIds = new Set(hourlyBookings.map((b) => b.id));
   loadHomeWeatherTiles(upcoming.filter((b) => !hourlyIds.has(b.id)));
   hourlyBookings.forEach((b) => loadHomeBookingHourly(b));
+  upcoming.forEach((b) => loadHomeBookingCourseHandicap(b));
+}
+
+/** "라운드 일정" 카드에 그 골프장의 코스레이팅·슬로프레이팅(KGA 공식자료)과 내 간이 핸디캡
+ * 지수(estimateMyHandicapIndex)로 예상 코스 핸디캡을 계산해서 배지로 보여준다. KGA는 경기·강원·
+ * 충북·충남 111개 골프장만 있어서, 매칭 안 되면 조용히 생략(부가 정보라 카드를 막을 정도는 아님).
+ * courseInfo에 직접 입력해둔 수동 레이팅까지는(티박스를 아직 안 골랐으니) 여기선 안 쓴다 -
+ * 라운드 시작 다이얼로그(updateRoundStartRatingInfo)에서 그쪽은 이미 따로 보여준다. */
+async function loadHomeBookingCourseHandicap(b) {
+  const el = document.getElementById(`home-booking-handicap-${b.id}`);
+  if (!el) return;
+  try {
+    const [{ courseInfo }, { rating }] = await Promise.all([
+      api(`/api/course-info?courseName=${encodeURIComponent(b.courseName)}`),
+      api(`/api/kga-rating?courseName=${encodeURIComponent(b.courseName)}`).catch(() => ({ rating: null })),
+    ]);
+    if (!rating || !courseInfo || !courseInfo.subCourses.length) return;
+
+    const tokens = splitSubCourseLabel(b.courseSubName);
+    const key = [...tokens].sort().join('|');
+    const combo = (tokens.length && rating.combos.find((c) => [...c.loopNames].map(normalizeSubCourseToken).sort().join('|') === key))
+      || rating.combos[0];
+    const t = combo?.teeSets?.[0];
+    if (!t) return;
+
+    const matchedSubCourses = tokens.length
+      ? courseInfo.subCourses.filter((sc) => tokens.includes(normalizeSubCourseToken(sc.name)))
+      : courseInfo.subCourses.slice(0, combo.loopNames?.length || 2);
+    if (!matchedSubCourses.length) return;
+    const coursePar = matchedSubCourses.reduce((s, sc) => s + sc.holes.reduce((s2, h) => s2 + (h.par || 0), 0), 0);
+
+    const handicap = computeCourseHandicap(t.courseRating, t.slopeRating, coursePar);
+    if (handicap == null) return;
+    el.innerHTML = `<span class="tag" style="background:#eef1ff; color:#3949ab;" title="코스레이팅 ${t.courseRating} · 슬로프 ${t.slopeRating} · 파${coursePar} (${escapeHtml(t.teeSet)}/${escapeHtml(t.gender)}) 기준 예상치">⛳ 예상 코스핸디 ${handicap}</span>`;
+  } catch {
+    // 실패해도 조용히 생략 - 카드 자체(예약 정보)는 그대로 보여준다
+  }
 }
 
 /** "라운드 일정" 카드의 전날~당일 시간별 상세(날씨 탭 예약 카드와 같은 데이터/포맷 -
