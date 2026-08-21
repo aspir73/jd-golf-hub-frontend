@@ -5144,7 +5144,7 @@ async function searchBookingRounds() {
     const courseFilterLabel = joinCondCourseFilter?.name || document.getElementById('joincond-course-filter-input').value.trim();
     document.getElementById('booking-result-summary').textContent =
       `총 ${total.toLocaleString('ko-KR')}건 중 ${rounds.length}건 표시 (골팡 조인/백업 기준)${courseFilterLabel ? ` · "${courseFilterLabel}" 검색` : ''}`;
-    renderBookingSearchResults(rounds);
+    renderBookingSearchResults(rounds, date);
   } catch (e) {
     showToast('검색 실패: ' + e.message);
   }
@@ -5207,7 +5207,11 @@ function kakaoGolfCourseUrl(golfInfoSeq) {
   return `https://www.kakao.golf/golf/${golfInfoSeq}`;
 }
 
-function renderBookingSearchResults(rounds) {
+/** searchDate(검색창에 입력한 ISO 날짜)를 별도로 받는 이유: 골팡 조인/백업 매물의 postings[].date는
+ * "08월24일 (월)" 같은 화면표시용 한국어 형식이라 그대로 Date로 파싱하면 Invalid Date가 돼서
+ * 날씨 타일(courseWeatherDayOffset)이 조용히 실패한다(실측 - 타일 자체는 나오는데 계속 비어있었음).
+ * 검색은 항상 하루 단위로만 하므로 그 값을 그대로 쓰면 된다. */
+function renderBookingSearchResults(rounds, searchDate) {
   const el = document.getElementById('booking-result-list');
   const groupBtn = document.getElementById('booking-group-btn');
   bookingSearchGroups = prioritizeMyGolfResults(groupBookingRounds(rounds), (g) => g.courseName);
@@ -5234,10 +5238,18 @@ function renderBookingSearchResults(rounds) {
         </div>
         <div class="tee-times" id="booking-group-times-${i}" style="display:none;"></div>
       </div>
+      <div class="hb-tile hb-weather-tile" id="booking-search-weather-${i}" style="display:none;">
+        <div class="hb-wt-icon">🌡️</div>
+        <div class="hb-wt-temp">-</div>
+      </div>
     </div>
   `;
   }).join('');
   groupBtn.style.display = 'block';
+  loadWeatherTilesGeneric(
+    bookingSearchGroups.map((g, i) => ({ tileId: `booking-search-weather-${i}`, courseName: g.courseName, date: searchDate })),
+    { source: 'openmeteo' }
+  );
 }
 
 function toggleBookingTeeTimeSelect(gi, pi, el) {
@@ -6187,7 +6199,7 @@ function renderRoundSearchResults(rounds) {
     <div class="list-item">
       <div style="display:flex; gap:8px; align-items:flex-start; width:100%;">
         <input type="checkbox" class="round-search-select" data-idx="${i}" style="margin-top:5px;">
-        <div style="flex:1;">
+        <div style="flex:1; min-width:0;">
           <div class="name" style="cursor:pointer" onclick="showCourseQuickInfo('${jsAttrEscape(r.courseName)}')">${escapeHtml(r.courseName)}</div>
           <div class="field-grid">
             <div class="f"><span class="k">날짜</span>${escapeHtml(r.date || '-')}</div>
@@ -6206,11 +6218,19 @@ function renderRoundSearchResults(rounds) {
           </div>
           ${roundSearchPlatform === 'kakaogolf' ? `<div class="tee-times" id="tee-times-${i}"></div>` : ''}
         </div>
+        <div class="hb-tile hb-weather-tile" id="roundsearch-weather-${i}" style="display:none;">
+          <div class="hb-wt-icon">🌡️</div>
+          <div class="hb-wt-temp">-</div>
+        </div>
       </div>
     </div>
   `;
   }).join('');
   groupBtn.style.display = 'block';
+  loadWeatherTilesGeneric(
+    rounds.map((r, i) => ({ tileId: `roundsearch-weather-${i}`, courseName: r.courseName, date: r.date })),
+    { source: 'openmeteo' }
+  );
 }
 
 /** 검색 결과에서 골프장명 클릭 시 내 라운딩 이력/즐겨찾기 정보를 간단히 보여줌 (경량 "골프장 상세정보") */
