@@ -3712,6 +3712,7 @@ function renderCourseList(courses) {
         <div>
           <div class="name name-left">${escapeHtml(c.name)}</div>
           ${travelText ? `<div class="sub sub-left">${travelText}</div>` : ''}
+          <div id="mygolf-handicap-${c.id}"></div>
           <div class="week-weather-strip" id="mygolf-weather-${c.id}">${cachedDays ? renderWeekWeatherHtml(cachedDays) : ''}</div>
           <div class="week-greenfee-strip" id="mygolf-greenfee-${c.id}">${cachedFees ? renderWeekGreenFeeHtml(cachedFees) : ''}</div>
         </div>
@@ -3733,6 +3734,23 @@ function renderCourseList(courses) {
   updateMygolfSelectionUI();
   loadMygolfWeekWeather(filtered);
   loadMygolfWeekGreenFees(filtered);
+  loadMygolfCourseHandicaps(filtered);
+}
+
+/** MY골프장 각 카드에 예상 코스 핸디캡 배지를 채운다(computeCourseHandicapInfo 공용 로직 -
+ * 아직 어떤 코스 조합으로 돌지 모르니 KGA 첫 번째 조합을 대표값으로 씀). KGA 미매칭 골프장이
+ * 대부분일 수 있어(경기·강원·충북·충남 111개 외) 실패/빈 결과는 조용히 생략. */
+async function loadMygolfCourseHandicaps(courses) {
+  await Promise.all(courses.map(async (c) => {
+    const el = document.getElementById(`mygolf-handicap-${c.id}`);
+    if (!el) return;
+    try {
+      const info = await computeCourseHandicapInfo(c.name);
+      if (info) el.innerHTML = courseHandicapBadgeHtml(info);
+    } catch {
+      // 실패해도 조용히 생략
+    }
+  }));
 }
 
 function onMygolfCheckboxChange(checkbox) {
@@ -6652,32 +6670,53 @@ function renderHomeBookingList(bookings) {
  * 충북·충남 111개 골프장만 있어서, 매칭 안 되면 조용히 생략(부가 정보라 카드를 막을 정도는 아님).
  * courseInfo에 직접 입력해둔 수동 레이팅까지는(티박스를 아직 안 골랐으니) 여기선 안 쓴다 -
  * 라운드 시작 다이얼로그(updateRoundStartRatingInfo)에서 그쪽은 이미 따로 보여준다. */
+/** 골프장명(+선택적으로 아는 코스 조합, 예: 예약의 "북,서")으로 KGA 코스레이팅·슬로프레이팅과
+ * 코스정보(파)를 찾아 예상 코스 핸디캡을 계산한다. 홈 "라운드 일정" 카드/MY골프장 목록/부킹탭
+ * 골프장 검색 셋 다 여기로 모은다 - 매칭 규칙이 한 곳에만 있어야 세 곳이 계속 같은 값을 보여준다.
+ * subCourseHint가 없으면(MY골프장처럼 아직 어떤 조합으로 돌지 모르는 경우) KGA의 첫 번째 조합을
+ * 그대로 대표값으로 쓴다(라운드 시작 다이얼로그의 기본 선택과 동일한 관례). KGA 미매칭
+ * 골프장(경기·강원·충북·충남 111개 외)이거나 코스정보가 없으면 null. */
+async function computeCourseHandicapInfo(courseName, subCourseHint) {
+  const [{ courseInfo }, { rating }] = await Promise.all([
+    api(`/api/course-info?courseName=${encodeURIComponent(courseName)}`),
+    api(`/api/kga-rating?courseName=${encodeURIComponent(courseName)}`).catch(() => ({ rating: null })),
+  ]);
+  if (!rating || !courseInfo || !courseInfo.subCourses.length) return null;
+
+  const tokens = splitSubCourseLabel(subCourseHint);
+  const key = [...tokens].sort().join('|');
+  const combo = (tokens.length && rating.combos.find((c) => [...c.loopNames].map(normalizeSubCourseToken).sort().join('|') === key))
+    || rating.combos[0];
+  const t = combo?.teeSets?.[0];
+  if (!t) return null;
+
+  // 코스파 계산: 예약에서 넘어온 코스명 토큰과 실제로 이름이 일치하는 서브코스를 우선 찾고,
+  // 없으면(=힌트가 없거나 안 맞으면) KGA 조합의 loopNames와 이름이 일치하는 서브코스를 쓴다.
+  const byTokens = tokens.length ? courseInfo.subCourses.filter((sc) => tokens.includes(normalizeSubCourseToken(sc.name))) : [];
+  const byCombo = (combo.loopNames || []).length
+    ? courseInfo.subCourses.filter((sc) => combo.loopNames.map(normalizeSubCourseToken).includes(normalizeSubCourseToken(sc.name)))
+    : [];
+  const subCourses = byTokens.length ? byTokens : byCombo.length ? byCombo : courseInfo.subCourses.slice(0, combo.loopNames?.length || 2);
+  if (!subCourses.length) return null;
+  const coursePar = subCourses.reduce((s, sc) => s + sc.holes.reduce((s2, h) => s2 + (h.par || 0), 0), 0);
+
+  const handicap = computeCourseHandicap(t.courseRating, t.slopeRating, coursePar);
+  if (handicap == null) return null;
+  return { handicap, courseRating: t.courseRating, slopeRating: t.slopeRating, coursePar, teeSet: t.teeSet, gender: t.gender };
+}
+
+/** computeCourseHandicapInfo 결과를 태그 배지 하나로 렌더링(홈/부킹탭 공용 스타일). */
+function courseHandicapBadgeHtml(info) {
+  if (!info) return '';
+  return `<span class="tag" style="background:#eef1ff; color:#3949ab;" title="코스레이팅 ${info.courseRating} · 슬로프 ${info.slopeRating} · 파${info.coursePar} (${escapeHtml(info.teeSet)}/${escapeHtml(info.gender)}) 기준 예상치">⛳ 예상 코스핸디 ${info.handicap}</span>`;
+}
+
 async function loadHomeBookingCourseHandicap(b) {
   const el = document.getElementById(`home-booking-handicap-${b.id}`);
   if (!el) return;
   try {
-    const [{ courseInfo }, { rating }] = await Promise.all([
-      api(`/api/course-info?courseName=${encodeURIComponent(b.courseName)}`),
-      api(`/api/kga-rating?courseName=${encodeURIComponent(b.courseName)}`).catch(() => ({ rating: null })),
-    ]);
-    if (!rating || !courseInfo || !courseInfo.subCourses.length) return;
-
-    const tokens = splitSubCourseLabel(b.courseSubName);
-    const key = [...tokens].sort().join('|');
-    const combo = (tokens.length && rating.combos.find((c) => [...c.loopNames].map(normalizeSubCourseToken).sort().join('|') === key))
-      || rating.combos[0];
-    const t = combo?.teeSets?.[0];
-    if (!t) return;
-
-    const matchedSubCourses = tokens.length
-      ? courseInfo.subCourses.filter((sc) => tokens.includes(normalizeSubCourseToken(sc.name)))
-      : courseInfo.subCourses.slice(0, combo.loopNames?.length || 2);
-    if (!matchedSubCourses.length) return;
-    const coursePar = matchedSubCourses.reduce((s, sc) => s + sc.holes.reduce((s2, h) => s2 + (h.par || 0), 0), 0);
-
-    const handicap = computeCourseHandicap(t.courseRating, t.slopeRating, coursePar);
-    if (handicap == null) return;
-    el.innerHTML = `<span class="tag" style="background:#eef1ff; color:#3949ab;" title="코스레이팅 ${t.courseRating} · 슬로프 ${t.slopeRating} · 파${coursePar} (${escapeHtml(t.teeSet)}/${escapeHtml(t.gender)}) 기준 예상치">⛳ 예상 코스핸디 ${handicap}</span>`;
+    const info = await computeCourseHandicapInfo(b.courseName, b.courseSubName);
+    if (info) el.innerHTML = courseHandicapBadgeHtml(info);
   } catch {
     // 실패해도 조용히 생략 - 카드 자체(예약 정보)는 그대로 보여준다
   }
@@ -6776,15 +6815,39 @@ function onBookingCourseNameInput() {
       const { courses } = await api(`/api/golf-db/search?query=${encodeURIComponent(q)}`);
       if (document.activeElement !== document.getElementById('booking-course')) return;
       if (!courses.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
-      box.dataset.courses = JSON.stringify(courses.slice(0, 8));
-      box.innerHTML = courses.slice(0, 8).map((c, idx) =>
-        `<div class="course-suggestion-item" onclick="selectBookingCourseName(${idx})">${escapeHtml(c.name)} <span class="muted" style="font-size:11px;">${escapeHtml(c.region || '')}</span></div>`
+      const list = courses.slice(0, 8);
+      box.dataset.courses = JSON.stringify(list);
+      const token = ++bookingCourseSearchToken;
+      box.innerHTML = list.map((c, idx) =>
+        `<div class="course-suggestion-item" onclick="selectBookingCourseName(${idx})">${escapeHtml(c.name)} <span class="muted" style="font-size:11px;">${escapeHtml(c.region || '')}</span><span id="booking-suggestion-handicap-${idx}"></span></div>`
       ).join('');
       box.style.display = 'block';
+      loadBookingSuggestionHandicaps(list, token);
     } catch {
       box.style.display = 'none';
     }
   }, 300);
+}
+
+// 검색이 다시 돌 때마다 늘어나는 "세대" 번호 - 검색 도중 다음 검색이 먼저 끝나 목록이 바뀌면
+// (같은 idx 슬롯이 재사용되므로) 늦게 도착한 예전 검색의 핸디캡 결과가 새 목록에 잘못
+// 끼워지는 걸 막는다(자동완성 레이스 - 이 세션에서 이미 여러 번 겪은 패턴).
+let bookingCourseSearchToken = 0;
+
+/** 부킹 다이얼로그 골프장 검색 결과(최대 8개) 각각에 예상 코스 핸디캡 배지를 채운다.
+ * computeCourseHandicapInfo 공용 로직 - KGA 미매칭 골프장이 대부분일 수 있어(전국 DB 검색이라)
+ * 실패/빈 결과는 조용히 생략. */
+async function loadBookingSuggestionHandicaps(list, token) {
+  await Promise.all(list.map(async (c, idx) => {
+    try {
+      const info = await computeCourseHandicapInfo(c.name);
+      if (!info || token !== bookingCourseSearchToken) return;
+      const el = document.getElementById(`booking-suggestion-handicap-${idx}`);
+      if (el) el.innerHTML = ' ' + courseHandicapBadgeHtml(info);
+    } catch {
+      // 실패해도 조용히 생략
+    }
+  }));
 }
 
 async function selectBookingCourseName(idx) {
