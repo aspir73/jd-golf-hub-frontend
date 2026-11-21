@@ -607,6 +607,47 @@
   .he-panel[data-mode="simple"] [data-min-mode="putt"],
   .he-panel[data-mode="simple"] [data-min-mode="detail"],
   .he-panel[data-mode="putt"] [data-min-mode="detail"] { display: none; }
+  /* 프로 모드: 홀 파에 맞는 샷 카드만 보여주고, 다른 모드의 입력 줄은 숨긴다. 입력 항목이 많아 패널을 더 높게 쓴다. */
+  .he-panel[data-mode="pro"] [data-min-mode] { display: none; }
+  .he-panel:not([data-mode="pro"]) [data-only-mode="pro"] { display: none; }
+  .he-panel[data-mode="pro"] { max-height: 76%; }
+  .he-modes button { padding: 6px 10px; }
+  .pro-score { margin-top: 8px; font-size: 12.5px; color: var(--muted); text-align: center; line-height: 1.5; }
+  .pro-score b { color: var(--green-dark); font-size: 14px; }
+  .pro-score button { border: none; background: none; color: var(--accent); font-weight: 800; font-size: 12.5px; text-decoration: underline; padding: 2px 4px; cursor: pointer; }
+  .pro-sec { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; font-size: 13px; font-weight: 800; color: var(--green-dark); }
+  .pro-add { border: 1px dashed var(--gold); background: #fbf6e9; color: var(--accent); border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
+  .pro-empty { margin-top: 6px; font-size: 12px; color: var(--muted); padding: 8px 10px; border: 1px dashed var(--border); border-radius: 12px; text-align: center; }
+  .pro-shot { margin-top: 6px; border: 1px solid var(--border); border-radius: 14px; padding: 8px 10px; background: #fcfbf7; }
+  .pro-shot.done { border-color: rgba(29,90,57,.35); background: #f5f9f5; }
+  .pro-shot-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .pro-idx { font-size: 12px; font-weight: 800; color: var(--muted); }
+  select.pro-sel { width: auto; flex: 0 0 auto; margin: 0; padding: 7px 8px; border: 1px solid var(--border); border-radius: 10px; background: #fff; font-size: 14px; font-weight: 700; color: var(--text); }
+  select.pro-sel.club { color: var(--green-dark); border-color: rgba(29,90,57,.4); }
+  select.pro-sel:disabled { opacity: .4; }
+  .pro-x { margin-left: auto; border: none; background: none; color: var(--muted); font-size: 16px; padding: 4px 6px; cursor: pointer; }
+  .pro-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 7px; }
+  .pro-chips button { border: 1px solid transparent; background: #f1efe7; border-radius: 10px; padding: 8px 10px; min-width: 40px; font-size: 13px; font-weight: 700; color: var(--text); cursor: pointer; }
+  .pro-chips button.sel { border-color: var(--green); background: #e8f1ea; color: var(--green-dark); }
+  .pro-chips button.good.sel { background: var(--green); border-color: var(--green); color: #fff; }
+  .pro-chips button.bad.sel { border-color: var(--danger); background: #fbeceb; color: var(--danger); }
+  .pro-sep { font-size: 11px; color: var(--muted); font-weight: 700; margin: 0 1px 0 4px; }
+  .pro-lb { font-size: 12px; color: var(--muted); font-weight: 700; margin-right: 2px; }
+  .pro-pen { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 700; }
+  .pro-chips .pro-pen button { min-width: 32px; padding: 6px 0; }
+  .pro-pen b { min-width: 14px; text-align: center; color: var(--text); font-size: 15px; }
+  .pro-chips.pro-cause button { padding: 6px 9px; font-size: 12px; }
+  .pro-chips button small { display: block; font-size: 10px; font-weight: 600; color: var(--muted); margin-top: 1px; }
+  .pro-chips button.sel small { color: inherit; opacity: .8; }
+  .pro-lie { font-size: 11px; font-weight: 700; color: var(--accent); background: #fbf6e9; border-radius: 999px; padding: 2px 8px; }
+  /* 라운드 조건 카드 */
+  .he-cond { margin-top: 12px; border: 1px solid var(--border); border-radius: 14px; background: #fff; box-shadow: var(--shadow-sm); }
+  .he-cond-head { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; border: none; background: none; padding: 10px 12px; font-size: 13px; text-align: left; color: var(--text); cursor: pointer; }
+  .he-cond-head .muted { font-size: 12px; }
+  .he-cond-body { padding: 0 12px 10px; }
+  .he-cond-row { margin-top: 6px; }
+  .he-cond-k { font-size: 12px; font-weight: 800; color: var(--green-dark); }
+  .he-cond-row .pro-chips { margin-top: 4px; }
 
   .active-round-card { border: 2px solid var(--accent); }
 
@@ -954,6 +995,13 @@
   .rr-row .v.good { color: #34d6ae; } .rr-row .v.bad { color: #f2a23c; }
   .rr-meter { height: 6px; border-radius: 4px; background: rgba(255,255,255,.1); margin: -2px 0 8px; overflow: hidden; }
   .rr-meter span { display: block; height: 100%; background: #f2a23c; border-radius: 4px; }
+  /* 프로 모드 리포트: 클럽별 성적표 */
+  .rr-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .rr-table th { font-size: 11px; font-weight: 700; color: rgba(238,245,239,.55); text-align: right; padding: 4px 4px 6px; }
+  .rr-table td { text-align: right; padding: 8px 4px; border-top: 1px solid rgba(255,255,255,.07); color: #eef5ef; }
+  .rr-table th:first-child, .rr-table td:first-child { text-align: left; }
+  .rr-table td b { color: var(--gold-soft); }
+  .rr-row .v { max-width: 46%; text-align: right; }
   .rr-cta { width: 100%; margin-top: 4px; border: none; border-radius: 14px; padding: 16px; font-size: 16px; font-weight: 800; color: #2a1b00; background: linear-gradient(180deg, #e3c779, #c9a45c); }
   .rr-cta:active { filter: brightness(.95); }
   /* ===== 주말 추천 라운드 ===== */
@@ -1093,6 +1141,7 @@
   .gl-star.on { color: #e0a410; }
   .gl-body { flex: 1; min-width: 0; }
   .gl-name { font-size: 16px; font-weight: 800; letter-spacing: -.02em; line-height: 1.3; word-break: keep-all; cursor: pointer; }
+  .hole-grid tr.hole-ref td { color: var(--muted); font-size: 11px; text-align: center; }
   .gl-noinfo { display: inline-block; margin-left: 7px; font-size: 11px; font-weight: 700; color: var(--green); background: #e6f2ea; border-radius: 999px; padding: 2px 8px; vertical-align: 2px; }
   .gl-addr { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
   .gl-travel { font-size: 12.5px; color: var(--green-dark); font-weight: 700; margin-top: 2px; }
@@ -1595,7 +1644,7 @@
         <select id="gl-sort" onchange="glOnSort()">
           <option value="">기본 정렬</option>
           <option value="dist">집에서 가까운 순</option>
-          <option value="time">소요시간 짧은 순</option>
+          <option value="time" selected>소요시간 짧은 순</option>
         </select>
       </div>
       <div class="gl-sortstat" id="gl-sortstat"></div>
@@ -2056,6 +2105,7 @@
         <label>메모</label>
         <textarea id="hole-entry-memo" rows="2" placeholder="특이사항 (선택)" onchange="scheduleHoleEntryAutosave()"></textarea>
       </div>
+      <div class="he-cond" id="he-conditions"></div>
       <button type="button" class="btn block" id="hole-entry-finish-btn" style="margin-top:14px;" onclick="finishRound()">🏁 라운드 종료</button>
     </div>
 
@@ -2070,11 +2120,14 @@
           <button type="button" data-mode="simple" onclick="setHoleEntryMode('simple')">간단</button>
           <button type="button" data-mode="putt" onclick="setHoleEntryMode('putt')">퍼팅</button>
           <button type="button" data-mode="detail" onclick="setHoleEntryMode('detail')">상세</button>
+          <button type="button" data-mode="pro" onclick="setHoleEntryMode('pro')">프로</button>
         </div>
       </div>
       <div id="hole-entry-history" class="he-history"></div>
 
       <div class="he-rel" id="he-rel"></div>
+      <div class="pro-score" id="he-pro-score" data-only-mode="pro"></div>
+      <div id="he-pro" data-only-mode="pro"></div>
 
       <div class="he-row he-putt-row" data-min-mode="putt">
         <span class="he-row-label">퍼팅</span>
@@ -3215,6 +3268,8 @@ function holeDistanceFor(sc, h, teeKey) {
   const tees = sc?.tees || [];
   const tee = group && (tees.find((t) => t.group === group && (group === '레드' || !t.ladies)) || tees.find((t) => t.group === group));
   if (tee && h.lengths?.[tee.seq] != null) return { m: h.lengths[tee.seq], tee: tee.name };
+  const stdKey = (teeKey || 'white').toLowerCase();
+  if (h.stdM?.[stdKey] != null) return { m: h.stdM[stdKey], tee: group || stdKey };
   if (h.whiteM != null) return { m: h.whiteM, tee: '화이트' };
   if (h.baseM != null) return { m: h.baseM, tee: h.baseTee || null };
   return null;
@@ -3304,9 +3359,11 @@ const wbOpen = new Set(); // 펼쳐둔 행
 // 골프장 태그 색은 지역별 - 경기=초록, 충청=앰버, 강원=파랑
 const WB_REGION_CLASS = { '경기': 'r-gg', '서울': 'r-gg', '인천': 'r-gg', '충북': 'r-cc', '충남': 'r-cc', '대전': 'r-cc', '세종': 'r-cc', '충청': 'r-cc', '강원': 'r-gw' };
 // 예약 탭(골팡 부킹+카카오골프예약+대영베이스)과 조인 탭(골팡 조인/백업)이 같은 카드 형태를 공유한다.
+// v2: 좌표 없는 MY골프장(윈체스트 등)도 날씨가 나오도록 백엔드를 고친 뒤라, 날씨 없이 저장된 예전 기기 캐시는 버린다.
+try { ['jdgolf.weekendBoard.booking.v1', 'jdgolf.weekendBoard.join.v1'].forEach((k) => localStorage.removeItem(k)); } catch { /* 저장소 오류 무시 */ }
 const WB_TARGETS = {
-  booking: { body: 'weekend-board-body', upd: 'weekend-board-updated', path: '/api/weekend-board', cache: 'jdgolf.weekendBoard.booking.v1', none: '1부 티타임 없음', loading: false },
-  join: { body: 'weekend-join-body', upd: 'weekend-join-updated', path: '/api/weekend-board?mode=join', cache: 'jdgolf.weekendBoard.join.v1', none: '조인 없음', loading: false },
+  booking: { body: 'weekend-board-body', upd: 'weekend-board-updated', path: '/api/weekend-board', cache: 'jdgolf.weekendBoard.booking.v2', none: '1부 티타임 없음', loading: false },
+  join: { body: 'weekend-join-body', upd: 'weekend-join-updated', path: '/api/weekend-board?mode=join', cache: 'jdgolf.weekendBoard.join.v2', none: '조인 없음', loading: false },
 };
 
 function wbSkeleton() {
@@ -3459,7 +3516,9 @@ async function fillMygolfTravel(courses) {
 
 // ===== 통합 골프장 목록: 전국 골프장 + ★ MY 골프장 + 코스정보 입력 =====
 const gl = { db: [], loaded: false, loading: false, kind: '', limit: 60, reorder: false, visible: [], obs: null, queue: [], running: 0 };
-const GL_TRAVEL_KEY = 'jdgolf.glTravel.v1';
+// v2: 백엔드가 거리/시간을 골프장 이름이 아니라 좌표 기준으로 캐시하도록 바뀌어서(같은 장소=같은 값) 예전 기기 캐시는 버린다.
+const GL_TRAVEL_KEY = 'jdgolf.glTravel.v2';
+try { localStorage.removeItem('jdgolf.glTravel.v1'); } catch { /* 저장소 오류 무시 */ }
 
 const glKindOf = (n) => (/회원제/.test(n) ? 'm' : /대중제/.test(n) ? 'p' : '');
 // 코스정보 등록명과 공식명 표기가 다른 경우(벨라45 오너스/마스터스 -> 벨라45)
@@ -3470,7 +3529,13 @@ function glSame(a, b) {
   const ka = glKindOf(a), kb = glKindOf(b);
   return !ka || !kb || ka === kb;
 }
-const glInfoFor = (name) => courseInfoCache.find((i) => glSame(i.courseName, name)) || null;
+// 직접 입력한 코스정보가 우선, 없으면 전국 코스DB(백엔드 gc_*)에 데이터가 있는 골프장인지 이름으로 대조한다.
+// DB 쪽은 id가 없고(수정 대상이 아님) courseName은 목록에 보이는 이름 그대로 - /api/course-info?courseName=가 같은 DB로 찾아준다.
+const glDbInfoFor = (name) => {
+  const c = courseHoleDbIndex.find((x) => x.names.some((n) => glSame(n, name)));
+  return c ? { id: null, source: 'db', clubId: c.clubId, courseName: name } : null;
+};
+const glInfoFor = (name) => courseInfoCache.find((i) => glSame(i.courseName, name)) || glDbInfoFor(name);
 
 async function glInit() {
   loadCourses();
@@ -3490,6 +3555,8 @@ async function glInit() {
     gl.loading = false;
   }
   glRender();
+  // 기본 정렬이 "소요시간 짧은 순" - 처음 목록을 불러왔을 때 한 번 위치·소요시간 계산을 돌린다(집 주소가 없으면 기본 정렬로 돌아감).
+  if (gl.loaded && document.getElementById('gl-sort').value) glOnSort();
 }
 
 function glBuildRows() {
@@ -3810,8 +3877,49 @@ function glOpenName(i) {
   const r = gl.visible[i];
   if (!r) return;
   const info = glInfoFor(r.name);
+  if (info?.source === 'db') { openCourseInfoFromDb(r.name); return; }
   if (info) { openCourseInfoDialog(info.id); return; }
   openCourseInfoForName(r.name);
+}
+
+/** 전국 코스DB에 있는 골프장: 코스·파·거리·핸디캡을 채운 상태로 코스정보 화면을 연다. 그대로 보기만 해도 되고,
+ * 파를 고치거나 코스를 정리해서 저장하면 "내 코스정보"로 등록돼 이후엔 그게 우선한다(거리·핸디캡은 계속 DB에서 보충). */
+async function openCourseInfoFromDb(name) {
+  try {
+    const { courseInfo } = await api(`/api/course-info?courseName=${encodeURIComponent(name)}`);
+    if (!courseInfo?.subCourses?.length) { openCourseInfoForName(name); return; }
+    openCourseInfoDialog();
+    document.getElementById('courseInfoDialogTitle').textContent = '코스정보 · 전국 코스DB';
+    document.getElementById('courseinfo-course-input').value = name;
+    courseInfoDialogSelectedCourse = { name };
+    courseInfoDialogSubCourses = courseInfo.subCourses.map((sc) => ({ id: crypto.randomUUID(), name: sc.name, holes: sc.holes.map((h) => ({ ...h })) }));
+    renderCourseInfoSubCourses();
+    refreshCourseInfoMygolfCourseList(name);
+    applyCourseInfoKgaRating(name);
+  } catch (e) {
+    showToast('코스정보 조회 실패: ' + e.message);
+  }
+}
+
+/** 직접 입력한 코스정보를 열 때, 전국 코스DB에서 보충되는 거리·핸디캡을 화면에도 보여준다(서브코스 이름·홀 번호 기준). */
+async function mergeCourseInfoDialogDistances(courseName) {
+  try {
+    const { courseInfo } = await api(`/api/course-info?courseName=${encodeURIComponent(courseName)}`);
+    if (!courseInfo?.subCourses?.length) return;
+    let changed = false;
+    for (const sc of courseInfoDialogSubCourses) {
+      const src = courseInfo.subCourses.find((x) => normalizeSubCourseToken(x.name) === normalizeSubCourseToken(sc.name));
+      if (!src) continue;
+      for (const h of sc.holes) {
+        const d = src.holes.find((x) => x.no === h.no);
+        if (!d) continue;
+        if (h.whiteM == null && d.whiteM != null) { h.whiteM = d.whiteM; changed = true; }
+        if (h.baseM == null && d.baseM != null) { h.baseM = d.baseM; h.baseTee = d.baseTee; changed = true; }
+        if (h.handicap == null && d.handicap != null) { h.handicap = d.handicap; changed = true; }
+      }
+    }
+    if (changed && document.getElementById('courseInfoDialog').open) renderCourseInfoSubCourses();
+  } catch { /* 부가정보 */ }
 }
 
 function openCourseInfoForName(name) {
@@ -4158,6 +4266,9 @@ function openHoleEntryForRecord(record, startIndex) {
   document.getElementById('holeEntrySubTitle').textContent = subTitle;
   holeEntryCompanions = (record.companions || []).map((c) => ({ ...c }));
   renderHoleEntryCompanions();
+  holeEntryConditions = { ...HE_COND_DEFAULTS, ...(record.conditions || {}) };
+  holeEntryCondOpen = false;
+  renderHoleEntryConditions();
   document.getElementById('hole-entry-rating').value = record.courseRating ?? '';
   document.getElementById('hole-entry-memo').value = record.memo ?? '';
   document.getElementById('hole-entry-extra').style.display = 'none';
@@ -4170,6 +4281,7 @@ function openHoleEntryForRecord(record, startIndex) {
   }
   const heDlg = document.getElementById('holeEntryDialog');
   if (!heDlg.open) heDlg.showModal();
+  markActiveRound(holeEntryStatus === 'in_progress' ? record.id : null);
   goToHole(startAt);
   // 이 라운드 시작 전에 스코어 탭을 한 번도 안 열었으면 scoreCache가 비어있을 수 있어(위 주석
   // 참고) 필요할 때만 한 번 불러오고, 끝나면 지금 보고 있는 홀의 이력을 다시 그린다.
@@ -4467,7 +4579,7 @@ const HE_TEE_SHOTS = [
 ];
 const HE_MISS_DIRS = [['left', '왼쪽'], ['right', '오른쪽'], ['unknown', '모름']];
 let holeEntryMode = 'simple';
-try { const m = localStorage.getItem('holeEntryMode'); if (['simple', 'putt', 'detail'].includes(m)) holeEntryMode = m; } catch {}
+try { const m = localStorage.getItem('holeEntryMode'); if (['simple', 'putt', 'detail', 'pro'].includes(m)) holeEntryMode = m; } catch {}
 
 function setHoleEntryMode(mode) {
   holeEntryMode = mode;
@@ -4491,6 +4603,7 @@ function autoGreenHit(h) {
 
 function setHoleScoreRel(d) {
   const h = holeEntryHoles[currentHoleIndex];
+  if (h.pro) h.pro.manual = true; // 프로 모드 자동 계산 스코어를 직접 고친 것 - 이후 샷 입력이 덮어쓰지 않게
   h.score = h.par + d;
   recomputeShots(h);
   autoGreenHit(h);
@@ -4500,6 +4613,7 @@ function setHoleScoreRel(d) {
 function setHolePutts(n) {
   const h = holeEntryHoles[currentHoleIndex];
   h.putts = h.putts === n ? null : n;
+  if (h.pro) h.pro.putt.n = h.putts;
   recomputeShots(h);
   autoGreenHit(h);
   afterHoleChange();
@@ -4521,6 +4635,9 @@ function setHoleMissDir(v) {
 }
 
 function afterHoleChange() {
+  // 홀 스코어를 처음 입력한 시각을 자동 기록(홀당 소요시간·후반 체력·라운드 시간대 날씨 분석용)
+  const cur = holeEntryHoles[currentHoleIndex];
+  if (cur) cur.at = cur.score == null ? null : (cur.at || new Date().toISOString());
   renderCurrentHole();
   renderScorecardTable();
   scheduleHoleEntryAutosave();
@@ -4548,7 +4665,7 @@ function toggleHoleCheck(field, checked) {
 
 function clearCurrentHole() {
   const h = holeEntryHoles[currentHoleIndex];
-  Object.assign(h, { shots: null, putts: null, score: null, penalty: 0, mulligan: false, greenHit: null, teeShot: null, missDir: null, fairwayHit: h.par === 3 ? null : null });
+  Object.assign(h, { shots: null, putts: null, score: null, penalty: 0, mulligan: false, greenHit: null, teeShot: null, missDir: null, fairwayHit: h.par === 3 ? null : null, pro: null });
   afterHoleChange();
 }
 
@@ -4562,6 +4679,7 @@ function promptHoleScore() {
   if (v == null || v.trim() === '') return;
   const n = Number(v);
   if (!Number.isInteger(n) || n < 1 || n > 30) { showToast('1~30 사이 숫자를 입력해주세요'); return; }
+  if (h.pro) h.pro.manual = true;
   h.score = n;
   recomputeShots(h);
   autoGreenHit(h);
@@ -4597,15 +4715,276 @@ function renderCurrentHole() {
     `<button type="button" class="${h.greenHit ? 'sel' : ''}" onclick="toggleHoleCheck('greenHit', ${!h.greenHit})">그린 적중</button>` +
     `<button type="button" class="${h.mulligan ? 'sel' : ''}" onclick="toggleHoleCheck('mulligan', ${!h.mulligan})">멀리건</button>`;
   document.getElementById('hole-entry-penalty').textContent = h.penalty ?? 0;
+  if (holeEntryMode === 'pro') renderProPanel(h);
 
   document.getElementById('hole-entry-swipe-hint').querySelector('.hole-swipe-arrow-left').style.opacity = currentHoleIndex === 0 ? '0.25' : '1';
   document.getElementById('hole-entry-swipe-hint').querySelector('.hole-swipe-arrow-right').style.opacity = currentHoleIndex === holeEntryHoles.length - 1 ? '0.25' : '1';
+}
+
+// ===== 프로 모드: 샷 단위 상세 기록 =====
+// 홀 파에 맞는 카드만 보여준다(파3: 티샷·스크램블링·퍼팅 / 파4: 티샷·그린공략·스크램블링·퍼팅 /
+// 파5·6: 티샷·페어웨이공략·그린공략·스크램블링·퍼팅). 결과 칩을 누른 샷만 1타로 세고, 스코어는
+// 샷 + 벌타 + 퍼트로 자동 계산한다. 스코어 버튼으로 직접 고치면 수동으로 고정되고, "자동 계산으로"를 누르면 다시 자동이 된다.
+// 기존 통계(FIR/GIR/OB/미스방향/퍼팅/페널티)가 그대로 동작하도록 홀의 기존 필드에도 같이 반영한다(applyPro).
+const PRO_CLUBS = ['DR', 'W3', 'U3', 'I4', 'I5', 'I6', 'I7', 'I8', 'I9', 'P', 'W52', 'W56', 'W58'];
+const PRO_DEFAULT_CLUB = { fw: 'W3', ap: 'I7', sc: 'W56' };
+const PRO_DIRS = [['short', '짧음'], ['long', '길음'], ['left', '좌측'], ['right', '우측']];
+const proRange = (a, b, step) => { const r = []; for (let v = a; v <= b; v += step) r.push(v); return r; };
+const PRO_DIST_OPTS = {
+  drive: proRange(100, 350, 10).map((v) => [v, `${v}m`]),
+  fairway: proRange(50, 300, 10).map((v) => [v, `${v}m`]),
+  pin: proRange(10, 100, 5).concat(proRange(110, 250, 10)).map((v) => [v, `${v}m`]),
+  scramble: proRange(1, 30, 1).concat(proRange(35, 100, 5)).map((v) => [v, `${v}m`]),
+  firstPutt: proRange(1, 30, 1).map((v) => [v, v === 1 ? '~1m' : v === 30 ? '30m~' : `${v}m`]),
+};
+
+const proNewShot = (club, dist = null) => ({ club, res: null, bunker: false, ob: false, hz: false, pen: 0, dist, cause: null, from: null, lie: null });
+// 미스 원인(컨택) - 미스(방향 미스·벙커·OB·해저드)일 때만 칩을 보여준다
+const PRO_CAUSES = [['top', '탑볼'], ['fat', '뒤땅'], ['shank', '생크'], ['hook', '훅'], ['slice', '슬라이스']];
+const PRO_LIE_LABEL = { fairway: '페어웨이', rough: '러프', bunker: '벙커', fringe: '프린지' };
+const proIsMiss = (s) => !!(s && (['left', 'right', 'short', 'long'].includes(s.res) || s.ob || s.hz || s.bunker));
+// 기본 거리: 파4·5 드라이버 티샷 210m, 파5 페어웨이 공략 180m(결과를 누르기 전엔 기본값일 뿐이라 저장 판단에서 제외)
+const PRO_DEFAULT_DIST = { tee: 210, fw: 180 };
+const proShotCounted = (s) => !!(s && (s.res || s.ob || s.hz || s.bunker));
+const proAllShots = (p) => [p.tee, ...(p.fw || []), ...(p.ap || []), ...(p.sc || [])].filter(Boolean);
+
+function proHasData(p) {
+  if (!p) return false;
+  const shots = proAllShots(p);
+  return shots.some((s) => proShotCounted(s) || s.pen) || p.putt?.n != null || p.putt?.first != null || !!p.putt?.shortMiss;
+}
+
+/** 프로 모드로 처음 여는 홀에 기본 카드를 만든다. 클럽 기본값: 파4·5 티샷 DR, 파3 티샷 I9, 스크램블링 W56.
+ * 이미 다른 모드로 스코어를 넣은 홀이면 그 스코어를 덮어쓰지 않도록 수동(manual) 상태로 시작한다. */
+function ensurePro(h) {
+  if (h.pro) return h.pro;
+  h.pro = {
+    tee: h.par === 3 ? proNewShot('I9') : proNewShot('DR', PRO_DEFAULT_DIST.tee),
+    fw: h.par >= 5 ? [proNewShot(PRO_DEFAULT_CLUB.fw, PRO_DEFAULT_DIST.fw)] : [],
+    ap: h.par >= 4 ? [proNewShot(PRO_DEFAULT_CLUB.ap)] : [],
+    sc: [],
+    putt: { n: h.putts ?? null, first: null, shortMiss: false },
+    manual: h.score != null,
+  };
+  return h.pro;
+}
+
+/** 샷 수 + 벌타 + 퍼트. 아무것도 입력 안 했으면 null(빈 홀로 남김). */
+function proScoreParts(p) {
+  const shots = proAllShots(p);
+  const n = shots.filter(proShotCounted).length;
+  const pen = shots.reduce((s, x) => s + (x.pen || 0), 0);
+  const putts = p.putt?.n ?? 0;
+  const total = !n && !pen && p.putt?.n == null ? null : n + pen + putts;
+  return { n, pen, putts, total };
+}
+
+/** 프로 입력 → 홀의 기존 필드(퍼팅·페널티·티샷 결과·미스 방향·FIR·GIR·스코어)에 반영. */
+function applyPro(h) {
+  const p = h.pro;
+  const t = p.tee;
+  h.putts = p.putt.n;
+  h.penalty = proAllShots(p).reduce((s, x) => s + (x.pen || 0), 0);
+  // 미스가 아니게 바뀐 샷은 미스 원인을 지운다
+  proAllShots(p).forEach((s) => { if (!proIsMiss(s)) s.cause = null; });
+  // 라이 자동 판정: 직전에 친(결과를 누른) 샷의 결과로 다음 샷의 라이를 정한다. 스크램블링은 직접 고른 시작 위치가 우선.
+  let prev = null;
+  for (const s of [t, ...p.fw, ...p.ap, ...p.sc]) {
+    if (s !== t) {
+      const auto = !prev || prev.ob || prev.hz ? null
+        : prev.bunker ? 'bunker'
+          : prev.res === 'fairway' ? 'fairway'
+            : ['left', 'right'].includes(prev.res) ? 'rough'
+              : ['short', 'long'].includes(prev.res) ? 'fringe' : null;
+      s.lie = s.from || auto;
+    }
+    if (proShotCounted(s)) prev = s;
+  }
+  if (h.par === 3) {
+    h.teeShot = t.ob ? 'ob' : t.hz ? 'hazard' : t.bunker ? 'bunker' : null;
+    h.missDir = null;
+    h.fairwayHit = null;
+  } else {
+    h.teeShot = t.ob ? 'ob' : t.hz ? 'hazard' : t.bunker ? 'bunker' : t.res === 'fairway' ? 'fairway' : t.res ? 'rough' : null;
+    h.missDir = h.teeShot && h.teeShot !== 'fairway' && (t.res === 'left' || t.res === 'right') ? t.res : null;
+    h.fairwayHit = h.teeShot ? h.teeShot === 'fairway' : null;
+  }
+  if (!p.manual) h.score = proScoreParts(p).total;
+  recomputeShots(h);
+  if (h.score != null && h.putts != null) autoGreenHit(h);
+  else h.greenHit = [t, ...p.fw, ...p.ap].some((s) => s.res === 'green' || s.res === 'twoOn') ? true : null;
+}
+
+const proHole = () => holeEntryHoles[currentHoleIndex];
+function proShot(sec, i) { const p = ensurePro(proHole()); return sec === 'tee' ? p.tee : p[sec][i]; }
+function proCommit() { applyPro(proHole()); afterHoleChange(); }
+function proSetRes(sec, i, v) { const s = proShot(sec, i); s.res = s.res === v ? null : v; proCommit(); }
+function proSetClub(sec, i, v) { proShot(sec, i).club = v; proCommit(); }
+function proSetDist(sec, i, v) { const s = proShot(sec, i); s.dist = v === '' ? null : Number(v); s.distSet = true; proCommit(); } // distSet: 기본 거리가 아니라 직접 고른 값(리포트 평균 거리에만 사용)
+/** OB는 OB티 진행 기준 2벌타를 기본으로 넣는다(패널티 −/＋로 조정 가능). */
+function proToggle(sec, i, f) {
+  const s = proShot(sec, i);
+  s[f] = !s[f];
+  if (f === 'ob') s.pen = s.ob ? Math.max(s.pen || 0, 2) : (s.pen === 2 ? 0 : s.pen);
+  if (f === 'hz') s.pen = s.hz ? Math.max(s.pen || 0, 1) : (s.pen === 1 ? 0 : s.pen); // 해저드·분실구 기본 1벌타
+  proCommit();
+}
+function proSetCause(sec, i, v) { const s = proShot(sec, i); s.cause = s.cause === v ? null : v; proCommit(); }
+function proSetFrom(sec, i, v) { const s = proShot(sec, i); s.from = s.from === v ? null : v; proCommit(); }
+function proSetPuttField(f, v) { const pt = ensurePro(proHole()).putt; pt[f] = pt[f] === v ? null : v; proCommit(); }
+function proPen(sec, i, d) { const s = proShot(sec, i); s.pen = Math.min(5, Math.max(0, (s.pen || 0) + d)); proCommit(); }
+function proAdd(sec) { const p = ensurePro(proHole()); if (p[sec].length < 6) p[sec].push(proNewShot(PRO_DEFAULT_CLUB[sec], PRO_DEFAULT_DIST[sec] ?? null)); proCommit(); }
+function proRemove(sec, i) { ensurePro(proHole())[sec].splice(i, 1); proCommit(); }
+function proSetPutts(n) {
+  const p = ensurePro(proHole());
+  p.putt.n = p.putt.n === n ? null : n;
+  if (!p.putt.n) { p.putt.first = null; p.putt.shortMiss = false; p.putt.slope = null; }
+  if (!(p.putt.n >= 2)) p.putt.firstRes = null; // 첫 퍼트를 넣었으면 결과(짧음/길음)가 없다
+  proCommit();
+}
+function proSetFirst(v) { ensurePro(proHole()).putt.first = v === '' ? null : Number(v); proCommit(); }
+function proToggleShortMiss() { const p = ensurePro(proHole()); p.putt.shortMiss = !p.putt.shortMiss; proCommit(); }
+function proAutoScore() { ensurePro(proHole()).manual = false; proCommit(); }
+
+function proSelectHtml(cls, opts, val, onchange, placeholder, disabled) {
+  return `<select class="pro-sel ${cls}" ${disabled ? 'disabled' : ''} onchange="${onchange}">` +
+    (placeholder != null ? `<option value="">${placeholder}</option>` : '') +
+    opts.map(([v, l]) => `<option value="${v}"${String(val) === String(v) ? ' selected' : ''}>${l}</option>`).join('') + '</select>';
+}
+
+/** 샷 카드 하나. cfg: { good: [[v,l]], dirsLabel, dist: {opts, ph}, bunker, removable, idx } */
+function proShotCard(sec, i, s, cfg) {
+  const a = `'${sec}',${i}`;
+  const chip = (v, l, cls) => `<button type="button" class="${cls || ''}${s.res === v ? ' sel' : ''}" onclick="proSetRes(${a},'${v}')">${l}</button>`;
+  const tog = (f, l) => `<button type="button" class="bad${s[f] ? ' sel' : ''}" onclick="proToggle(${a},'${f}')">${l}</button>`;
+  const fromChips = cfg.from
+    ? `<div class="pro-chips"><span class="pro-lb">시작</span>${[['rough', '러프'], ['bunker', '벙커'], ['fringe', '프린지']].map(([v, l]) =>
+      `<button type="button" class="${(s.from || s.lie) === v ? 'sel' : ''}" onclick="proSetFrom(${a},'${v}')">${l}</button>`).join('')}</div>`
+    : '';
+  return `<div class="pro-shot${proShotCounted(s) ? ' done' : ''}">
+    <div class="pro-shot-head">
+      ${cfg.idx ? `<span class="pro-idx">${cfg.idx}</span>` : ''}
+      ${proSelectHtml('club', PRO_CLUBS.map((c) => [c, c]), s.club, `proSetClub(${a},this.value)`)}
+      ${cfg.dist ? proSelectHtml('', cfg.dist.opts, s.dist, `proSetDist(${a},this.value)`, cfg.dist.ph) : ''}
+      ${!cfg.from && s.lie ? `<span class="pro-lie" title="직전 샷 결과로 자동 판정">${PRO_LIE_LABEL[s.lie]}에서</span>` : ''}
+      ${cfg.removable ? `<button type="button" class="pro-x" title="이 샷 삭제" onclick="proRemove(${a})">✕</button>` : ''}
+    </div>
+    ${fromChips}
+    <div class="pro-chips">
+      ${(cfg.good || []).map(([v, l]) => chip(v, l, 'good')).join('')}
+      ${cfg.dirsLabel ? `<span class="pro-sep">${cfg.dirsLabel}</span>` : ''}
+      ${(cfg.dirs || PRO_DIRS).map(([v, l]) => chip(v, l)).join('')}
+    </div>
+    <div class="pro-chips">
+      ${cfg.bunker ? tog('bunker', '벙커') : ''}${tog('ob', 'OB')}${tog('hz', '해저드')}
+      <span class="pro-pen">패널티
+        <button type="button" onclick="proPen(${a},-1)">−</button><b>${s.pen || 0}</b><button type="button" onclick="proPen(${a},1)">＋</button>
+      </span>
+    </div>
+    ${proIsMiss(s) ? `<div class="pro-chips pro-cause"><span class="pro-lb">원인</span>${PRO_CAUSES.map(([v, l]) =>
+      `<button type="button" class="${s.cause === v ? 'sel' : ''}" onclick="proSetCause(${a},'${v}')">${l}</button>`).join('')}</div>` : ''}
+  </div>`;
+}
+
+function proSection(title, sec, list, cfg, emptyText) {
+  const cards = list.map((s, i) => proShotCard(sec, i, s, { ...cfg, removable: true, idx: list.length > 1 ? `${i + 1}` : '' })).join('');
+  return `<div class="pro-sec"><span>${title}</span><button type="button" class="pro-add" onclick="proAdd('${sec}')">＋ 추가</button></div>` +
+    (cards || `<div class="pro-empty">${emptyText}</div>`);
+}
+
+function renderProPanel(h) {
+  const p = ensurePro(h);
+  const par3 = h.par === 3;
+  const long = h.par >= 5;
+  // 기본 거리 도입 전에 만들어진(아직 결과를 안 누른) 샷 카드에도 기본 거리를 채운다
+  if (!par3 && p.tee.dist == null && !proShotCounted(p.tee)) p.tee.dist = PRO_DEFAULT_DIST.tee;
+  p.fw.forEach((s) => { if (s.dist == null && !proShotCounted(s)) s.dist = PRO_DEFAULT_DIST.fw; });
+  const parts = proScoreParts(p);
+
+  const scoreEl = document.getElementById('he-pro-score');
+  if (p.manual) {
+    const auto = parts.total != null && parts.total !== h.score ? ` (자동 ${parts.total}타)` : '';
+    scoreEl.innerHTML = `직접 입력한 스코어 <b>${h.score ?? '-'}타</b>${auto} · <button type="button" onclick="proAutoScore()">자동 계산으로</button>`;
+  } else if (parts.total == null) {
+    scoreEl.innerHTML = '샷 결과와 퍼트를 누르면 스코어가 자동으로 입력돼요';
+  } else {
+    scoreEl.innerHTML = `자동 계산 · 샷 ${parts.n}${parts.pen ? ` + 벌타 ${parts.pen}` : ''} + 퍼트 ${parts.putts} = <b>${parts.total}타 (${holeScoreTerm(h.par, parts.total)})</b>`;
+  }
+
+  const n = (k) => (long ? `${k}. ` : '');
+  const greenCfg = { good: [['green', '그린적중']], dirsLabel: '미스', dist: { opts: PRO_DIST_OPTS.pin, ph: '핀까지' }, bunker: true };
+  let html = `<div class="pro-sec"><span>${n(1)}티샷</span></div>`;
+  html += par3
+    ? proShotCard('tee', 0, p.tee, { ...greenCfg, dirsLabel: '러프' })
+    : proShotCard('tee', 0, p.tee, { good: [['fairway', '페어웨이']], dirs: [['left', '좌측'], ['right', '우측']], dist: { opts: PRO_DIST_OPTS.drive, ph: '거리' }, bunker: true });
+  if (long) {
+    html += proSection(`${n(2)}페어웨이 공략`, 'fw', p.fw,
+      { good: [['fairway', '페어웨이'], ['twoOn', '투온']], dirs: [['left', '좌측'], ['right', '우측']], dist: { opts: PRO_DIST_OPTS.fairway, ph: '거리' }, bunker: true }, '페어웨이 공략 샷이 없으면 비워두세요');
+  }
+  if (!par3) html += proSection(`${n(3)}그린 공략`, 'ap', p.ap, greenCfg, '그린 공략 샷이 없으면 비워두세요');
+  html += proSection('스크램블링', 'sc', p.sc,
+    { good: [['green', '온그린']], dirsLabel: '미스', dist: { opts: PRO_DIST_OPTS.scramble, ph: '남은 거리' }, from: true }, '그린을 놓쳤을 때만 ＋ 추가 (없으면 집계 안 함)');
+
+  const pt = p.putt;
+  html += `<div class="pro-sec"><span>퍼팅</span></div>
+    <div class="pro-shot${pt.n != null ? ' done' : ''}">
+      <div class="pro-chips"><span class="pro-lb">총 퍼트</span>${[0, 1, 2, 3, 4, 5].map((k) =>
+        `<button type="button" class="${pt.n === k ? 'sel' : ''}" onclick="proSetPutts(${k})">${k}</button>`).join('')}</div>
+      <div class="pro-chips"><span class="pro-lb">첫 퍼트 남은 거리</span>
+        ${proSelectHtml('', PRO_DIST_OPTS.firstPutt, pt.first, 'proSetFirst(this.value)', '선택', !pt.n)}</div>
+      ${pt.n ? `<div class="pro-chips"><span class="pro-lb">경사</span>${[['up', '오르막'], ['down', '내리막'], ['flat', '평지']].map(([v, l]) =>
+        `<button type="button" class="${pt.slope === v ? 'sel' : ''}" onclick="proSetPuttField('slope','${v}')">${l}</button>`).join('')}</div>` : ''}
+      ${pt.n >= 2 ? `<div class="pro-chips"><span class="pro-lb">첫 퍼트 결과</span>${[['short', '짧음'], ['long', '길음']].map(([v, l]) =>
+        `<button type="button" class="${pt.firstRes === v ? 'sel' : ''}" onclick="proSetPuttField('firstRes','${v}')">${l}</button>`).join('')}</div>` : ''}
+      <div class="pro-chips"><button type="button" class="bad${pt.shortMiss ? ' sel' : ''}" ${pt.n ? '' : 'disabled'} onclick="proToggleShortMiss()">숏퍼트 실패 (2m 이내)</button></div>
+    </div>
+    <div class="pro-chips" style="margin-top:10px;"><button type="button" class="${h.mulligan ? 'sel' : ''}" onclick="toggleHoleCheck('mulligan', ${!h.mulligan})">멀리건</button></div>`;
+  document.getElementById('he-pro').innerHTML = html;
 }
 
 function toggleHoleEntryExtra(e) {
   e.preventDefault();
   const el = document.getElementById('hole-entry-extra');
   el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+// ===== 라운드 조건(라운드당 1회) - 기본값이 이미 선택돼 있어서 다를 때만 바꾸면 된다 =====
+const HE_COND_DEFAULTS = { greenSpeed: 'normal', condition: 'normal', roundType: 'friendly', cart: 'cart', caddie: true, practiced: false };
+const HE_COND_OPTS = {
+  greenSpeed: [['vslow', '매우 느림', '~1.98m'], ['slow', '느림', '1.98~2.29m'], ['normal', '보통', '2.29~2.59m'], ['fast', '빠름', '2.59~3.2m'], ['vfast', '매우 빠름', '3.2m~']],
+  condition: [['good', '좋음'], ['normal', '보통'], ['bad', '나쁨']],
+  roundType: [['friendly', '친선'], ['bet', '내기'], ['competition', '대회']],
+  cart: [['cart', '카트'], ['walk', '도보']],
+  caddie: [[true, '캐디 있음'], [false, '노캐디']],
+  practiced: [[true, '최근 연습함'], [false, '연습 안 함']],
+};
+let holeEntryConditions = { ...HE_COND_DEFAULTS };
+let holeEntryCondOpen = false;
+
+const condLabel = (k) => (HE_COND_OPTS[k].find(([v]) => v === holeEntryConditions[k]) || [])[1] || '-';
+
+function setHoleEntryCondition(k, v) {
+  holeEntryConditions[k] = v;
+  renderHoleEntryConditions();
+  scheduleHoleEntryAutosave();
+}
+
+function toggleHoleEntryConditions() {
+  holeEntryCondOpen = !holeEntryCondOpen;
+  renderHoleEntryConditions();
+}
+
+function renderHoleEntryConditions() {
+  const el = document.getElementById('he-conditions');
+  if (!el) return;
+  const summary = ['greenSpeed', 'condition', 'roundType', 'cart', 'caddie'].map((k) => (k === 'greenSpeed' ? `그린 ${condLabel(k)}` : k === 'condition' ? `컨디션 ${condLabel(k)}` : condLabel(k))).join(' · ');
+  const row = (k, title) => `<div class="he-cond-row"><span class="he-cond-k">${title}</span><div class="pro-chips">${HE_COND_OPTS[k].map(([v, l, sub]) =>
+    `<button type="button" class="${holeEntryConditions[k] === v ? 'sel' : ''}" onclick="setHoleEntryCondition('${k}', ${typeof v === 'boolean' ? v : `'${v}'`})">${l}${sub ? `<small>${sub}</small>` : ''}</button>`).join('')}</div></div>`;
+  el.innerHTML = `<button type="button" class="he-cond-head" onclick="toggleHoleEntryConditions()">
+      <span><b>라운드 조건</b> <span class="muted">${summary}</span></span><span class="muted">${holeEntryCondOpen ? '접기 ▲' : '변경 ▼'}</span>
+    </button>` + (holeEntryCondOpen ? `<div class="he-cond-body">
+      ${row('greenSpeed', '그린 스피드')}${row('condition', '컨디션')}${row('practiced', '연습')}${row('roundType', '라운드 성격')}${row('cart', '이동')}${row('caddie', '캐디')}
+    </div>` : '');
 }
 
 function renderHoleEntryCompanions() {
@@ -4640,8 +5019,10 @@ function buildHoleEntryPayload(status) {
     courseSubName: holeEntryMeta.inCourseName ? `${holeEntryMeta.outCourseName} → ${holeEntryMeta.inCourseName}` : holeEntryMeta.outCourseName,
     outCourseName: holeEntryMeta.outCourseName,
     inCourseName: holeEntryMeta.inCourseName,
-    holes: holeEntryHoles.map(({ no, par, shots, putts, penalty, mulligan, fairwayHit, greenHit, teeShot, missDir, score }) =>
-      ({ no, par, shots, putts, penalty, mulligan, fairwayHit, greenHit, teeShot, missDir, score })),
+    // distM/distTee/handicap(코스 참고값)도 같이 보내야 서버 기록에서 안 지워진다. pro는 입력이 있을 때만.
+    holes: holeEntryHoles.map(({ no, par, distM, distTee, handicap, shots, putts, penalty, mulligan, fairwayHit, greenHit, teeShot, missDir, score, pro, at }) =>
+      ({ no, par, distM, distTee, handicap, shots, putts, penalty, mulligan, fairwayHit, greenHit, teeShot, missDir, score, pro: proHasData(pro) ? pro : null, at: at || null })),
+    conditions: holeEntryConditions,
     totalScore: filled.reduce((s, h) => s + h.score, 0),
     putts: holeEntryHoles.filter((h) => h.putts != null).reduce((s, h) => s + h.putts, 0),
     fir: computeFirGir().fir,
@@ -4688,8 +5069,22 @@ async function finishRound() {
   if (holeEntryStatus === 'done') { closeHoleEntryDialog(); return; }
   if (holeEntryAutosaveTimer) clearTimeout(holeEntryAutosaveTimer);
   const filled = holeEntryHoles.filter((h) => h.score != null).length;
+  // 모든 홀을 입력하기 전에 종료하면 기록에 반영하지 않고 임시저장(진행중 상태 유지)만 한다 -
+  // 스코어 탭의 "이어서 입력하기"로 나중에 마저 입력하고, 마지막 홀까지 입력한 뒤 종료해야 기록·통계에 반영된다.
   if (filled < holeEntryHoles.length) {
-    if (!confirm(`아직 ${holeEntryHoles.length - filled}개 홀이 비어있습니다. 그래도 라운드를 종료할까요?`)) return;
+    if (!confirm(`아직 ${holeEntryHoles.length - filled}개 홀이 비어있어요.\n지금 종료하면 기록에 반영하지 않고 임시저장만 해요.\n(스코어 탭에서 이어서 입력할 수 있어요)`)) return;
+    try {
+      const { score } = await api(`/api/scores/${holeEntryRecordId}`, { method: 'PUT', body: JSON.stringify(buildHoleEntryPayload('in_progress')) });
+      const idx = scoreCache.findIndex((s) => s.id === score.id);
+      if (idx !== -1) scoreCache[idx] = score; else scoreCache.push(score);
+      renderScoreList(scoreCache);
+      renderActiveRoundBanner();
+      document.getElementById('holeEntryDialog').close();
+      showToast(`임시저장했어요 (${filled}/${holeEntryHoles.length}홀) 💾`);
+    } catch (e) {
+      showToast('임시저장 실패: ' + e.message);
+    }
+    return;
   }
   try {
     const { score } = await api(`/api/scores/${holeEntryRecordId}`, { method: 'PUT', body: JSON.stringify(buildHoleEntryPayload('done')) });
@@ -4875,7 +5270,7 @@ function roundSummaryHtml(r, analysis) {
       <div class="rr-box good"><div class="t">좋았던 점</div>${goodLines.slice(0, 2).map((l) => `<div class="l">${l}</div>`).join('')}</div>
       <div class="rr-box bad"><div class="t">아쉬운 점</div>${badLines.slice(0, 2).map((l) => `<div class="l">${l}</div>`).join('')}</div>
     </div>
-    <div class="rr-insight">${rrInsight(a)}</div>
+    <div class="rr-insight">${rrInsight(a)}${rrProHeadline(r)}</div>
     <button type="button" class="rr-more" onclick="event.stopPropagation(); openRoundResult()">자세히 보기 <span>›</span></button>`;
 }
 
@@ -4963,9 +5358,317 @@ function roundResultHtml(r, analysis) {
       ${tile('페어웨이 FIR', a.firPct != null ? a.firPct : '-', a.firPct != null ? '%' : '', s.fir ? `${s.fir.hit} / ${s.fir.n}` : '', a.teeMissCount && missN ? `<span class="rr-mini">${missWord} 미스 ${missN}</span>` : '')}
     </div>
     ${overHtml}
+    ${rrProHtml(r)}
     <div class="rr-card"><div class="rr-card-h good"><h3>좋았던 점</h3></div>${good.length ? rowsHtml(good, 'good') : '<div class="muted2" style="padding:6px 0;">아직 비교할 기록이 부족해요</div>'}</div>
     <div class="rr-card"><div class="rr-card-h bad"><h3>아쉬운 점</h3></div>${bad.length ? rowsHtml(bad, 'bad') : '<div class="muted2" style="padding:6px 0;">큰 실수 없이 안정적인 라운드였어요</div>'}</div>
     <button type="button" class="rr-cta" onclick="openRoundScorecardFromResult()">상세 스코어카드 보기</button>`;
+}
+
+// ===== 라운드 리포트 확장: 프로 모드 샷 분석 + 라운드 환경(날씨·조건·페이스·홀 난이도) =====
+// 앱이 가진 라운드 기록(holes[].pro, conditions, weather, holes[].at)으로 바로 계산한다. 프로 모드로 입력한 홀만 분모로 쓴다.
+const RR_DIR = { short: '짧음', long: '길음', left: '좌측', right: '우측' };
+const RR_CAUSE = { top: '탑볼', fat: '뒤땅', shank: '생크', hook: '훅', slice: '슬라이스' };
+const RR_LIE = { rough: '러프', bunker: '벙커', fringe: '프린지', fairway: '페어웨이', unknown: '미상' };
+const RR_COND_LABEL = {
+  greenSpeed: { vslow: '매우 느림', slow: '느림', normal: '보통', fast: '빠름', vfast: '매우 빠름' },
+  condition: { good: '좋음', normal: '보통', bad: '나쁨' },
+  roundType: { friendly: '친선', bet: '내기', competition: '대회' },
+  cart: { cart: '카트', walk: '도보' },
+};
+const rrPctOf = (a, b) => (b ? Math.round((a / b) * 100) : null);
+const rrMean = (l) => (l.length ? l.reduce((s, v) => s + v, 0) / l.length : null);
+const rrRel1 = (d) => (d == null ? '-' : (Math.round(d * 10) / 10 === 0 ? 'E' : d > 0 ? `+${Math.round(d * 10) / 10}` : `${Math.round(d * 10) / 10}`));
+const rrTop = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1])[0] || null;
+const rrInc = (obj, k) => { obj[k] = (obj[k] || 0) + 1; };
+
+/** 평균 거리에 쓸 거리: 티샷(파4·5)·페어웨이 공략은 직접 고른 값만(기본값 제외), 나머지(핀까지·남은 거리)는 입력값 그대로 */
+function rrShotDist(sec, s, par) {
+  if (s.dist == null) return null;
+  if ((sec === 'tee' && par >= 4) || sec === 'fw') return s.distSet ? s.dist : null;
+  return s.dist;
+}
+
+function rrProAnalysis(r) {
+  const pro = (r.holes || []).filter((h) => h.score != null && h.par != null && proHasData(h.pro));
+  if (!pro.length) return null;
+  const loss = { pen: 0, putt: 0, short: 0, approach: 0, long: 0 };
+  const tee = { n: 0, fw: 0, left: 0, right: 0, other: 0, dists: [], fwToPar: [], missToPar: [] };
+  const appr = { n: 0, hit: 0, dirs: {}, buckets: { '100m 이내': { n: 0, hit: 0 }, '100~150m': { n: 0, hit: 0 }, '150m 이상': { n: 0, hit: 0 } }, twoOn: 0, par5: 0 };
+  const sc = { holes: 0, saves: 0, byLie: {}, dirs: {}, dists: [] };
+  const putt = { buckets: { '3m 이내': [], '4~9m': [], '10m 이상': [] }, shortMiss: 0, three: 0, threeLong: 0, threeShort: 0, firstRes: { short: 0, long: 0 }, slope3: {}, holes: 0 };
+  const causes = {};
+  const clubs = {};
+  for (const h of pro) {
+    const p = h.pro;
+    const counted = (l) => (l || []).filter(proShotCounted);
+    const fw = counted(p.fw), ap = counted(p.ap), scs = counted(p.sc);
+    const shots = [['tee', p.tee], ...fw.map((s) => ['fw', s]), ...ap.map((s) => ['ap', s]), ...scs.map((s) => ['sc', s])].filter(([, s]) => proShotCounted(s));
+    const d = h.score - h.par;
+
+    // 1) 타수 손실: 벌타 / 3퍼트 이상 / 스크램블 2번 이상(숏게임) / 정규 온 실패로 생긴 1타(그린 공략) / 계획보다 많은 공략 샷(세컨드 컨택)
+    loss.pen += proAllShots(p).reduce((s, x) => s + (x.pen || 0), 0);
+    if (p.putt?.n != null) loss.putt += Math.max(0, p.putt.n - 2);
+    loss.short += Math.max(0, scs.length - 1);
+    if (scs.length) loss.approach += 1;
+    loss.long += Math.max(0, fw.length + ap.length - Math.max(0, h.par - 3));
+
+    // 2) 티샷(파4·5)
+    if (h.par >= 4 && proShotCounted(p.tee)) {
+      const t = p.tee;
+      tee.n += 1;
+      if (t.res === 'fairway' && !t.ob && !t.hz && !t.bunker) { tee.fw += 1; tee.fwToPar.push(d); } else {
+        tee.missToPar.push(d);
+        if (t.res === 'left') tee.left += 1; else if (t.res === 'right') tee.right += 1; else tee.other += 1;
+      }
+      const dd = rrShotDist('tee', t, h.par);
+      if (dd != null) tee.dists.push(dd);
+    }
+
+    // 3) 그린 공략(파3 티샷 + 그린 공략 샷)
+    const greenShots = [...(h.par === 3 && proShotCounted(p.tee) ? [p.tee] : []), ...ap];
+    for (const s of greenShots) {
+      const hit = s.res === 'green';
+      appr.n += 1;
+      if (hit) appr.hit += 1; else if (RR_DIR[s.res]) rrInc(appr.dirs, s.res);
+      if (s.dist != null) {
+        const k = s.dist < 100 ? '100m 이내' : s.dist < 150 ? '100~150m' : '150m 이상';
+        appr.buckets[k].n += 1;
+        if (hit) appr.buckets[k].hit += 1;
+      }
+    }
+    if (h.par >= 5) { appr.par5 += 1; if (fw.some((s) => s.res === 'twoOn')) appr.twoOn += 1; }
+
+    // 4) 숏게임(스크램블링) - 스크램블이 있었던 홀만
+    if (scs.length) {
+      const saved = h.score <= h.par;
+      sc.holes += 1;
+      if (saved) sc.saves += 1;
+      const lie = scs[0].from || scs[0].lie || 'unknown';
+      sc.byLie[lie] = sc.byLie[lie] || { n: 0, save: 0 };
+      sc.byLie[lie].n += 1;
+      if (saved) sc.byLie[lie].save += 1;
+      scs.forEach((s) => { if (RR_DIR[s.res]) rrInc(sc.dirs, s.res); if (s.dist != null) sc.dists.push(s.dist); });
+    }
+
+    // 5) 퍼팅
+    const pt = p.putt || {};
+    if (pt.n != null) putt.holes += 1;
+    if (pt.n != null && pt.first != null) putt.buckets[pt.first <= 3 ? '3m 이내' : pt.first < 10 ? '4~9m' : '10m 이상'].push(pt.n);
+    if (pt.shortMiss) putt.shortMiss += 1;
+    if (pt.n >= 3) {
+      putt.three += 1;
+      if (pt.first != null && pt.first >= 10) putt.threeLong += 1; else putt.threeShort += 1;
+      if (pt.slope) rrInc(putt.slope3, pt.slope);
+    }
+    if (pt.firstRes) putt.firstRes[pt.firstRes] += 1;
+
+    // 6) 미스 원인 · 클럽별
+    for (const [sec, s] of shots) {
+      if (s.cause) rrInc(causes, s.cause);
+      if (!s.club) continue;
+      const c = (clubs[s.club] ||= { n: 0, good: 0, dists: [], dirs: {} });
+      c.n += 1;
+      if (['fairway', 'green', 'twoOn'].includes(s.res) && !s.ob && !s.hz && !s.bunker) c.good += 1;
+      if (RR_DIR[s.res]) rrInc(c.dirs, s.res);
+      // 거리: 티샷·페어웨이 공략은 직접 고른 거리, 그린을 맞힌 샷은 핀까지 거리(≈ 비거리)
+      const dd = sec === 'tee' && h.par >= 4 ? rrShotDist(sec, s, h.par) : sec === 'fw' ? rrShotDist(sec, s, h.par) : (s.res === 'green' ? s.dist : null);
+      if (dd != null) c.dists.push(dd);
+    }
+  }
+  return { n: pro.length, loss, tee, appr, sc, putt, causes, clubs };
+}
+
+/** 라운드 환경: 페이스(홀 입력 시각) · 전후반 체력 · 홀 난이도(HDCP)·거리 · 날씨 · 라운드 조건(+같은 조건 라운드와 비교) */
+function rrContext(r) {
+  const played = (r.holes || []).filter((h) => h.score != null && h.par != null).sort((a, b) => a.no - b.no);
+  if (!played.length) return null;
+  const ctx = {};
+  const timed = played.filter((h) => h.at).map((h) => ({ no: h.no, t: Date.parse(h.at) })).sort((a, b) => a.no - b.no);
+  if (timed.length >= 6) {
+    const gaps = [];
+    for (let i = 1; i < timed.length; i++) {
+      if (timed[i].no !== timed[i - 1].no + 1 || timed[i].no === 10) continue; // 전후반 사이(그늘집)는 제외
+      gaps.push({ no: timed[i].no, min: (timed[i].t - timed[i - 1].t) / 60000 });
+    }
+    const valid = gaps.filter((g) => g.min > 0 && g.min < 60);
+    if (valid.length >= 4) {
+      const slow = valid.reduce((a, b) => (b.min > a.min ? b : a));
+      ctx.pace = { perHole: Math.round(rrMean(valid.map((g) => g.min))), slowNo: slow.no, slowMin: Math.round(slow.min), spanMin: Math.round((timed[timed.length - 1].t - timed[0].t) / 60000) };
+    }
+  }
+  const toPar = (l) => (l.length ? rrMean(l.map((h) => h.score - h.par)) : null);
+  const front = played.filter((h) => h.no <= 9), back = played.filter((h) => h.no >= 10);
+  if (front.length >= 6 && back.length >= 6) ctx.halves = { front: toPar(front), back: toPar(back), last6: toPar(played.filter((h) => h.no >= 13)) };
+  const hc = played.filter((h) => h.handicap != null);
+  if (hc.length >= 12) ctx.hdcp = { hard: toPar(hc.filter((h) => h.handicap <= 6)), easy: toPar(hc.filter((h) => h.handicap >= 13)) };
+  const p4 = played.filter((h) => h.par === 4 && h.distM != null).sort((a, b) => a.distM - b.distM);
+  if (p4.length >= 6) {
+    const half = Math.floor(p4.length / 2);
+    ctx.par4 = { short: toPar(p4.slice(0, half)), long: toPar(p4.slice(-half)), cut: p4[half].distM };
+  }
+  ctx.weather = r.weather || null;
+  ctx.conditions = r.conditions || null;
+  // 같은 조건 라운드와의 평균 스코어 비교(18홀 완료 라운드, 각 그룹 2라운드 이상일 때만)
+  const full = scoreCache.filter((s) => s.status === 'done' && Array.isArray(s.holes) && s.holes.filter((h) => h.score != null).length >= 18);
+  const avgOf = (list) => rrMean(list.map((s) => s.totalScore));
+  const cmp = [];
+  const group = (label, pred) => {
+    const yes = full.filter(pred), no = full.filter((s) => !pred(s));
+    if (yes.length >= 2 && no.length >= 2) cmp.push({ label, yes: avgOf(yes), no: avgOf(no), yesN: yes.length, noN: no.length });
+  };
+  if (r.weather?.windMax != null) group('바람 5m/s 이상', (s) => (s.weather?.windMax ?? 0) >= 5);
+  if (r.weather?.tempAvg != null) group('기온 5°C 이하', (s) => s.weather?.tempAvg != null && s.weather.tempAvg <= 5);
+  if (r.conditions) {
+    group('빠른 그린', (s) => ['fast', 'vfast'].includes(s.conditions?.greenSpeed));
+    group('최근 연습함', (s) => s.conditions?.practiced === true);
+    group('내기·대회', (s) => ['bet', 'competition'].includes(s.conditions?.roundType));
+  }
+  ctx.compare = cmp;
+  return ctx;
+}
+
+/** 요약 카드용 한 줄: 프로 모드 기록이 있으면 가장 많이 타수를 잃은 곳 */
+function rrProHeadline(r) {
+  const a = rrProAnalysis(r);
+  if (!a) return '';
+  const names = { pen: 'OB·해저드 벌타', putt: '3퍼트', approach: '그린 공략 미스', short: '숏게임', long: '추가 공략 샷' };
+  const top = rrTop(a.loss);
+  return top && top[1] > 0 ? `<br>가장 많이 잃은 곳: <b>${names[top[0]]} ${top[1]}타</b>` : '';
+}
+
+function rrLine(t, sub, val, cls, barPct) {
+  return `<div class="rr-row"><div class="l"><div class="t">${t}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div><div class="v ${cls || ''}">${val}</div></div>` +
+    (barPct != null ? `<div class="rr-meter"><span style="width:${Math.min(100, Math.max(0, barPct))}%"></span></div>` : '');
+}
+
+function rrCard(title, body, sub) {
+  return body ? `<div class="rr-card"><div class="rr-card-h"><h3>${title}</h3>${sub ? `<span class="muted2">${sub}</span>` : ''}</div>${body}</div>` : '';
+}
+
+function rrProHtml(r) {
+  const a = rrProAnalysis(r);
+  const ctx = rrContext(r);
+  let html = '';
+  if (a) {
+    // 1) 타수 손실
+    const L = a.loss;
+    const items = [
+      ['pen', 'OB·해저드 벌타', '티샷 안정성 - OB·해저드부터 줄이기'],
+      ['putt', '퍼팅 (3퍼트 이상)', '퍼팅 거리감과 2m 이내 숏퍼트'],
+      ['approach', '그린 공략 미스', '아이언·그린 공략 정확도'],
+      ['short', '숏게임 (스크램블 2번 이상)', '어프로치·벙커 탈출'],
+      ['long', '추가 공략 샷 (컨택 미스)', '세컨드 샷 컨택 - 뒤땅·탑볼 줄이기'],
+    ].filter(([k]) => L[k] > 0);
+    const totalLoss = items.reduce((s, [k]) => s + L[k], 0);
+    if (items.length) {
+      const top = items.reduce((x, y) => (L[y[0]] > L[x[0]] ? y : x));
+      html += rrCard('타수를 잃은 곳', items.sort((x, y) => L[y[0]] - L[x[0]]).map(([k, label]) => rrLine(label, '', `${L[k]}<small>타</small>`, 'bad', rrPctOf(L[k], totalLoss))).join('') +
+        `<div class="rr-callout">가장 많이 잃은 곳은 <b>${top[1]}</b> (${L[top[0]]}타) · 다음 연습 포인트: <b>${top[2]}</b></div>`, `프로 입력 ${a.n}홀 기준`);
+    }
+
+    // 2) 티샷
+    const T = a.tee;
+    if (T.n) {
+      let body = rrLine('페어웨이 안착', `파4·파5 티샷 ${T.n}회`, `${T.fw}<small>/${T.n}</small>`, T.fw / T.n >= 0.5 ? 'good' : 'bad', rrPctOf(T.fw, T.n));
+      if (T.left + T.right) {
+        const side = T.right >= T.left ? '우측' : '좌측';
+        body += rrLine('미스 방향', `좌측 ${T.left} · 우측 ${T.right}${Math.max(T.left, T.right) >= 2 ? ` → ${side === '우측' ? '슬라이스' : '훅'} 경향` : ''}`, `${side} ${Math.max(T.left, T.right)}`, 'bad');
+      }
+      if (T.dists.length) body += rrLine('평균 거리', `직접 입력한 ${T.dists.length}회 기준 · 최대 ${Math.max(...T.dists)}m`, `${Math.round(rrMean(T.dists))}<small>m</small>`);
+      if (T.fwToPar.length && T.missToPar.length) {
+        const gap = rrMean(T.missToPar) - rrMean(T.fwToPar);
+        body += rrLine('티샷 결과별 홀 스코어', `페어웨이 ${rrRel1(rrMean(T.fwToPar))} · 미스 ${rrRel1(rrMean(T.missToPar))}`, gap > 0 ? `+${Math.round(gap * 10) / 10}<small>타</small>` : '-', gap > 0 ? 'bad' : '');
+      }
+      html += rrCard('티샷', body);
+    }
+
+    // 3) 그린 공략
+    const A = a.appr;
+    if (A.n) {
+      let body = rrLine('그린 적중', `파3 티샷 + 그린 공략 ${A.n}회`, `${A.hit}<small>/${A.n}</small>`, A.hit / A.n >= 0.5 ? 'good' : 'bad', rrPctOf(A.hit, A.n));
+      Object.entries(A.buckets).filter(([, b]) => b.n).forEach(([k, b]) => { body += rrLine(`핀까지 ${k}`, `${b.n}회`, `${rrPctOf(b.hit, b.n)}<small>%</small>`, '', rrPctOf(b.hit, b.n)); });
+      const top = rrTop(A.dirs);
+      if (top) {
+        const tip = { short: '클럽을 한 개 더 잡아보세요', long: '클럽을 한 개 줄여보세요', left: '당겨치는 경향 - 정렬·체중이동 점검', right: '밀리는 경향 - 페이스 각도 점검' }[top[0]];
+        body += rrLine('미스 경향', Object.entries(A.dirs).map(([k, v]) => `${RR_DIR[k]} ${v}`).join(' · '), `${RR_DIR[top[0]]} ${top[1]}`, 'bad');
+        if (top[1] >= 2) body += `<div class="rr-callout">그린 미스 ${A.n - A.hit}회 중 <b>${RR_DIR[top[0]]} ${top[1]}회</b> → ${tip}</div>`;
+      }
+      if (A.par5) body += rrLine('파5 투온', `파5 ${A.par5}홀`, `${A.twoOn}<small>회</small>`, A.twoOn ? 'good' : '');
+      html += rrCard('그린 공략', body);
+    }
+
+    // 4) 숏게임
+    const S = a.sc;
+    if (S.holes) {
+      let body = rrLine('스크램블링 성공', '그린을 놓친 뒤 파 이하로 막은 비율', `${S.saves}<small>/${S.holes}</small>`, S.saves / S.holes >= 0.4 ? 'good' : 'bad', rrPctOf(S.saves, S.holes));
+      Object.entries(S.byLie).forEach(([k, v]) => { body += rrLine(`${RR_LIE[k] || k}에서`, k === 'bunker' ? '벙커 세이브' : '', `${v.save}<small>/${v.n}</small>`); });
+      if (S.dists.length) body += rrLine('평균 남은 거리', '', `${Math.round(rrMean(S.dists))}<small>m</small>`);
+      const top = rrTop(S.dirs);
+      if (top) body += rrLine('미스 경향', Object.entries(S.dirs).map(([k, v]) => `${RR_DIR[k]} ${v}`).join(' · '), `${RR_DIR[top[0]]} ${top[1]}`, 'bad');
+      html += rrCard('숏게임', body);
+    }
+
+    // 5) 퍼팅
+    const P = a.putt;
+    if (P.holes) {
+      let body = '';
+      Object.entries(P.buckets).filter(([, l]) => l.length).forEach(([k, l]) => { body += rrLine(`첫 퍼트 ${k}`, `${l.length}홀 · 평균 퍼트`, `${(Math.round(rrMean(l) * 10) / 10).toFixed(1)}`); });
+      body += rrLine('숏퍼트 실패 (2m 이내)', '', `${P.shortMiss}<small>회</small>`, P.shortMiss ? 'bad' : 'good');
+      if (P.three) {
+        const why = P.threeLong >= P.threeShort ? '첫 퍼트가 먼 거리(10m 이상)' : '짧은 거리를 놓친 경우';
+        body += rrLine('3퍼트', `장거리 ${P.threeLong} · 그 외 ${P.threeShort} → 주로 ${why}${P.slope3.down ? ` · 내리막 ${P.slope3.down}회` : ''}`, `${P.three}<small>회</small>`, 'bad');
+      }
+      const fr = P.firstRes;
+      if (fr.short + fr.long >= 2) {
+        const word = fr.short > fr.long ? '짧게' : fr.long > fr.short ? '길게' : null;
+        body += rrLine('첫 퍼트 거리감', `짧음 ${fr.short} · 길음 ${fr.long}`, word ? `${word}` : '균형', word ? 'bad' : 'good');
+        if (word && Math.max(fr.short, fr.long) >= 2) body += `<div class="rr-callout">첫 퍼트가 주로 <b>${word}</b> 남았어요 → ${word === '짧게' ? '홀컵을 30cm 지나가게 치는 연습' : '거리감(백스윙 크기) 조절 연습'}</div>`;
+      }
+      html += rrCard('퍼팅', body);
+    }
+
+    // 6) 클럽별 성적표
+    const clubRows = PRO_CLUBS.filter((c) => a.clubs[c]).map((c) => {
+      const v = a.clubs[c];
+      const dir = rrTop(v.dirs);
+      return `<tr><td><b>${c}</b></td><td>${v.n}</td><td>${rrPctOf(v.good, v.n)}%</td><td>${v.dists.length ? `${Math.round(rrMean(v.dists))}m` : '-'}</td><td>${dir ? `${RR_DIR[dir[0]]} ${dir[1]}` : '-'}</td></tr>`;
+    }).join('');
+    if (clubRows) html += rrCard('클럽별 성적표', `<table class="rr-table"><thead><tr><th>클럽</th><th>횟수</th><th>성공</th><th>평균거리</th><th>주 미스</th></tr></thead><tbody>${clubRows}</tbody></table>
+      <div class="muted2" style="margin-top:6px; font-size:11px;">성공 = 페어웨이·그린 적중·투온 · 평균거리 = 직접 입력한 티샷/페어웨이 거리, 그린 적중 샷은 핀까지 거리</div>`);
+
+    // 미스 원인
+    const causeTotal = Object.values(a.causes).reduce((s, v) => s + v, 0);
+    if (causeTotal) {
+      const top = rrTop(a.causes);
+      const tip = { top: '공을 끝까지 보고 상체가 일찍 일어나지 않게', fat: '체중을 왼발에 두고 공 먼저 맞히기', shank: '어드레스 거리·손 위치 점검', hook: '그립을 약하게, 릴리스 타이밍 점검', slice: '아웃-인 궤도와 열린 페이스 점검' }[top[0]];
+      html += rrCard('미스 원인', Object.entries(a.causes).sort((x, y) => y[1] - x[1]).map(([k, v]) => rrLine(RR_CAUSE[k], '', `${v}<small>회</small>`, 'bad', rrPctOf(v, causeTotal))).join('') +
+        `<div class="rr-callout">가장 많은 미스는 <b>${RR_CAUSE[top[0]]}</b> → ${tip}</div>`);
+    }
+  }
+
+  // 라운드 환경
+  if (ctx) {
+    let body = '';
+    const w = ctx.weather;
+    if (w) body += rrLine('날씨', `${w.start?.slice(11, 16) || ''}~${w.end?.slice(11, 16) || ''} · 습도 ${w.humidityAvg ?? '-'}%${w.precipMm ? ` · 강수 ${w.precipMm}mm` : ''}`,
+      `${w.sky || ''} ${w.tempAvg != null ? `${Math.round(w.tempAvg)}°` : ''}<small> 바람 ${w.windMax ?? '-'}m/s</small>`, w.windMax >= 5 || (w.tempAvg != null && w.tempAvg <= 5) ? 'bad' : '');
+    const c = ctx.conditions;
+    if (c) body += rrLine('라운드 조건', `${RR_COND_LABEL.condition[c.condition] ? `컨디션 ${RR_COND_LABEL.condition[c.condition]} · ` : ''}${c.practiced ? '최근 연습함 · ' : ''}${RR_COND_LABEL.roundType[c.roundType] || ''} · ${RR_COND_LABEL.cart[c.cart] || ''} · ${c.caddie ? '캐디' : '노캐디'}`,
+      `그린 ${RR_COND_LABEL.greenSpeed[c.greenSpeed] || '-'}`);
+    if (ctx.pace) body += rrLine('플레이 페이스', `홀당 평균 ${ctx.pace.perHole}분 · 가장 오래 걸린 홀 ${ctx.pace.slowNo}H (${ctx.pace.slowMin}분)`, `${Math.floor(ctx.pace.spanMin / 60)}<small>시간</small> ${ctx.pace.spanMin % 60}<small>분</small>`);
+    if (ctx.halves) {
+      const drop = ctx.halves.back - ctx.halves.front;
+      body += rrLine('전반 vs 후반 (홀당)', `전반 ${rrRel1(ctx.halves.front)} · 후반 ${rrRel1(ctx.halves.back)} · 마지막 6홀 ${rrRel1(ctx.halves.last6)}`, drop > 0.3 ? '후반 ▼' : drop < -0.3 ? '후반 ▲' : '고른 편', drop > 0.3 ? 'bad' : 'good');
+    }
+    if (ctx.hdcp) body += rrLine('홀 난이도별 (홀당)', `어려운 홀 HDCP 1~6 ${rrRel1(ctx.hdcp.hard)} · 쉬운 홀 13~18 ${rrRel1(ctx.hdcp.easy)}`, ctx.hdcp.easy != null && ctx.hdcp.hard != null && ctx.hdcp.easy >= ctx.hdcp.hard ? '쉬운 홀 주의' : '');
+    if (ctx.par4) body += rrLine('파4 거리별 (홀당)', `${ctx.par4.cut}m 미만 ${rrRel1(ctx.par4.short)} · 이상 ${rrRel1(ctx.par4.long)}`, '');
+    ctx.compare.forEach((g) => {
+      const diff = g.yes - g.no;
+      body += rrLine(`${g.label}일 때`, `${g.yesN}라운드 평균 ${Math.round(g.yes * 10) / 10} · 그 외 ${g.noN}라운드 ${Math.round(g.no * 10) / 10}`, `${diff > 0 ? '+' : ''}${Math.round(diff * 10) / 10}<small>타</small>`, diff > 0 ? 'bad' : 'good');
+    });
+    html += rrCard('라운드 환경', body);
+  }
+  return html;
 }
 
 // 분석은 서버(D1 rounds/holes 집계, GET /api/reports/round/:id)가 만든 리포트를 쓰고, 서버 응답 전이거나
@@ -5168,6 +5871,7 @@ async function removeScore(id) {
 
 // ===== 코스정보 관리(골프장별 코스/홀 파·핸디캡 직접 입력) =====
 let courseInfoCache = [];
+let courseHoleDbIndex = []; // GET /api/course-info/db-index - 전국 코스DB에 코스·홀 데이터가 있는 골프장 이름들
 let courseInfoDialogSelectedCourse = null; // 자동완성으로 고른 { name, region } - 없으면 입력창 텍스트 그대로 씀
 let courseInfoDialogSubCourses = []; // [{ id, name, holes: [{no, par}] }]
 let courseInfoDialogRatings = []; // [{ courseNames:[a,b] 또는 [a], teeBox, courseRating, slopeRating, courseLength }]
@@ -5249,6 +5953,11 @@ function renderCourseInfoKgaSection() {
 function renderCourseInfoRatings() {}
 
 async function loadCourseInfoList() {
+  if (!courseHoleDbIndex.length) {
+    api('/api/course-info/db-index')
+      .then(({ clubs }) => { courseHoleDbIndex = clubs || []; if (gl.loaded) glRender(); })
+      .catch(() => { /* 없으면 예전처럼 직접 입력한 코스정보만 */ });
+  }
   try {
     const { courseInfoList } = await api('/api/course-info');
     courseInfoCache = courseInfoList;
@@ -5311,6 +6020,7 @@ function openCourseInfoDialog(id) {
     document.getElementById('courseinfo-delete-btn').style.display = '';
     refreshCourseInfoMygolfCourseList(c.courseName);
     applyCourseInfoKgaRating(c.courseName);
+    mergeCourseInfoDialogDistances(c.courseName);
   } else {
     courseInfoDialogSubCourses = [];
     courseInfoDialogRatings = [];
@@ -5454,6 +6164,8 @@ function renderCourseInfoSubCourses() {
                 ${[3, 4, 5].map((p) => `<option value="${p}" ${h.par === p ? 'selected' : ''}>${p}</option>`).join('')}
               </select></td>`).join('')}
             </tr>
+            ${sc.holes.some((h) => (h.whiteM ?? h.baseM) != null) ? `<tr class="hole-ref"><td class="hole-no">${sc.holes.some((h) => h.whiteM != null) ? '화이트(m)' : `${escapeHtml(sc.holes.find((h) => h.baseTee)?.baseTee || '')}(m)`}</td>${sc.holes.map((h) => `<td>${h.whiteM ?? h.baseM ?? '-'}</td>`).join('')}</tr>` : ''}
+            ${sc.holes.some((h) => h.handicap != null) ? `<tr class="hole-ref"><td class="hole-no">HDCP</td>${sc.holes.map((h) => `<td>${h.handicap ?? '-'}</td>`).join('')}</tr>` : ''}
           </tbody>
         </table>
       </div>
@@ -9198,6 +9910,45 @@ async function resumeRoundFromNotification() {
   await loadScores();
   const record = scoreCache.find((s) => s.status === 'in_progress');
   if (record) openHoleEntryForRecord(record, null);
+  else markActiveRound(null);
+}
+
+// 스코어 입력 화면은 주소가 바뀌지 않는 다이얼로그라, 안드로이드가 백그라운드의 웹앱을 메모리에서 내렸다가
+// 다시 띄우면(앱 아이콘/최근 앱/알림 탭 모두) start_url("/")로 새로 로드돼서 홈 화면이 나오던 문제가 있었다.
+// 입력 화면이 열려 있는 동안 이 기기에 "진행중 라운드 화면" 표시를 남겨두고, 새로 로드될 때 보이면 바로 입력 화면을
+// 다시 연다. 사용자가 입력 화면을 직접 닫거나 라운드를 종료하면(다이얼로그 close) 표시를 지운다.
+const ACTIVE_ROUND_KEY = 'jdgolf.activeRound';
+function markActiveRound(recordId) {
+  try {
+    if (recordId) localStorage.setItem(ACTIVE_ROUND_KEY, recordId);
+    else localStorage.removeItem(ACTIVE_ROUND_KEY);
+  } catch { /* 저장소 오류 무시 */ }
+}
+function hasActiveRoundMark() {
+  try { return !!localStorage.getItem(ACTIVE_ROUND_KEY); } catch { return false; }
+}
+document.getElementById('holeEntryDialog').addEventListener('close', () => markActiveRound(null));
+
+/** 서비스워커가 알림 탭 직후 남긴 "입력 화면 열기" 요청(IndexedDB, 1분 이내)을 꺼내고 지운다. 페이지가
+ * 백그라운드에서 내려가 있던 경우 focus()가 페이지를 새로 로드해서 postMessage가 유실되는 걸 보완한다. */
+async function takeResumeRequest() {
+  try {
+    const db = await new Promise((resolve, reject) => {
+      const r = indexedDB.open('jdgolf', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+    const at = await new Promise((resolve) => {
+      const store = db.transaction('kv', 'readwrite').objectStore('kv');
+      const q = store.get('resumeRequest');
+      q.onsuccess = () => { store.delete('resumeRequest'); resolve(q.result); };
+      q.onerror = () => resolve(null);
+    });
+    return typeof at === 'number' && Date.now() - at < 60 * 1000;
+  } catch {
+    return false;
+  }
 }
 
 /** 앱으로 돌아왔을 때 알림 버튼으로 기록된 점수가 있을 수 있으니, 입력 화면이 열려 있고 저장 대기 중인
@@ -9218,7 +9969,7 @@ document.addEventListener('visibilitychange', () => {
 });
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (e) => {
-    if (e.data?.type === 'resume-round') resumeRoundFromNotification();
+    if (e.data?.type === 'resume-round') { takeResumeRequest(); resumeRoundFromNotification(); }
   });
 }
 
@@ -9330,7 +10081,13 @@ window.addEventListener('DOMContentLoaded', () => {
   loadScores(); // 홈의 "라운드 결과 요약" 카드용
   // 티타임 + 7시간이 지난 일정을 앱을 켜둔 채로도 자동으로 정리한다
   setInterval(() => { if (bookingCache.length) renderHomeBookingList(bookingCache); }, 5 * 60 * 1000);
-  if (new URLSearchParams(location.search).get('resume') === 'round') { history.replaceState(null, '', '/'); resumeRoundFromNotification(); }
+  // 진행중 라운드 입력 화면으로 바로 복귀: 알림으로 새 창이 열렸거나(?resume=round), 입력 화면을 보던 중 앱이
+  // 메모리에서 내려갔다가 다시 로드됐거나(activeRound 표시), 알림 탭 직후 페이지가 새로 로드된 경우(resumeRequest).
+  const resumeByUrl = new URLSearchParams(location.search).get('resume') === 'round';
+  if (resumeByUrl) history.replaceState(null, '', '/');
+  takeResumeRequest().then((byNotif) => {
+    if (resumeByUrl || byNotif || hasActiveRoundMark()) resumeRoundFromNotification();
+  });
   loadStats(true);
   loadSettings();
   loadBookings();

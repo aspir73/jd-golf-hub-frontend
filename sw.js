@@ -101,12 +101,19 @@ self.addEventListener('message', (e) => {
 });
 
 async function openApp() {
+  // 페이지가 백그라운드에서 메모리에서 내려가 있으면 focus()가 페이지를 새로 로드하면서 아래 postMessage가
+  // 유실된다 - 그래서 먼저 IndexedDB에 "입력 화면 열기" 요청을 남겨두고, 페이지가 로드될 때 이걸 보고 입력 화면을 연다.
+  await kvSet('resumeRequest', Date.now()).catch(() => {});
   const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   if (wins.length) {
-    const w = wins[0];
-    await w.focus();
-    w.postMessage({ type: 'resume-round' });
-    return;
+    const w = wins.find((c) => c.visibilityState === 'visible') || wins[0];
+    try {
+      const focused = await w.focus();
+      (focused || w).postMessage({ type: 'resume-round' });
+      return;
+    } catch {
+      // focus 실패(권한/창 상태) 시 새 창으로 연다
+    }
   }
   await self.clients.openWindow('/?resume=round');
 }
@@ -121,6 +128,8 @@ async function quickScore(action) {
   const delta = { birdie: -1, par: 0, bogey: 1 }[action] ?? 0;
   h.score = h.par + delta;
   h.shots = Math.max(0, h.score - (h.putts || 0) - (h.penalty || 0));
+  h.at = h.at || new Date().toISOString(); // 홀 입력 시각(인사이트 분석용)
+  if (h.pro) h.pro.manual = true; // 알림 버튼으로 넣은 스코어는 프로 모드 자동 계산이 덮어쓰지 않게
   state.payload.totalScore = holes.filter((x) => x.score != null).reduce((s, x) => s + x.score, 0);
   state.payload.status = 'in_progress';
   try {
