@@ -611,6 +611,37 @@
   .he-panel[data-mode="pro"] [data-min-mode] { display: none; }
   .he-panel:not([data-mode="pro"]) [data-only-mode="pro"] { display: none; }
   .he-panel[data-mode="pro"] { max-height: 76%; }
+  .he-body { position: relative; } /* fitHoleEntryPanel이 offsetTop을 he-body 기준으로 재도록 */
+  /* 스코어 입력 중 코스 변경 */
+  .he-tabs { align-items: center; flex-wrap: wrap; }
+  .he-cc-btn { margin-left: auto; border: 1px dashed var(--gold) !important; background: #fbf6e9 !important; color: var(--accent) !important; padding: 6px 12px !important; font-size: 12.5px !important; }
+  .he-cc-btn.on { border-style: solid !important; }
+  .he-cc { margin-top: 8px; border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px; background: #fff; box-shadow: var(--shadow-sm); }
+  .he-cc[hidden] { display: none; }
+  .he-cc-title { font-size: 13px; font-weight: 800; color: var(--green-dark); }
+  .he-cc-title .muted { font-size: 11px; font-weight: 500; margin-left: 4px; }
+  .he-cc-row { margin-top: 8px; display: flex; align-items: flex-start; gap: 8px; }
+  .he-cc-k { flex: 0 0 34px; font-size: 12px; font-weight: 800; color: var(--muted); padding-top: 9px; }
+  .he-cc-row .pro-chips { margin-top: 0; }
+  .he-cc-row .pro-chips button:disabled { opacity: 1; background: var(--green); color: #fff; border-color: var(--green); }
+  .he-cc-row .pro-chips small { display: block; font-size: 9.5px; font-weight: 600; color: var(--accent); }
+  .he-cc-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .he-cc-foot button { border: 1px solid var(--border); background: #fff; border-radius: 10px; padding: 7px 12px; font-size: 12.5px; font-weight: 700; color: var(--text); cursor: pointer; }
+  .he-del { display: block; margin: 10px auto 0; border: none; background: none; color: var(--danger); font-size: 13px; font-weight: 700; padding: 8px 12px; cursor: pointer; }
+  .ar-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 8px; }
+  .rs-pickrow { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; }
+  .rs-pickrow .rs-badge { margin-top: 8px; flex: 0 0 auto; }
+  .rs-pickrow .he-chips small { font-size: 11px; font-weight: 600; opacity: .7; }
+  /* 스코어 입력 화면 날씨 띠(D안) */
+  .he-wx { margin-top: 8px; display: flex; align-items: center; gap: 8px; background: linear-gradient(90deg, #eef6f0, #f7f0dc); border-radius: 12px; padding: 7px 12px; font-size: 12.5px; overflow: hidden; }
+  .he-wx[hidden] { display: none; }
+  .he-wx .seg { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .he-wx .seg small { color: var(--muted); font-weight: 700; font-size: 10.5px; }
+  .he-wx .seg b { font-variant-numeric: tabular-nums; }
+  .he-wx .r { color: #2b6cb0; font-weight: 700; font-size: 11px; }
+  .he-wx .seg.wet { background: #e3eef9; border-radius: 8px; padding: 1px 5px; margin: -1px -5px; }
+  .he-wx .arrow { color: var(--muted); font-size: 11px; }
+  .he-wx .wind { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
   .he-modes button { padding: 6px 10px; }
   .pro-score { margin-top: 8px; font-size: 12.5px; color: var(--muted); text-align: center; line-height: 1.5; }
   .pro-score b { color: var(--green-dark); font-size: 14px; }
@@ -995,6 +1026,152 @@
   .rr-row .v.good { color: #34d6ae; } .rr-row .v.bad { color: #f2a23c; }
   .rr-meter { height: 6px; border-radius: 4px; background: rgba(255,255,255,.1); margin: -2px 0 8px; overflow: hidden; }
   .rr-meter span { display: block; height: 100%; background: #f2a23c; border-radius: 4px; }
+  /* 골프장 보기 화면 */
+  .cv-edit { border: none; background: rgba(255,255,255,.14); width: 38px; height: 38px; border-radius: 12px; font-size: 18px; cursor: pointer; }
+  .cv-body { background: var(--bg); }
+  .cv-intro { background: #fff; border: 1px solid var(--border); border-radius: 18px; padding: 18px 16px; box-shadow: var(--shadow-sm); }
+  .cv-name { margin: 0; font-size: 22px; font-weight: 800; }
+  .cv-sub { color: var(--muted); font-size: 13.5px; margin-top: 4px; }
+  .cv-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .cv-chips span { background: #eef0ea; border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; }
+  .cv-features { margin: 12px 0 0; font-size: 14px; line-height: 1.65; }
+  .cv-features.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .cv-more { margin-top: 10px; display: grid; gap: 6px; font-size: 13px; }
+  .cv-more div { display: grid; grid-template-columns: 70px 1fr; gap: 8px; }
+  .cv-more div span:first-child { color: var(--muted); font-weight: 700; }
+  .cv-more a { color: var(--green); word-break: break-all; }
+  .cv-morebtn { border: none; background: none; padding: 8px 0 0; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; }
+  .cv-legend { margin: 14px 2px 8px; font-size: 12.5px; color: var(--muted); }
+  .cv-legend .p3, .cv-table td.p3 { color: #2b6cb0; } .cv-legend .p5, .cv-table td.p5 { color: #b83a2e; }
+  .cv-card { background: #fff; border: 1px solid var(--border); border-radius: 18px; overflow: hidden; margin-bottom: 12px; box-shadow: var(--shadow-sm); }
+  .cv-card-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 14px 16px 12px; background: #fbfaf6; }
+  .cv-card-h h4 { margin: 0; font-size: 17px; font-weight: 800; }
+  .cv-card-h span { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .cv-note { padding: 0 16px 10px; background: #fbfaf6; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .cv-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .cv-table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+  .cv-table th { background: #1f4d36; color: #fff; font-weight: 700; padding: 10px 6px; min-width: 30px; }
+  .cv-table th:first-child, .cv-table td:first-child { text-align: left; padding-left: 14px; position: sticky; left: 0; z-index: 1; }
+  .cv-table th:first-child { background: #1f4d36; }
+  .cv-table td { padding: 10px 6px; border-top: 1px solid #efece3; background: #fff; }
+  .cv-table tr.par td { background: #f7f0dc; font-weight: 800; }
+  .cv-table tr.hdcp td { font-size: 12px; color: var(--muted); }
+  .cv-table th.tot { background: #163b29; }
+  .cv-table td.tot { background: #f1f3ee; font-weight: 800; padding-right: 12px; }
+  .cv-table tr.par td.tot { background: #efe6c9; }
+  .cv-table td.tee { font-weight: 800; }
+  .cv-table td.tee i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid #b9bdb7; margin-right: 6px; vertical-align: -1px; }
+  .cv-table td.tee small { font-size: 10px; color: var(--muted); margin-left: 3px; }
+  .cv-src { padding: 10px 16px 12px; font-size: 12px; color: var(--muted); border-top: 1px solid #efece3; }
+  /* 홈 내 골프 요약 (B안: 숫자 타일 + 링 게이지) */
+  .hs-h { display: flex; justify-content: space-between; align-items: baseline; }
+  .hs-h h2 { margin: 0; }
+  .hs-sub { font-size: 12px; color: var(--muted); }
+  .hs-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .hs-top > div { text-align: center; padding: 9px 0; border-radius: 12px; background: #f6f4ee; display: flex; flex-direction: column; }
+  .hs-top > div.hl { background: linear-gradient(160deg, var(--green), var(--green-dark)); color: #fff; }
+  .hs-k { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .02em; }
+  .hs-top > div.hl .hs-k { color: var(--gold-soft); }
+  .hs-num { font-size: 22px; font-weight: 800; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .hs-rings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 14px; text-align: center; }
+  .hs-rings:empty { display: none; }
+  .hs-ring { position: relative; width: 84px; height: 84px; margin: 0 auto; }
+  .hs-ring svg { width: 84px; height: 84px; transform: rotate(-90deg); }
+  .hs-ring .c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .hs-rnum { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .hs-ring .c small { font-size: 10px; color: var(--muted); font-weight: 700; }
+  .hs-cap { font-size: 12px; font-weight: 800; margin-top: 4px; }
+  .hs-cap small { display: block; font-weight: 500; font-size: 10.5px; color: var(--muted); }
+  /* 진녹색 배경(dday-card) 위 버전: 타일은 반투명, 강조 타일은 골드 테두리, 글자는 밝게 */
+  .dday-card .hs-sub, .dday-card .hs-k, .dday-card .hs-ring .c small, .dday-card .hs-cap small { color: rgba(238,245,239,.62); }
+  .dday-card .hs-top > div { background: rgba(255,255,255,.08); }
+  .dday-card .hs-top > div.hl { background: rgba(201,164,92,.18); box-shadow: inset 0 0 0 1px rgba(201,164,92,.6); }
+  .dday-card .hs-top > div.hl .hs-k { color: var(--gold-soft); }
+  .dday-card .hs-num, .dday-card .hs-rnum, .dday-card .hs-cap { color: #fff; }
+  /* 스코어 탭 통계 카드 (A안 + 이전/최근 비교) */
+  .st-h { display: flex; justify-content: space-between; align-items: baseline; }
+  .st-h h2 { margin: 0; }
+  .st-muted { color: var(--muted); font-size: 12px; font-weight: 500; }
+  .st-k { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .02em; }
+  .st-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-top: 10px; }
+  .st-big { font-size: 44px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .st-big small { font-size: 14px; color: var(--muted); margin-left: 4px; font-weight: 700; }
+  .st-delta { font-size: 12px; margin-top: 6px; }
+  .st-up { color: #22875a; font-weight: 800; } .st-down { color: var(--danger); font-weight: 800; }
+  .st-chart { display: block; width: 100%; height: auto; margin-top: 10px; font-family: "Plus Jakarta Sans", sans-serif; font-variant-numeric: tabular-nums; }
+  .st-pt { cursor: pointer; }
+  .st-legend { display: flex; align-items: center; gap: 12px; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .st-legend i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+  .st-legend i.dot { width: 8px; height: 8px; border-radius: 50%; background: #c9a45c; }
+  .st-chips { display: flex; gap: 8px; margin-top: 14px; }
+  .st-chip { flex: 1; background: #f1efe7; border-radius: 12px; padding: 8px 10px; }
+  .st-num { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .st-num small { font-size: 12px; margin-left: 1px; }
+  .st-bars { display: grid; gap: 10px; margin-top: 14px; }
+  .st-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12.5px; font-weight: 700; }
+  .st-vals { display: inline-flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .st-vals b { font-size: 14px; }
+  .st-prev { color: var(--muted); font-weight: 600; font-size: 11.5px; }
+  .st-chg { font-size: 11.5px; }
+  .st-track { height: 7px; border-radius: 4px; background: #eeebe2; margin-top: 5px; position: relative; overflow: hidden; }
+  .st-fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: linear-gradient(90deg, var(--green), #2f7d52); }
+  .st-goal { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--gold); }
+  .st-foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+  .st-goal-dot { display: inline-block; width: 2px; height: 10px; background: var(--gold); margin-right: 5px; vertical-align: -1px; }
+  /* 스코어 탭 라운드 기록: 베스트·최근 타일 */
+  .rt-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 4px; }
+  .rt-tile { aspect-ratio: 1 / 1.08; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 6px 4px;
+    border: 1px solid var(--border); border-radius: 14px; background: #fff; box-shadow: var(--shadow-sm); cursor: pointer; color: var(--text); }
+  .rt-tile:active { transform: scale(.97); }
+  .rt-tile.best { background: linear-gradient(160deg, var(--green), var(--green-dark)); border: none; color: #fff; }
+  .rt-k { font-size: 10.5px; font-weight: 800; color: var(--muted); white-space: nowrap; }
+  .rt-tile.best .rt-k { color: var(--gold-soft); }
+  .rt-v { font-size: 24px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .rt-d { font-size: 11px; font-weight: 700; color: var(--accent); }
+  .rt-tile.best .rt-d { color: var(--gold-soft); }
+  .rt-c { font-size: 10.5px; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rt-date { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .rt-tile.best .rt-date { color: rgba(255,255,255,.7); }
+  /* 월 단위 가로 스크롤 찾기 */
+  .rm-head { display: flex; justify-content: space-between; align-items: baseline; margin-top: 16px; }
+  .rm-year { font-size: 15px; font-weight: 800; color: var(--green-dark); }
+  .rm-strip { display: flex; align-items: center; gap: 6px; overflow-x: auto; scroll-snap-type: x proximity; padding: 8px 2px 10px; margin: 0 -2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .rm-strip::-webkit-scrollbar { display: none; }
+  .rm-ysep { flex: 0 0 auto; font-size: 11px; font-weight: 800; color: var(--accent); writing-mode: vertical-rl; letter-spacing: 1px; padding: 4px 0; border-left: 2px solid var(--gold); margin-left: 4px; }
+  .rm-month { flex: 0 0 auto; scroll-snap-align: center; width: 56px; padding: 8px 0; border: 1px solid var(--border); border-radius: 12px; background: #fff; display: flex; flex-direction: column; align-items: center; gap: 1px; cursor: pointer; color: var(--text); }
+  .rm-month b { font-size: 14px; }
+  .rm-month small { font-size: 10.5px; color: var(--muted); font-weight: 700; }
+  .rm-month.none { opacity: .45; }
+  .rm-month.sel { background: var(--green); border-color: var(--green); color: #fff; opacity: 1; box-shadow: 0 2px 8px rgba(14,58,37,.25); }
+  .rm-month.sel small { color: var(--gold-soft); }
+  /* 그 달의 라운드 목록 */
+  .rl-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 4px; border: none; border-top: 1px solid var(--border); background: none; text-align: left; cursor: pointer; color: var(--text); }
+  .rl-item:first-child { border-top: none; }
+  .rl-date { flex: 0 0 38px; display: flex; flex-direction: column; align-items: center; border-radius: 10px; background: #f1efe7; padding: 5px 0; }
+  .rl-date b { font-size: 16px; line-height: 1.1; }
+  .rl-date small { font-size: 10px; color: var(--muted); font-weight: 700; }
+  .rl-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .rl-course { font-size: 14.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rl-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rl-badge { font-size: 10.5px; font-weight: 800; color: var(--accent); background: #fbf6e9; border-radius: 999px; padding: 1px 7px; margin-right: 5px; }
+  .rl-score { display: flex; flex-direction: column; align-items: flex-end; }
+  .rl-score b { font-size: 20px; font-variant-numeric: tabular-nums; }
+  .rl-score small { font-size: 11px; font-weight: 800; color: var(--muted); }
+  .rl-score small.over { color: var(--danger); } .rl-score small.under { color: var(--green); }
+  .rl-arrow { color: var(--muted); font-size: 20px; }
+  /* 라운드 결과: 수정/삭제, 상세 스코어카드 */
+  .rr-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .rr-more.danger { color: #f2a23c; }
+  .sc-title { font-size: 12px; font-weight: 800; color: var(--gold-soft); margin: 10px 0 4px; }
+  .sc-wrap { overflow-x: auto; }
+  .sc-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; text-align: center; }
+  .sc-table th { font-size: 11px; color: rgba(238,245,239,.55); font-weight: 700; padding: 4px 2px; }
+  .sc-table td { padding: 5px 2px; border-top: 1px solid rgba(255,255,255,.07); color: #eef5ef; min-width: 22px; }
+  .sc-table td:first-child, .sc-table th:first-child { text-align: left; color: rgba(238,245,239,.55); font-weight: 700; white-space: nowrap; }
+  .sc-table tr.sc-score td { font-size: 14px; font-weight: 800; }
+  .sc-table tr.sc-dim td { font-size: 11px; color: rgba(238,245,239,.65); }
+  .sc-table td:last-child, .sc-table th:last-child { color: var(--gold-soft); font-weight: 800; }
+  .sc-o { color: #34d6ae; } .sc-x { color: #f2a23c; font-weight: 800; }
   /* 프로 모드 리포트: 클럽별 성적표 */
   .rr-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
   .rr-table th { font-size: 11px; font-weight: 700; color: rgba(238,245,239,.55); text-align: right; padding: 4px 4px 6px; }
@@ -1229,11 +1406,15 @@
 <main>
   <!-- 홈 -->
   <section id="tab-home" class="tab-panel active">
+    <!-- 내 골프 요약(B안): 평균·베스트·라운드 타일 + FIR·GIR·퍼트 링 게이지. 스코어 탭 "나의 골프 지표"와 같은 기준(최근 10라운드). -->
     <div class="card dday-card" id="home-summary-card">
-      <h2>내 골프 요약</h2>
-      <div class="stat-row"><span>최근 10라운드 평균</span><span class="v" id="home-avg10">-</span></div>
-      <div class="stat-row"><span>베스트 스코어</span><span class="v" id="home-best">-</span></div>
-      <div class="stat-row"><span>총 라운드 수</span><span class="v" id="home-rounds">-</span></div>
+      <div class="hs-h"><h2>내 골프 요약</h2><span class="hs-sub" id="home-summary-sub"></span></div>
+      <div class="hs-top">
+        <div class="hl"><span class="hs-k">평균</span><span class="hs-num" id="home-avg10">-</span></div>
+        <div><span class="hs-k">베스트</span><span class="hs-num" id="home-best">-</span></div>
+        <div><span class="hs-k">라운드</span><span class="hs-num" id="home-rounds">-</span></div>
+      </div>
+      <div class="hs-rings" id="home-rings"></div>
     </div>
 
     <div class="card" id="home-reminder-card" style="display:none;">
@@ -1720,41 +1901,31 @@
 
   <!-- 스코어 -->
   <section id="tab-score" class="tab-panel">
-    <div class="card">
-      <h2>통계</h2>
-      <div class="grid-3" style="margin-top:0;">
-        <div><div class="muted">최근10 평균</div><div style="font-size:20px;font-weight:700;" id="stat-avg10">-</div></div>
-        <div><div class="muted">베스트</div><div style="font-size:20px;font-weight:700;" id="stat-best">-</div></div>
-        <div><div class="muted">총 라운드</div><div style="font-size:20px;font-weight:700;" id="stat-rounds">-</div></div>
-      </div>
-      <div class="grid-3" style="margin-top:12px;">
-        <div><div class="muted">평균 FIR</div><div id="stat-fir">-</div></div>
-        <div><div class="muted">평균 GIR</div><div id="stat-gir">-</div></div>
-        <div><div class="muted">평균 퍼트</div><div id="stat-putts">-</div></div>
-      </div>
-    </div>
+    <!-- 통계: 최근 10라운드 평균(큰 숫자) + 추세선 + 베스트/라운드 칩 + FIR·GIR·퍼트 막대(목표 눈금, 이전 10라운드 대비 변화) -->
+    <div class="card" id="score-stats-card"><h2>나의 골프 지표</h2><div class="empty">기록이 없습니다.</div></div>
 
-    <div class="card tappable rr-home" id="score-round-summary-card" style="display:none;" onclick="openRoundResult()"></div>
-
-    <div class="card">
-      <h2>코스별 평균</h2>
-      <div id="course-breakdown" class="empty">기록이 없습니다.</div>
-    </div>
 
     <!-- 홀별 실시간 입력 중인 라운드가 있으면(status:in_progress) 여기 눈에 띄게 떠서 바로 이어할 수 있게. -->
     <div class="card active-round-card" id="active-round-card" style="display:none;">
       <h2>⛳ 진행중인 라운드</h2>
       <div id="active-round-info" class="muted" style="font-size:13px; margin-top:2px;"></div>
-      <button class="btn block" style="margin-top:8px;" onclick="resumeActiveRound()">▶ 이어서 입력하기</button>
+      <div class="ar-actions">
+        <button class="btn" onclick="resumeActiveRound()">▶ 이어서 입력하기</button>
+        <button class="btn secondary" onclick="deleteActiveRound()" title="임시저장된 라운드 삭제">🗑️ 삭제</button>
+      </div>
     </div>
 
+    <!-- 라운드 기록: 베스트 + 최근 3라운드 타일 → 월 단위 가로 스크롤 찾기 → 그 달의 라운드 목록.
+         타일/목록을 누르면 라운드 결과(요약·인사이트·상세 스코어카드) 화면이 열린다. -->
     <div class="card">
       <h2>라운드 기록</h2>
-      <div class="grid-2">
-        <button class="btn block" onclick="openRoundStartDialog()">▶ 라운드 시작</button>
-        <button class="btn secondary block" onclick="openScoreDialog()">총타수만 간단히</button>
+      <div class="rt-tiles" id="score-tiles"></div>
+      <div class="rm-head">
+        <span class="rm-year" id="score-month-year"></span>
+        <span class="muted" style="font-size:12px;">월을 밀어서 찾기</span>
       </div>
-      <div id="score-list" style="margin-top:10px;" class="empty">아직 기록이 없습니다.</div>
+      <div class="rm-strip" id="score-month-strip"></div>
+      <div id="score-list" style="margin-top:8px;" class="empty">아직 기록이 없습니다.</div>
     </div>
   </section>
 
@@ -1971,6 +2142,18 @@
   </div>
 </dialog>
 
+<!-- 골프장 보기: 소개 카드 + 코스별 홀 정보(파·티별 거리·핸디캡). ✏️로 코스정보 편집 화면으로 이동. -->
+<dialog id="courseViewDialog" class="fullscreen-dialog">
+  <div class="he-wrap">
+    <header class="he-top">
+      <button type="button" class="he-back" onclick="document.getElementById('courseViewDialog').close()" title="닫기">‹</button>
+      <div class="he-titles"><h2 id="courseViewTitle">골프장</h2></div>
+      <button type="button" class="cv-edit" onclick="editCourseFromView()" title="코스정보 편집" aria-label="코스정보 편집">✏️</button>
+    </header>
+    <div class="he-body cv-body" id="courseViewBody"></div>
+  </div>
+</dialog>
+
 <dialog id="plusDialog" class="sheet-dialog" onclick="if(event.target===this)this.close()">
   <div class="sheet-inner">
     <div class="sheet-grabber"></div>
@@ -2082,6 +2265,10 @@
 
     <div class="he-body">
       <div class="he-tabs" id="he-half-tabs"></div>
+      <!-- 전반/후반 코스 변경(잘못 고르고 시작했을 때): 입력한 타수는 그대로 두고 파·거리·핸디캡만 새 코스로 바뀐다 -->
+      <div class="he-cc" id="he-course-change" hidden></div>
+      <!-- 라운드 골프장 날씨 띠(D안): 지금 › 2시간 뒤 › 4시간 뒤 + 바람. 오늘 라운드일 때만 표시 -->
+      <div class="he-wx" id="he-weather" hidden></div>
       <div class="scorecard-wrap">
         <table class="scorecard-table" id="scorecard-table"></table>
       </div>
@@ -2107,6 +2294,7 @@
       </div>
       <div class="he-cond" id="he-conditions"></div>
       <button type="button" class="btn block" id="hole-entry-finish-btn" style="margin-top:14px;" onclick="finishRound()">🏁 라운드 종료</button>
+      <button type="button" class="he-del" id="hole-entry-delete-btn" onclick="deleteHoleEntryRound()">🗑️ 이 라운드 삭제</button>
     </div>
 
     <!-- 하단 입력 패널: 스코어 입력 중에도 위의 스코어카드·기록이 한 화면에 같이 보이도록 고정 -->
@@ -2804,34 +2992,292 @@ async function loadScores() {
   }
 }
 
-function renderScoreList(scores) {
+// ===== 스코어 탭 "라운드 기록": 베스트·최근 3라운드 타일 + 월 단위 가로 스크롤 찾기 + 그 달 목록 =====
+let scoreMonthSel = null; // 'YYYY-MM' - 월 스트립에서 선택한 달
+
+/** 라운드의 파 대비(홀별 기록이 있을 때만) */
+function scoreToPar(s) {
+  if (!Array.isArray(s.holes)) return null;
+  const f = s.holes.filter((h) => h.score != null && h.par != null);
+  return f.length ? f.reduce((a, h) => a + h.score - h.par, 0) : null;
+}
+const isFullRound = (s) => s.status === 'done' && (!Array.isArray(s.holes) || s.holes.filter((h) => h.score != null).length >= 18);
+const shortCourseName = (n) => (n || '').replace(/\(.*?\)/g, '').replace(/(컨트리클럽|컨트리\s*클럽|골프클럽|골프\s*클럽|골프리조트|골프장|CC|C\.C\.?|GC|G\.C\.?)$/i, '').trim() || n;
+
+function renderScoreTiles(scores) {
+  const el = document.getElementById('score-tiles');
+  if (!el) return;
+  const done = scores.filter(isFullRound).filter((s) => s.totalScore != null);
+  if (!done.length) { el.innerHTML = ''; return; }
+  const best = done.reduce((a, b) => (b.totalScore < a.totalScore || (b.totalScore === a.totalScore && b.date > a.date) ? b : a));
+  const recent = [...done].sort((a, b) => (a.date === b.date ? (a.updatedAt < b.updatedAt ? 1 : -1) : a.date < b.date ? 1 : -1)).slice(0, 3);
+  const tile = (s, label, cls) => {
+    const tp = scoreToPar(s);
+    return `<button type="button" class="rt-tile ${cls || ''}" onclick="openRoundResult('${s.id}')">
+      <span class="rt-k">${label}</span>
+      <span class="rt-v">${s.totalScore}</span>
+      <span class="rt-d">${tp != null ? relText(tp) : '&nbsp;'}</span>
+      <span class="rt-c">${escapeHtml(shortCourseName(s.courseName))}</span>
+      <span class="rt-date">${s.date.slice(2).replace(/-/g, '.')}</span>
+    </button>`;
+  };
+  el.innerHTML = tile(best, '🏆 베스트', 'best') + recent.map((s, i) => tile(s, i === 0 ? '최근' : `${i + 1}번째 전`)).join('');
+}
+
+/** 월 스트립: 가장 오래된 기록의 달 ~ 이번 달(또는 가장 최근 기록의 달). 1월마다 연도 구분 표시,
+ * 스크롤하면 위의 연도 라벨이 화면 가운데 있는 달의 연도로 자동으로 바뀐다. */
+function renderScoreMonthStrip(scores) {
+  const strip = document.getElementById('score-month-strip');
+  if (!strip) return;
+  if (!scores.length) { strip.innerHTML = ''; document.getElementById('score-month-year').textContent = ''; return; }
+  const counts = {};
+  scores.forEach((s) => { const k = (s.date || '').slice(0, 7); if (k) counts[k] = (counts[k] || 0) + 1; });
+  const keys = Object.keys(counts).sort();
+  const nowKey = todayLocalStr().slice(0, 7);
+  const last = keys[keys.length - 1] > nowKey ? keys[keys.length - 1] : nowKey;
+  let [y, m] = keys[0].split('-').map(Number);
+  const months = [];
+  for (let guard = 0; guard < 600; guard++) {
+    const k = `${y}-${String(m).padStart(2, '0')}`;
+    months.push(k);
+    if (k >= last) break;
+    m += 1; if (m > 12) { m = 1; y += 1; }
+  }
+  if (!scoreMonthSel || !months.includes(scoreMonthSel)) scoreMonthSel = keys[keys.length - 1]; // 가장 최근 기록이 있는 달
+  strip.innerHTML = months.map((k) => {
+    const [yy, mm] = k.split('-');
+    const n = counts[k] || 0;
+    return `${mm === '01' || k === months[0] ? `<span class="rm-ysep" data-year="${yy}">${yy}</span>` : ''}
+      <button type="button" class="rm-month${k === scoreMonthSel ? ' sel' : ''}${n ? '' : ' none'}" data-key="${k}" onclick="selectScoreMonth('${k}')">
+        <b>${Number(mm)}월</b><small>${n ? `${n}회` : '-'}</small>
+      </button>`;
+  }).join('');
+  if (!strip.dataset.bound) {
+    strip.dataset.bound = '1';
+    strip.addEventListener('scroll', updateScoreMonthYear, { passive: true });
+  }
+  // 선택한 달이 보이도록 가운데로 스크롤(처음 그릴 때)
+  requestAnimationFrame(() => {
+    const sel = strip.querySelector('.rm-month.sel');
+    if (sel) strip.scrollLeft = sel.offsetLeft - strip.clientWidth / 2 + sel.offsetWidth / 2;
+    updateScoreMonthYear();
+  });
+}
+
+function updateScoreMonthYear() {
+  const strip = document.getElementById('score-month-strip');
+  const label = document.getElementById('score-month-year');
+  if (!strip || !label) return;
+  const center = strip.scrollLeft + strip.clientWidth / 2;
+  let key = null;
+  for (const b of strip.querySelectorAll('.rm-month')) {
+    key = b.dataset.key;
+    if (b.offsetLeft + b.offsetWidth >= center) break;
+  }
+  if (key) label.textContent = `${key.slice(0, 4)}년`;
+}
+
+function selectScoreMonth(k) {
+  scoreMonthSel = k;
+  document.querySelectorAll('#score-month-strip .rm-month').forEach((b) => b.classList.toggle('sel', b.dataset.key === k));
+  const sel = document.querySelector('#score-month-strip .rm-month.sel');
+  sel?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  renderScoreMonthList(scoreCache);
+}
+
+function renderScoreMonthList(scores) {
   const el = document.getElementById('score-list');
-  if (!scores.length) {
+  const list = scores.filter((s) => (s.date || '').startsWith(scoreMonthSel || '')).sort((a, b) => (a.date < b.date ? 1 : -1));
+  if (!list.length) {
     el.classList.add('empty');
-    el.innerHTML = '아직 기록이 없습니다. 위 버튼으로 추가해보세요.';
+    el.innerHTML = scores.length ? `${Number((scoreMonthSel || '').slice(5))}월에는 라운드 기록이 없어요.` : '아직 기록이 없습니다. ＋ 메뉴의 "스코어 입력"으로 시작해보세요.';
     return;
   }
   el.classList.remove('empty');
-  const sorted = [...scores].sort((a, b) => (a.date < b.date ? 1 : -1));
-  el.innerHTML = sorted.map((s) => {
+  el.innerHTML = list.map((s) => {
     const inProgress = s.status === 'in_progress';
     const filled = Array.isArray(s.holes) ? s.holes.filter((h) => h.score != null).length : null;
-    const totalDisplay = inProgress && filled != null
-      ? `${s.totalScore ?? 0}<span class="muted" style="font-size:10px; font-weight:500; display:block;">${filled}/${s.holes.length}홀</span>`
-      : (s.totalScore ?? '-');
+    const tp = scoreToPar(s);
+    const d = new Date(`${s.date}T00:00:00`);
+    const wd = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
     return `
-    <div class="score-item">
-      <div class="info">
-        <div class="course">${inProgress ? '<span class="muted" style="font-size:11px;">⏳ </span>' : ''}${escapeHtml(s.courseName)}${s.courseSubName ? ' · ' + escapeHtml(s.courseSubName) : ''}</div>
-        <div class="meta">${s.date}</div>
-      </div>
-      <div class="total">${totalDisplay}</div>
-      <div class="score-actions">
-        <button class="icon-btn" onclick="editScoreRecord('${s.id}')" title="수정">✏️</button>
-        <button class="icon-btn" onclick="removeScore('${s.id}')" title="삭제">🗑️</button>
-      </div>
-    </div>`;
+    <button type="button" class="rl-item" onclick="openRoundResult('${s.id}')">
+      <span class="rl-date"><b>${Number(s.date.slice(8))}</b><small>${wd}</small></span>
+      <span class="rl-info">
+        <span class="rl-course">${inProgress ? '<span class="rl-badge">임시저장</span>' : ''}${escapeHtml(s.courseName)}</span>
+        <span class="rl-sub">${escapeHtml(s.courseSubName || '')}${inProgress && filled != null ? `${s.courseSubName ? ' · ' : ''}${filled}/${s.holes.length}홀 입력` : ''}${!Array.isArray(s.holes) ? `${s.courseSubName ? ' · ' : ''}간단 입력` : ''}</span>
+      </span>
+      <span class="rl-score"><b>${s.totalScore ?? '-'}</b>${tp != null ? `<small class="${tp > 0 ? 'over' : tp < 0 ? 'under' : ''}">${relText(tp)}</small>` : ''}</span>
+      <span class="rl-arrow">›</span>
+    </button>`;
   }).join('');
+}
+
+// ===== 스코어 탭 통계 카드: 최근 10라운드 vs 이전 10라운드 =====
+// 목표치(골드 눈금): 보기 플레이어 다음 단계 기준 - FIR 55%, GIR 35%, 퍼트 홀당 1.8
+const STAT_GOALS = { fir: 55, gir: 35, pph: 1.8 };
+
+/** 라운드 하나의 FIR·GIR(%)·홀당 퍼트 - 홀별 기록이면 홀에서, 간단 입력이면 입력한 값에서 */
+function roundKpis(s) {
+  if (Array.isArray(s.holes)) {
+    const played = s.holes.filter((h) => h.score != null);
+    const firK = played.filter((h) => h.par !== 3 && h.fairwayHit != null);
+    const girK = played.filter((h) => h.greenHit != null);
+    const pK = played.filter((h) => h.putts != null);
+    return {
+      fir: firK.length ? (firK.filter((h) => h.fairwayHit).length / firK.length) * 100 : null,
+      gir: girK.length ? (girK.filter((h) => h.greenHit).length / girK.length) * 100 : null,
+      pph: pK.length ? pK.reduce((a, h) => a + h.putts, 0) / pK.length : null,
+    };
+  }
+  return { fir: s.fir ?? null, gir: s.gir ?? null, pph: s.putts != null ? s.putts / 18 : null };
+}
+
+function groupKpis(list) {
+  const mean = (arr) => { const v = arr.filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  const k = list.map(roundKpis);
+  return { score: mean(list.map((s) => s.totalScore)), fir: mean(k.map((x) => x.fir)), gir: mean(k.map((x) => x.gir)), pph: mean(k.map((x) => x.pph)) };
+}
+
+function renderScoreStats(scores) {
+  const el = document.getElementById('score-stats-card');
+  if (!el) return;
+  const full = scores.filter(isFullRound).filter((s) => s.totalScore != null)
+    .sort((a, b) => (a.date === b.date ? (a.updatedAt < b.updatedAt ? 1 : -1) : a.date < b.date ? 1 : -1)); // 최신순
+  if (!full.length) { el.innerHTML = '<h2>나의 골프 지표</h2><div class="empty">18홀을 마친 라운드가 생기면 통계가 표시돼요.</div>'; return; }
+  const recent = full.slice(0, 10);
+  const prev = full.slice(10, 20);
+  const R = groupKpis(recent);
+  const P = prev.length ? groupKpis(prev) : null;
+  const best = Math.min(...full.map((s) => s.totalScore));
+  const doneCount = scores.filter((s) => s.status === 'done').length;
+  const f1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
+
+  // 큰 숫자 아래: 이전 10라운드 대비 평균 변화(낮아지면 좋음)
+  let delta = `<span class="st-muted">${prev.length ? '' : '이전 기록이 쌓이면 변화가 표시돼요'}</span>`;
+  if (P && P.score != null) {
+    const d = R.score - P.score;
+    delta = Math.abs(d) < 0.05 ? '<span class="st-muted">이전 10라운드와 같아요</span>'
+      : `<span class="${d < 0 ? 'st-up' : 'st-down'}">${d < 0 ? '▼' : '▲'} ${f1(Math.abs(d))}타</span> <span class="st-muted">이전 ${prev.length}라운드 대비</span>`;
+  }
+
+  // 추세 차트(C안 스타일): 최근 10라운드(오래된 → 최근), 스코어가 낮을수록 위. 점마다 스코어 숫자,
+  // 베스트는 골드 점+굵은 숫자, 평균은 골드 점선, 왼쪽 눈금, 아래는 날짜(월/일). 점을 누르면 그 라운드 결과.
+  let spark = '';
+  if (recent.length >= 2) {
+    const rounds = [...recent].reverse();
+    const pts = rounds.map((s) => s.totalScore);
+    const W = 320, H = 150, L = 24, Rr = 10, T = 18, B = 20;
+    const minV = Math.min(...pts), maxV = Math.max(...pts);
+    const step = maxV - minV > 12 ? 5 : 2; // 눈금 간격
+    const lo = Math.floor((minV - 1) / step) * step, hi = Math.ceil((maxV + 1) / step) * step;
+    const x = (i) => L + (i * (W - L - Rr)) / (pts.length - 1);
+    const y = (v) => T + ((v - lo) / (hi - lo)) * (H - T - B);
+    const line = pts.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    const bi = pts.lastIndexOf(minV);
+    const grid = [];
+    for (let v = lo; v <= hi; v += step) {
+      grid.push(`<line x1="${L}" x2="${W - Rr}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="#eeebe2" stroke-width="1"/>` +
+        `<text x="${L - 5}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end" font-size="9.5" fill="#6d756e">${v}</text>`);
+    }
+    const avgY = y(R.score).toFixed(1);
+    const dots = pts.map((v, i) => {
+      const isBest = i === bi;
+      const md = rounds[i].date.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/');
+      return `<g class="st-pt" onclick="openRoundResult('${rounds[i].id}')">
+        <circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="12" fill="transparent"/>
+        <circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="${isBest ? 5 : 3.2}" fill="${isBest ? '#c9a45c' : '#fff'}" stroke="${isBest ? '#fff' : '#1d5a39'}" stroke-width="${isBest ? 1.5 : 1.8}"/>
+        <text x="${x(i).toFixed(1)}" y="${(y(v) - 8).toFixed(1)}" text-anchor="middle" font-size="${isBest ? 11 : 10}" font-weight="${isBest ? 800 : 700}" fill="${isBest ? '#a8792a' : '#17201a'}">${v}</text>
+        <text x="${x(i).toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="8.5" fill="#6d756e">${md}</text>
+      </g>`;
+    }).join('');
+    spark = `<svg class="st-chart" viewBox="0 0 ${W} ${H}" aria-label="최근 ${pts.length}라운드 스코어 추세">
+      ${grid.join('')}
+      <line x1="${L}" x2="${W - Rr}" y1="${avgY}" y2="${avgY}" stroke="#c9a45c" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <polygon points="${x(0).toFixed(1)},${H - B} ${line} ${x(pts.length - 1).toFixed(1)},${H - B}" fill="rgba(29,90,57,.08)"/>
+      <polyline points="${line}" fill="none" stroke="#1d5a39" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}
+    </svg>
+    <div class="st-legend"><span><i style="background:#1d5a39"></i>스코어</span><span><i style="background:#c9a45c"></i>평균 ${f1(R.score)}</span><span><i class="dot"></i>베스트</span><span class="st-muted" style="margin-left:auto;">점을 누르면 라운드 결과</span></div>`;
+  }
+
+  // 지표 막대 + 비교: 퍼트는 2.5(0%)~1.5(100%) 스케일, 낮을수록 좋음
+  const bar = (label, key, unit) => {
+    const v = R[key];
+    if (v == null) return '';
+    const isPutt = key === 'pph';
+    const fill = isPutt ? Math.max(0, Math.min(100, ((2.5 - v) / 1.0) * 100)) : Math.max(0, Math.min(100, v));
+    const goal = isPutt ? ((2.5 - STAT_GOALS.pph) / 1.0) * 100 : STAT_GOALS[key];
+    const fmt = (n) => (isPutt ? f1(n) : `${Math.round(n)}${unit}`);
+    let cmp = '';
+    if (P && P[key] != null) {
+      const d = v - P[key];
+      const good = isPutt ? d < 0 : d > 0;
+      const same = isPutt ? Math.abs(d) < 0.05 : Math.abs(d) < 0.5;
+      cmp = `<span class="st-prev">${fmt(P[key])} →</span>` +
+        (same ? '<span class="st-chg st-muted">-</span>' : `<span class="st-chg ${good ? 'st-up' : 'st-down'}">${d > 0 ? '▲' : '▼'} ${isPutt ? f1(Math.abs(d)) : `${Math.round(Math.abs(d))}%p`}</span>`);
+    }
+    return `<div class="st-bar">
+      <div class="st-row"><span class="st-lb">${label}</span><span class="st-vals">${cmp}<b>${fmt(v)}</b></span></div>
+      <div class="st-track"><div class="st-fill" style="width:${fill}%"></div><div class="st-goal" style="left:${goal}%" title="목표 ${isPutt ? STAT_GOALS.pph : STAT_GOALS[key] + unit}"></div></div>
+    </div>`;
+  };
+  const bars = bar('페어웨이 FIR', 'fir', '%') + bar('그린 적중 GIR', 'gir', '%') + bar('퍼트 · 홀당', 'pph', '');
+
+  el.innerHTML = `
+    <div class="st-h"><h2>나의 골프 지표</h2><span class="st-muted">최근 ${recent.length}라운드</span></div>
+    <div class="st-hero">
+      <div>
+        <div class="st-k">평균 스코어</div>
+        <div class="st-big">${f1(R.score)}<small>타</small></div>
+        <div class="st-delta">${delta}</div>
+      </div>
+    </div>
+    ${spark}
+    <div class="st-chips">
+      <div class="st-chip"><div class="st-k">🏆 베스트</div><div class="st-num">${best}</div></div>
+      <div class="st-chip"><div class="st-k">총 라운드</div><div class="st-num">${doneCount}<small>회</small></div></div>
+    </div>
+    ${bars ? `<div class="st-bars">${bars}</div>
+      <div class="st-foot"><span><i class="st-goal-dot"></i>목표 FIR ${STAT_GOALS.fir}% · GIR ${STAT_GOALS.gir}% · 퍼트 ${STAT_GOALS.pph}</span>${P ? `<span>이전 ${prev.length} → 최근 ${recent.length}라운드</span>` : ''}</div>` : ''}`;
+}
+
+/** 홈 "내 골프 요약"(B안): 위 타일 3개 + FIR·GIR·퍼트 링 게이지. 퍼트 링은 2.5(0%)~1.5(100%) 스케일. */
+function renderHomeSummary(scores) {
+  const avgEl = document.getElementById('home-avg10');
+  if (!avgEl) return;
+  const full = scores.filter(isFullRound).filter((s) => s.totalScore != null)
+    .sort((a, b) => (a.date === b.date ? (a.updatedAt < b.updatedAt ? 1 : -1) : a.date < b.date ? 1 : -1));
+  const recent = full.slice(0, 10);
+  const R = recent.length ? groupKpis(recent) : null;
+  avgEl.textContent = R?.score != null ? (Math.round(R.score * 10) / 10).toFixed(1) : '-';
+  document.getElementById('home-best').textContent = full.length ? Math.min(...full.map((s) => s.totalScore)) : '-';
+  document.getElementById('home-rounds').textContent = scores.filter((s) => s.status === 'done').length;
+  document.getElementById('home-summary-sub').textContent = recent.length ? `최근 ${recent.length}라운드` : '';
+  const C = 2 * Math.PI * 34; // 링 둘레(r=34)
+  const ring = (pct, color, center, unit, cap, sub) => {
+    const len = pct == null ? 0 : (Math.max(0, Math.min(100, pct)) / 100) * C;
+    return `<div>
+      <div class="hs-ring"><svg viewBox="0 0 84 84" aria-hidden="true">
+        <circle cx="42" cy="42" r="34" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="9"/>
+        ${pct == null ? '' : `<circle cx="42" cy="42" r="34" fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} ${C.toFixed(1)}"/>`}
+      </svg><div class="c"><span class="hs-rnum">${center}</span>${unit ? `<small>${unit}</small>` : ''}</div></div>
+      <div class="hs-cap">${cap}<small>${sub}</small></div>
+    </div>`;
+  };
+  const pctTxt = (v) => (v == null ? '-' : `${Math.round(v)}%`);
+  document.getElementById('home-rings').innerHTML = !R ? '' :
+    ring(R.fir, '#7fd3a4', pctTxt(R.fir), '', 'FIR', `페어웨이 · 목표 ${STAT_GOALS.fir}%`) +
+    ring(R.gir, '#34d6ae', pctTxt(R.gir), '', 'GIR', `그린 적중 · 목표 ${STAT_GOALS.gir}%`) +
+    ring(R.pph == null ? null : ((2.5 - R.pph) / 1.0) * 100, '#c9a45c', R.pph == null ? '-' : (Math.round(R.pph * 10) / 10).toFixed(1), R.pph == null ? '' : '/ 홀', '퍼트', `목표 ${STAT_GOALS.pph}`);
+}
+
+function renderScoreList(scores) {
+  renderHomeSummary(scores);
+  renderScoreStats(scores);
+  renderScoreTiles(scores);
+  renderScoreMonthStrip(scores);
+  renderScoreMonthList(scores);
 }
 
 function escapeHtml(str) {
@@ -2890,26 +3336,13 @@ async function loadStats(homeOnly = false) {
   try {
     const stats = await api('/api/stats');
     myStatsCache = stats;
-    document.getElementById('home-avg10').textContent = stats.recentAvg10 ?? '-';
-    document.getElementById('home-best').textContent = stats.bestScore ?? '-';
-    document.getElementById('home-rounds').textContent = stats.totalRounds + '회';
-    if (homeOnly) return;
-
-    document.getElementById('stat-avg10').textContent = stats.recentAvg10 ?? '-';
-    document.getElementById('stat-best').textContent = stats.bestScore ?? '-';
-    document.getElementById('stat-rounds').textContent = stats.totalRounds + '회';
-    document.getElementById('stat-fir').textContent = stats.avgFIR != null ? stats.avgFIR + '%' : '-';
-    document.getElementById('stat-gir').textContent = stats.avgGIR != null ? stats.avgGIR + '%' : '-';
-    document.getElementById('stat-putts').textContent = stats.avgPutts ?? '-';
-
-    const cb = document.getElementById('course-breakdown');
-    if (!stats.byCourse.length) {
-      cb.innerHTML = '<div class="empty">기록이 없습니다.</div>';
-    } else {
-      cb.innerHTML = stats.byCourse.map((c) => `
-        <div class="stat-row"><span>${escapeHtml(c.course)} (${c.rounds}회)</span><span class="v">${c.avgScore ?? '-'}</span></div>
-      `).join('');
+    // 홈 "내 골프 요약"은 라운드 기록(scoreCache)으로 계산한다(renderHomeSummary). 기록을 아직 못 불러왔을 때만 서버 통계로 먼저 채운다.
+    if (!scoreCacheLoaded) {
+      document.getElementById('home-avg10').textContent = stats.recentAvg10 ?? '-';
+      document.getElementById('home-best').textContent = stats.bestScore ?? '-';
+      document.getElementById('home-rounds').textContent = stats.totalRounds ?? '-';
     }
+    // 스코어 탭 통계 카드는 라운드 기록(scoreCache)으로 직접 계산한다(renderScoreStats).
   } catch (e) {
     showToast('통계 조회 실패: ' + e.message);
   }
@@ -3877,9 +4310,114 @@ function glOpenName(i) {
   const r = gl.visible[i];
   if (!r) return;
   const info = glInfoFor(r.name);
-  if (info?.source === 'db') { openCourseInfoFromDb(r.name); return; }
-  if (info) { openCourseInfoDialog(info.id); return; }
-  openCourseInfoForName(r.name);
+  if (!info) { openCourseInfoForName(r.name); return; } // 코스정보가 아예 없으면 바로 추가 화면
+  openCourseView(r.name);
+}
+
+// ===== 골프장 보기 화면 =====
+let courseViewState = null; // { name, own, db }
+const CV_TEE_COLOR = { 블랙: '#1d1f1e', 블루: '#2b6cb0', 화이트: '#ffffff', 레드: '#c0392b', 골드: '#c9a45c', 실버: '#a7adb2', 그린: '#2f7d52', 옐로우: '#e6c33a', 핑크: '#e88aa8' };
+
+async function openCourseView(name) {
+  const dlg = document.getElementById('courseViewDialog');
+  document.getElementById('courseViewTitle').textContent = name;
+  document.getElementById('courseViewBody').innerHTML = '<div class="empty" style="padding:40px 0;">불러오는 중...</div>';
+  courseViewState = { name, own: null, db: null };
+  if (!dlg.open) dlg.showModal();
+  try {
+    const { own, db } = await api(`/api/course-info/view?courseName=${encodeURIComponent(name)}`);
+    if (!own && !db) { dlg.close(); openCourseInfoForName(name); return; }
+    courseViewState = { name, own, db };
+    renderCourseView();
+  } catch (e) {
+    document.getElementById('courseViewBody').innerHTML = `<div class="empty">불러오기 실패: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function editCourseFromView() {
+  const st = courseViewState;
+  if (!st) return;
+  document.getElementById('courseViewDialog').close();
+  if (st.own?.id && !String(st.own.id).startsWith('db:')) {
+    // courseInfoCache가 비어 있을 수 있어(골프장 목록에서 바로 들어온 경우) 직접 넣어준다
+    if (!courseInfoCache.some((c) => c.id === st.own.id)) courseInfoCache.push(st.own);
+    openCourseInfoDialog(st.own.id);
+  } else if (st.db) openCourseInfoFromDb(st.name);
+  else openCourseInfoForName(st.name);
+}
+
+function toggleCourseViewMore(btn) {
+  const box = document.getElementById('cv-more');
+  const open = box.hidden;
+  box.hidden = !open;
+  document.getElementById('cv-features').classList.toggle('clamp', !open);
+  btn.textContent = open ? '접기' : '더보기';
+}
+
+function renderCourseView() {
+  const { name, own, db } = courseViewState;
+  const club = db?.club || null;
+  const title = club?.requestName || own?.courseName || name;
+  document.getElementById('courseViewTitle').textContent = title;
+
+  // --- 소개 카드 ---
+  const chips = club ? [club.operationType, club.totalHoles ? `${club.totalHoles}홀` : '', club.totalPar ? `Par ${club.totalPar}` : '', club.totalLengthText].filter(Boolean) : [];
+  const sub = club ? [club.officialName && club.officialName !== title ? club.officialName : '', [club.region, club.city].filter(Boolean).join(' ')].filter(Boolean).join(' · ') : '';
+  const link = club?.homepageUrl && /^https?:\/\//.test(club.homepageUrl) ? club.homepageUrl.split(' ')[0] : '';
+  const more = club ? [
+    ['코스 구성', club.courseLayout], ['캐디·카트', club.caddieCart], ['전화', club.phone], ['주소', club.address],
+    ['홈페이지', link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener">${escapeHtml(link)}</a>` : ''], ['비고', club.remarks], ['운영', club.operator],
+  ].filter(([, v]) => v) : [];
+  let html = `<div class="cv-intro">
+    <h3 class="cv-name">${escapeHtml(title)}</h3>
+    ${sub ? `<div class="cv-sub">${escapeHtml(sub)}</div>` : ''}
+    ${chips.length ? `<div class="cv-chips">${chips.map((c) => `<span>${escapeHtml(c)}</span>`).join('')}</div>` : ''}
+    ${club?.features ? `<p class="cv-features clamp" id="cv-features">${escapeHtml(club.features)}</p>` : ''}
+    ${more.length ? `<div class="cv-more" id="cv-more" hidden>${more.map(([k, v]) => `<div><span>${k}</span><span>${k === '홈페이지' ? v : escapeHtml(v)}</span></div>`).join('')}</div>
+      <button type="button" class="cv-morebtn" onclick="toggleCourseViewMore(this)">더보기</button>` : ''}
+    ${!club ? '<div class="cv-sub">직접 입력한 코스정보예요. 전국 코스DB에는 소개 정보가 없어요.</div>' : ''}
+  </div>`;
+
+  // --- 코스별 홀 정보 ---
+  const dbSubs = db?.subCourses || [];
+  const matchDb = (n) => dbSubs.find((d) => [d.name, d.rawName, ...(d.aliases || [])].some((x) => normalizeSubCourseToken(x) === normalizeSubCourseToken(n)));
+  const subs = own?.subCourses?.length ? own.subCourses.map((sc) => ({ sc, d: matchDb(sc.name) })) : dbSubs.map((d) => ({ sc: d, d }));
+  if (subs.length) html += '<div class="cv-legend"><b class="p3">파3</b> · <b class="p5">파5</b> 색 구분 · 「-」는 미확인 · 표가 넘치면 좌우로 밀어보세요</div>';
+  for (const { sc, d } of subs) {
+    const holes = [...sc.holes].sort((a, b) => a.no - b.no);
+    const parSum = holes.reduce((s, h) => s + (h.par || 0), 0);
+    const dHole = (no) => d?.holes?.find((x) => x.no === no) || null;
+    // 티 행: DB 티 표(순서대로) → 없으면 화이트/기준 티 한 줄
+    let teeRows = (d?.tees || []).map((t) => ({ label: t.name, group: t.group, ladies: t.ladies, len: (h) => dHole(h.no)?.lengths?.[t.seq] ?? null }));
+    if (!teeRows.length) {
+      const anyWhite = holes.some((h) => h.whiteM != null);
+      const base = holes.find((h) => h.baseTee)?.baseTee;
+      if (anyWhite) teeRows = [{ label: '화이트', group: '화이트', len: (h) => h.whiteM ?? null }];
+      else if (base) teeRows = [{ label: base, group: base.replace(/\(.*\)/, ''), len: (h) => h.baseM ?? null }];
+    }
+    const showHdcp = holes.some((h) => (h.handicap ?? dHole(h.no)?.handicap) != null);
+    const cell = (v) => (v == null ? '-' : v);
+    const head = `<tr><th>홀</th>${holes.map((h) => `<th>${h.no}</th>`).join('')}<th class="tot">합계</th></tr>`;
+    const parRow = `<tr class="par"><td>Par</td>${holes.map((h) => `<td class="${h.par === 3 ? 'p3' : h.par >= 5 ? 'p5' : ''}">${h.parKnown === false ? '-' : h.par}</td>`).join('')}<td class="tot">${parSum}</td></tr>`;
+    const rows = teeRows.map((t) => {
+      const vals = holes.map((h) => t.len(h));
+      const known = vals.filter((v) => v != null);
+      const total = known.length === vals.length ? known.reduce((a, b) => a + b, 0).toLocaleString() : (known.length ? `${known.reduce((a, b) => a + b, 0).toLocaleString()}*` : '-');
+      const color = CV_TEE_COLOR[(t.group || '').replace(/\s/g, '')] || '#9aa29c';
+      return `<tr><td class="tee"><i style="background:${color}"></i>${escapeHtml(t.label)}${t.ladies && !/레이디/.test(t.label) ? '<small>L</small>' : ''}</td>${vals.map((v) => `<td>${cell(v)}</td>`).join('')}<td class="tot">${total}</td></tr>`;
+    }).join('');
+    const hdcpRow = showHdcp ? `<tr class="hdcp"><td>HDCP</td>${holes.map((h) => `<td>${cell(h.handicap ?? dHole(h.no)?.handicap)}</td>`).join('')}<td class="tot"></td></tr>` : '';
+    const note = d?.note?.description;
+    const src = club?.mainSources;
+    html += `<section class="cv-card">
+      <div class="cv-card-h"><h4>${escapeHtml(d?.rawName || sc.name)}</h4><span>Par ${parSum} · 단위 m</span></div>
+      ${note ? `<div class="cv-note">${escapeHtml(note)}</div>` : ''}
+      <div class="cv-scroll"><table class="cv-table">${head}${parRow}${rows}${hdcpRow}</table></div>
+      ${src ? `<div class="cv-src">출처: ${escapeHtml(src)}</div>` : ''}
+    </section>`;
+  }
+  if (!subs.length) html += '<div class="empty" style="margin-top:12px;">아직 홀 정보가 없어요. 오른쪽 위 ✏️로 입력할 수 있어요.</div>';
+  document.getElementById('courseViewBody').innerHTML = html;
 }
 
 /** 전국 코스DB에 있는 골프장: 코스·파·거리·핸디캡을 채운 상태로 코스정보 화면을 연다. 그대로 보기만 해도 되고,
@@ -4024,6 +4562,19 @@ function renderRoundStartCourseUI() {
       ${multi ? `<button type="button" class="rs-change" onclick="rsTogglePick('${which}')">변경하기</button>` : ''}
       ${removable ? `<button type="button" class="rs-minus" onclick="rsRemoveBack()" title="후반 제거">−</button>` : ''}
     </div>`;
+  // 코스가 여러 개면 전반/후반 코스를 처음부터 칩으로 펼쳐서 바로 고르게 한다(예전엔 "변경하기"를 눌러야 보였음).
+  if (multi) {
+    const chipRow = (badge, which) => `<div class="rs-pickrow"><span class="rs-badge">${badge}</span><div class="he-chips">` +
+      (which === 'in' ? `<button type="button" class="${!hasBack ? 'sel' : ''}" onclick="rsChooseDirect('in', -1)">없음 (9홀)</button>` : '') +
+      subs.map((sc, idx) => {
+        const sel = which === 'out' ? idx === o : hasBack && idx === i;
+        const disabled = which === 'in' && idx === o;
+        return `<button type="button" class="${sel ? 'sel' : ''}" ${disabled ? 'disabled' : ''} onclick="rsChooseDirect('${which}', ${idx})">${escapeHtml(sc.name)}<small> ${sc.holes.length}홀</small></button>`;
+      }).join('') + '</div></div>';
+    rows.innerHTML = chipRow('전반', 'out') + chipRow('후반', 'in');
+    picker.innerHTML = '';
+    return;
+  }
   rows.innerHTML = row('전반', subs[o], 'out', false)
     + (hasBack ? row('후반', subs[i], 'in', true) : '')
     + (multi && !hasBack ? `<button type="button" class="rs-add" onclick="rsAddBack()">＋ 후반 추가</button>` : '');
@@ -4052,6 +4603,23 @@ function rsChoose(idx) {
     if (o !== i && idx === i) inSel.value = o; // 서로 같아지면 후반을 이전 전반으로 맞바꾼다
   } else {
     inSel.value = idx;
+  }
+  roundStartPickWhich = null;
+  rebuildRoundStartHoles();
+}
+
+/** 전반/후반 코스 칩 선택. 후반 idx -1 = 후반 없음(9홀 라운드). 전반을 지금 후반 코스로 바꾸면 서로 맞바꾼다. */
+function rsChooseDirect(which, idx) {
+  const outSel = document.getElementById('roundstart-out-select');
+  const inSel = document.getElementById('roundstart-in-select');
+  const { o, i } = rsSubIdx();
+  const hasBack = o !== i;
+  if (which === 'out') {
+    outSel.value = idx;
+    if (hasBack && idx === i) inSel.value = o;
+    else if (!hasBack) inSel.value = idx;
+  } else {
+    inSel.value = idx < 0 ? outSel.value : idx;
   }
   roundStartPickWhich = null;
   rebuildRoundStartHoles();
@@ -4241,6 +4809,11 @@ function openHoleEntryForRecord(record, startIndex) {
   holeEntryStatus = record.status || 'in_progress';
   const finishBtn = document.getElementById('hole-entry-finish-btn');
   if (finishBtn) finishBtn.textContent = holeEntryStatus === 'done' ? '닫기' : '🏁 라운드 종료';
+  const delBtn = document.getElementById('hole-entry-delete-btn');
+  if (delBtn) delBtn.style.display = holeEntryStatus === 'in_progress' ? '' : 'none';
+  heCourseChangeOpen = false;
+  const ccBox = document.getElementById('he-course-change');
+  if (ccBox) ccBox.hidden = true;
   holeEntryHoles = record.holes.map((h) => ({
     ...h,
     // 이 기능 추가 전에 저장된 라운드는 penalty/mulligan/fairwayHit/greenHit이 없을 수 있어 기본값을 채워준다.
@@ -4266,6 +4839,7 @@ function openHoleEntryForRecord(record, startIndex) {
   document.getElementById('holeEntrySubTitle').textContent = subTitle;
   holeEntryCompanions = (record.companions || []).map((c) => ({ ...c }));
   renderHoleEntryCompanions();
+  loadHoleEntryWeather(record);
   holeEntryConditions = { ...HE_COND_DEFAULTS, ...(record.conditions || {}) };
   holeEntryCondOpen = false;
   renderHoleEntryConditions();
@@ -4288,6 +4862,217 @@ function openHoleEntryForRecord(record, startIndex) {
   if (!scoreCacheLoaded) loadScores().then(() => renderHoleHistory());
   fillHoleEntryDistances(record);
 }
+
+// ===== 스코어 입력 중 전반/후반 코스 변경 =====
+// 착각해서 다른 코스로 시작했을 때: 입력한 타수·퍼트·샷 기록은 그대로 두고, 그 구간 홀의 파·거리·핸디캡·코스명만 새 코스로 바꾼다.
+let heCourseChangeOpen = false;
+let heCourseInfo = null; // { name, subCourses }
+
+async function toggleHoleCourseChange() {
+  heCourseChangeOpen = !heCourseChangeOpen;
+  const box = document.getElementById('he-course-change');
+  renderScorecardTable();
+  if (!heCourseChangeOpen) { box.hidden = true; fitHoleEntryPanel(); return; }
+  box.hidden = false;
+  if (heCourseInfo?.name !== holeEntryMeta.courseName) {
+    box.innerHTML = '<div class="muted" style="font-size:12px;">코스정보를 불러오는 중...</div>';
+    try {
+      const { courseInfo } = await api(`/api/course-info?courseName=${encodeURIComponent(holeEntryMeta.courseName)}`);
+      heCourseInfo = { name: holeEntryMeta.courseName, subCourses: courseInfo?.subCourses || [] };
+    } catch (e) {
+      box.innerHTML = `<div class="muted" style="font-size:12px;">코스정보 조회 실패: ${escapeHtml(e.message)}</div>`;
+      return;
+    }
+  }
+  renderHoleCourseChange();
+}
+
+function renderHoleCourseChange() {
+  const box = document.getElementById('he-course-change');
+  const subs = heCourseInfo?.subCourses || [];
+  const [front, back] = halfSlices();
+  const nine = subs.map((sc, idx) => ({ sc, idx })).filter(({ sc }) => sc.holes.length === front.length);
+  if (nine.length < 2) {
+    box.innerHTML = `<div class="muted" style="font-size:12px;">이 골프장은 바꿀 수 있는 ${front.length}홀 코스가 ${nine.length ? '하나뿐' : '없어'}요. 코스정보에서 코스를 추가하면 바꿀 수 있어요.</div>
+      <div class="he-cc-foot"><button type="button" onclick="toggleHoleCourseChange()">닫기</button></div>`;
+    fitHoleEntryPanel();
+    return;
+  }
+  const cur = (name) => normalizeSubCourseToken(name || '');
+  const row = (label, which, curName, otherName) => `<div class="he-cc-row"><span class="he-cc-k">${label}</span><div class="pro-chips">` +
+    nine.map(({ sc, idx }) => {
+      const sel = cur(sc.name) === cur(curName);
+      const taken = otherName && cur(sc.name) === cur(otherName);
+      return `<button type="button" class="${sel ? 'sel' : ''}" ${sel ? 'disabled' : ''} onclick="applyHoleEntryCourse('${which}', ${idx})">${escapeHtml(sc.name)}${taken ? '<small>후반과 맞바꿈</small>' : ''}</button>`;
+    }).join('') + '</div></div>';
+  box.innerHTML = `<div class="he-cc-title">코스 변경 <span class="muted">입력한 타수는 그대로, 파·거리만 바뀌어요</span></div>
+    ${row('전반', 'out', holeEntryMeta.outCourseName, back.length ? holeEntryMeta.inCourseName : '')}
+    ${back.length ? row('후반', 'in', holeEntryMeta.inCourseName, holeEntryMeta.outCourseName).replace(/후반과 맞바꿈/g, '전반과 맞바꿈') : ''}
+    <div class="he-cc-foot">
+      ${back.length ? '<button type="button" onclick="swapHoleEntryHalves()">⇄ 전·후반 코스 맞바꾸기</button>' : ''}
+      <button type="button" onclick="toggleHoleCourseChange()">닫기</button>
+    </div>`;
+  fitHoleEntryPanel();
+}
+
+/** 한 구간(전반/후반)의 홀들에 새 서브코스의 파·거리·핸디캡을 입힌다. */
+function setHalfCourse(which, sc) {
+  const base = which === 'out' ? 0 : 9;
+  const list = which === 'out' ? holeEntryHoles.slice(0, 9) : holeEntryHoles.slice(9, 18);
+  const teeKey = (scoreCache.find((s) => s.id === holeEntryRecordId)?.teeBox || '').replace(/\(.*\)/, '').trim() || 'white';
+  list.forEach((h, k) => {
+    const src = sc.holes[k];
+    if (!src) return;
+    h.par = src.par;
+    const d = holeDistanceFor(sc, src, teeKey);
+    h.distM = d?.m ?? null;
+    h.distTee = d?.tee ?? null;
+    h.handicap = src.handicap ?? null;
+    h.subCourseName = sc.name;
+    if (h.pro && proHasData(h.pro)) applyPro(h);
+    else if (h.score != null) { recomputeShots(h); autoGreenHit(h); }
+  });
+  holeEntryMeta[which === 'out' ? 'outCourseName' : 'inCourseName'] = sc.name;
+  void base;
+}
+
+function applyHoleEntryCourse(which, idx) {
+  const subs = heCourseInfo?.subCourses || [];
+  const sc = subs[idx];
+  if (!sc) return;
+  const other = which === 'out' ? 'in' : 'out';
+  const otherName = holeEntryMeta[other === 'out' ? 'outCourseName' : 'inCourseName'];
+  const hasBack = holeEntryHoles.length > 9;
+  // 다른 구간이 쓰던 코스를 고르면 서로 맞바꾼다
+  if (hasBack && normalizeSubCourseToken(sc.name) === normalizeSubCourseToken(otherName)) {
+    const mine = subs.find((x) => normalizeSubCourseToken(x.name) === normalizeSubCourseToken(holeEntryMeta[which === 'out' ? 'outCourseName' : 'inCourseName']));
+    if (mine) setHalfCourse(other, mine);
+  }
+  setHalfCourse(which, sc);
+  afterCourseChange();
+}
+
+function swapHoleEntryHalves() {
+  const subs = heCourseInfo?.subCourses || [];
+  const find = (n) => subs.find((x) => normalizeSubCourseToken(x.name) === normalizeSubCourseToken(n));
+  const o = find(holeEntryMeta.outCourseName), i = find(holeEntryMeta.inCourseName);
+  if (!o || !i) { showToast('코스정보에서 지금 코스를 찾지 못했어요'); return; }
+  setHalfCourse('out', i);
+  setHalfCourse('in', o);
+  afterCourseChange();
+}
+
+function afterCourseChange() {
+  const st = scoreCache.find((s) => s.id === holeEntryRecordId);
+  let sub = `${holeEntryMeta.date}` + (holeEntryMeta.inCourseName ? ` · ${holeEntryMeta.outCourseName} → ${holeEntryMeta.inCourseName}` : (holeEntryMeta.outCourseName ? ` · ${holeEntryMeta.outCourseName}` : ''));
+  if (st?.teeBox) sub += ` · ${TEE_BOX_LABELS[st.teeBox] || st.teeBox}`;
+  document.getElementById('holeEntrySubTitle').textContent = sub;
+  renderScorecardTable();
+  renderCurrentHole();
+  renderHoleCourseChange();
+  scheduleHoleEntryAutosave();
+  showToast(`코스를 바꿨어요: ${holeEntryMeta.outCourseName}${holeEntryMeta.inCourseName ? ' → ' + holeEntryMeta.inCourseName : ''}`);
+}
+
+// ===== 임시저장(진행중) 라운드 삭제 =====
+async function deleteInProgressRound(id) {
+  const r = scoreCache.find((s) => s.id === id);
+  if (!r) return false;
+  const filled = Array.isArray(r.holes) ? r.holes.filter((h) => h.score != null).length : 0;
+  if (!confirm(`${r.courseName} (${r.date}) 라운드를 삭제할까요?\n입력한 ${filled}홀 기록이 모두 지워지고 되돌릴 수 없어요.`)) return false;
+  try {
+    await api(`/api/scores/${id}`, { method: 'DELETE' });
+    showToast('라운드를 삭제했어요');
+    await loadScores();
+    await loadStats();
+    return true;
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+    return false;
+  }
+}
+
+function deleteActiveRound() {
+  const r = scoreCache.find((s) => s.status === 'in_progress');
+  if (r) deleteInProgressRound(r.id);
+}
+
+async function deleteHoleEntryRound() {
+  const id = holeEntryRecordId;
+  if (!id) return;
+  if (holeEntryAutosaveTimer) { clearTimeout(holeEntryAutosaveTimer); holeEntryAutosaveTimer = null; }
+  if (!scoreCache.some((s) => s.id === id)) await loadScores();
+  const prevId = holeEntryRecordId;
+  holeEntryRecordId = null; // 닫힐 때 자동저장이 삭제한 기록을 다시 쓰지 않게
+  const ok = await deleteInProgressRound(id);
+  if (ok) document.getElementById('holeEntryDialog').close();
+  else holeEntryRecordId = prevId;
+}
+
+// ===== 스코어 입력 화면 날씨 띠(D안) =====
+// 라운드 골프장 좌표의 시간별 예보(GET /api/weather/round-now)에서 지금 · 2시간 뒤 · 4시간 뒤를 고른다. 30분 캐시.
+const HE_WX_ICON = { 맑음: '☀️', 구름많음: '⛅', 흐림: '☁️', 비: '🌧️', 소나기: '🌦️', 눈: '🌨️', '비/눈': '🌨️' };
+const heWxCache = new Map(); // courseName → { at, hours }
+let heWxCourse = null;
+
+async function loadHoleEntryWeather(record, force = false) {
+  const el = document.getElementById('he-weather');
+  if (!el) return;
+  heWxCourse = record?.courseName || null;
+  // 오늘 라운드(진행중)일 때만 - 지난 라운드 기록을 열었을 때 지금 날씨는 의미가 없다
+  if (!heWxCourse || record.date !== todayLocalStr() || record.status === 'done') { el.hidden = true; fitHoleEntryPanel(); return; }
+  const hit = heWxCache.get(heWxCourse);
+  if (hit && !force && Date.now() - hit.at < 30 * 60 * 1000) { renderHoleEntryWeather(hit.hours); return; }
+  if (hit) renderHoleEntryWeather(hit.hours); // 새로 받는 동안 이전 값 유지
+  try {
+    const { hours } = await api(`/api/weather/round-now?courseName=${encodeURIComponent(heWxCourse)}`);
+    heWxCache.set(record.courseName, { at: Date.now(), hours: hours || [] });
+    if (heWxCourse === record.courseName) renderHoleEntryWeather(hours || []);
+  } catch { if (!hit) { el.hidden = true; fitHoleEntryPanel(); } }
+}
+
+function renderHoleEntryWeather(hours) {
+  const el = document.getElementById('he-weather');
+  const now = new Date();
+  const p2 = (n) => String(n).padStart(2, '0');
+  const key = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}T${p2(now.getHours())}`;
+  const idx = hours.findIndex((h) => (h.time || '').slice(0, 13) === key);
+  if (idx < 0) { el.hidden = true; fitHoleEntryPanel(); return; }
+  const seg = (label, h) => {
+    if (!h) return '';
+    const wet = (h.pop ?? 0) >= 50;
+    return `<span class="seg${wet ? ' wet' : ''}"><small>${label}</small>${HE_WX_ICON[h.sky] || '🌤️'} <b>${h.temp != null ? Math.round(h.temp) : '-'}°</b>${label !== '지금' || (h.pop ?? 0) > 0 ? `<span class="r">${h.pop ?? 0}%</span>` : ''}</span>`;
+  };
+  const cur = hours[idx];
+  el.innerHTML = `${seg('지금', cur)}<span class="arrow">›</span>${seg('2h', hours[idx + 2])}<span class="arrow">›</span>${seg('4h', hours[idx + 4])}` +
+    (cur.windMs != null ? `<span class="wind">바람 ${Math.round(cur.windMs)}m/s</span>` : '');
+  el.hidden = false;
+  fitHoleEntryPanel();
+}
+
+/** 하단 입력 패널이 위쪽 스코어카드와 전반·후반·총 스코어 타일까지 가리지 않도록 패널 최대 높이를 화면에 맞춘다.
+ * (프로 모드는 입력 항목이 많아 패널이 커지는데, 이때도 총 스코어 타일까지는 보이고 패널 안을 스크롤한다) */
+function fitHoleEntryPanel() {
+  requestAnimationFrame(() => {
+    const dlg = document.getElementById('holeEntryDialog');
+    const panel = document.getElementById('hole-entry-main');
+    if (!dlg?.open || !panel) return;
+    const wrap = dlg.querySelector('.he-wrap');
+    const top = dlg.querySelector('.he-top');
+    const body = dlg.querySelector('.he-body');
+    const summary = document.getElementById('he-summary');
+    if (!wrap || !top || !body || !summary) return;
+    const need = top.offsetHeight + summary.offsetTop + summary.offsetHeight + 10; // he-body 안에서 총 스코어 타일 아래까지
+    const avail = wrap.clientHeight - need;
+    panel.style.maxHeight = `${Math.max(200, avail)}px`;
+  });
+}
+window.addEventListener('resize', fitHoleEntryPanel);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !document.getElementById('holeEntryDialog')?.open) return;
+  const r = scoreCache.find((s) => s.id === holeEntryRecordId);
+  if (r) loadHoleEntryWeather(r); // 30분 지났으면 새로 받음
+});
 
 function goToHole(i) {
   if (i < 0 || i >= holeEntryHoles.length) return;
@@ -4459,7 +5244,8 @@ function renderScorecardTable() {
   const tabs = [[0, '전반', holeEntryMeta.outCourseName]];
   if (hasBack) tabs.push([1, '후반', holeEntryMeta.inCourseName]);
   document.getElementById('he-half-tabs').innerHTML = tabs.map(([i, t, c]) =>
-    `<button type="button" class="${holeEntryHalf === i ? 'active' : ''}" onclick="goToHole(${i * 9})">${t}${c ? ` · ${escapeHtml(c)}` : ''}</button>`).join('');
+    `<button type="button" class="${holeEntryHalf === i ? 'active' : ''}" onclick="goToHole(${i * 9})">${t}${c ? ` · ${escapeHtml(c)}` : ''}</button>`).join('') +
+    `<button type="button" class="he-cc-btn${heCourseChangeOpen ? ' on' : ''}" onclick="toggleHoleCourseChange()" title="전반/후반 코스 변경">⇄ 코스</button>`;
 
   const st = sumStats(list);
   const head = list.map((h, i) => `<th class="${base + i === currentHoleIndex ? 'cur-hole' : ''}">${h.no}</th>`).join('') + `<th class="subtotal">${label}</th>`;
@@ -4716,6 +5502,7 @@ function renderCurrentHole() {
     `<button type="button" class="${h.mulligan ? 'sel' : ''}" onclick="toggleHoleCheck('mulligan', ${!h.mulligan})">멀리건</button>`;
   document.getElementById('hole-entry-penalty').textContent = h.penalty ?? 0;
   if (holeEntryMode === 'pro') renderProPanel(h);
+  fitHoleEntryPanel();
 
   document.getElementById('hole-entry-swipe-hint').querySelector('.hole-swipe-arrow-left').style.opacity = currentHoleIndex === 0 ? '0.25' : '1';
   document.getElementById('hole-entry-swipe-hint').querySelector('.hole-swipe-arrow-right').style.opacity = currentHoleIndex === holeEntryHoles.length - 1 ? '0.25' : '1';
@@ -5684,17 +6471,86 @@ async function loadRoundAnalysis(r) {
   return null;
 }
 
-async function openRoundResult() {
-  const r = latestRoundWithSummary();
+let rrCurrentId = null; // 라운드 결과 화면에 띄운 기록 id
+
+/** 라운드 결과(요약·인사이트·상세 스코어카드) 화면. id를 안 주면 가장 최근 완료 라운드.
+ * 임시저장(진행중) 라운드는 결과 대신 입력 화면으로 이어서 연다. */
+async function openRoundResult(id) {
+  const r = id ? scoreCache.find((s) => s.id === id) : latestRoundWithSummary();
   if (!r) return;
+  if (r.status === 'in_progress' && Array.isArray(r.holes)) { openHoleEntryForRecord(r); return; }
+  rrCurrentId = r.id;
   const body = document.getElementById('roundResultBody');
   const cached = rrReportCache.get(`${r.id}:${r.updatedAt}`);
-  body.innerHTML = roundResultHtml(r, cached || null);
+  body.innerHTML = roundResultPageHtml(r, cached || null);
+  body.scrollTop = 0;
   const dlg = document.getElementById('roundResultDialog');
   if (!dlg.open) dlg.showModal();
-  if (!cached) {
+  if (!cached && Array.isArray(r.holes)) {
     const a = await loadRoundAnalysis(r);
-    if (a && dlg.open) body.innerHTML = roundResultHtml(r, a);
+    if (a && dlg.open && rrCurrentId === r.id) body.innerHTML = roundResultPageHtml(r, a);
+  }
+}
+
+/** 결과 화면 전체: 홀별 기록이면 분석+인사이트+스코어카드, 간단 입력이면 기본 정보만. 맨 아래 수정/삭제. */
+function roundResultPageHtml(r, analysis) {
+  const actions = `<div class="rr-actions">
+      <button type="button" class="rr-more" onclick="editRoundFromResult()">✏️ 기록 수정</button>
+      <button type="button" class="rr-more danger" onclick="deleteRoundFromResult()">🗑️ 삭제</button>
+    </div>`;
+  if (!Array.isArray(r.holes) || !r.holes.some((h) => h.score != null)) {
+    const kv = [['총타수', r.totalScore ?? '-'], ['퍼트', r.putts ?? '-'], ['FIR', r.fir != null ? `${r.fir}%` : '-'], ['GIR', r.gir != null ? `${r.gir}%` : '-']];
+    return `<div class="rr-card"><div class="rr-card-h"><h3>${escapeHtml(r.courseName)}</h3><span class="muted2">${escapeHtml(r.date)}</span></div>
+      <div class="rr-tiles">${kv.map(([k, v]) => `<div class="rr-tile"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('')}</div>
+      <div class="muted2" style="margin-top:10px; font-size:12px;">총타수만 간단히 입력한 기록이라 홀별 분석은 없어요.${r.memo ? `<br>메모: ${escapeHtml(r.memo)}` : ''}</div></div>${actions}`;
+  }
+  return roundResultHtml(r, analysis).replace(/<button type="button" class="rr-cta"[^>]*>[^<]*<\/button>/, '') + rrScorecardHtml(r) + actions;
+}
+
+/** 읽기 전용 상세 스코어카드(전반/후반): 홀·파·거리·타수(버디/보기 표시)·퍼트 + 프로 모드 기록이 있으면 티샷/그린 결과 */
+function rrScorecardHtml(r) {
+  const holes = [...r.holes].sort((a, b) => a.no - b.no);
+  const halves = [holes.slice(0, 9), holes.slice(9, 18)].filter((l) => l.length);
+  const sum = (l, f) => { const v = l.filter((h) => h[f] != null); return v.length ? v.reduce((s, h) => s + h[f], 0) : '-'; };
+  const teeMark = (h) => {
+    if (h.teeShot === 'ob') return '<span class="sc-x">OB</span>';
+    if (h.teeShot === 'hazard') return '<span class="sc-x">H</span>';
+    if (h.par === 3 || h.fairwayHit == null) return '';
+    return h.fairwayHit ? '<span class="sc-o">●</span>' : `<span class="sc-x">${h.missDir === 'left' ? '←' : h.missDir === 'right' ? '→' : '○'}</span>`;
+  };
+  const table = (list, label, course) => `
+    <div class="sc-title">${label}${course ? ` · ${escapeHtml(course)}` : ''}</div>
+    <div class="sc-wrap"><table class="sc-table">
+      <tr><th>홀</th>${list.map((h) => `<th>${h.no}</th>`).join('')}<th>계</th></tr>
+      <tr><td>파</td>${list.map((h) => `<td>${h.par ?? '-'}</td>`).join('')}<td>${sum(list, 'par')}</td></tr>
+      ${list.some((h) => h.distM != null) ? `<tr class="sc-dim"><td>거리</td>${list.map((h) => `<td>${h.distM ?? '-'}</td>`).join('')}<td></td></tr>` : ''}
+      <tr class="sc-score"><td>타수</td>${list.map((h) => `<td>${h.score == null ? '-' : `<span class="score-mark ${scoreMarkClass(h.par, h.score)}">${h.score}</span>`}</td>`).join('')}<td><b>${sum(list, 'score')}</b></td></tr>
+      <tr><td>퍼트</td>${list.map((h) => `<td>${h.putts ?? '-'}</td>`).join('')}<td>${sum(list, 'putts')}</td></tr>
+      ${list.some((h) => h.fairwayHit != null || h.teeShot) ? `<tr class="sc-dim"><td>티샷</td>${list.map((h) => `<td>${teeMark(h)}</td>`).join('')}<td></td></tr>` : ''}
+      ${list.some((h) => h.greenHit != null) ? `<tr class="sc-dim"><td>GIR</td>${list.map((h) => `<td>${h.greenHit ? '<span class="sc-o">●</span>' : h.greenHit === false ? '<span class="sc-x">○</span>' : ''}</td>`).join('')}<td></td></tr>` : ''}
+      ${list.some((h) => (h.penalty || 0) > 0) ? `<tr class="sc-dim"><td>벌타</td>${list.map((h) => `<td>${h.penalty || ''}</td>`).join('')}<td>${list.reduce((s, h) => s + (h.penalty || 0), 0)}</td></tr>` : ''}
+    </table></div>`;
+  return `<div class="rr-card"><div class="rr-card-h"><h3>상세 스코어카드</h3><span class="muted2">● 적중 · ←/→ 미스 방향</span></div>
+    ${table(halves[0], '전반', r.outCourseName)}${halves[1] ? table(halves[1], '후반', r.inCourseName || r.outCourseName) : ''}</div>`;
+}
+
+function editRoundFromResult() {
+  const id = rrCurrentId;
+  document.getElementById('roundResultDialog').close();
+  if (id) editScoreRecord(id);
+}
+
+async function deleteRoundFromResult() {
+  const id = rrCurrentId;
+  if (!id || !confirm('이 라운드 기록을 삭제할까요?')) return;
+  try {
+    await api(`/api/scores/${id}`, { method: 'DELETE' });
+    document.getElementById('roundResultDialog').close();
+    showToast('삭제했습니다');
+    await loadScores();
+    await loadStats();
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
   }
 }
 
